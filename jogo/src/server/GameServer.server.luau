@@ -219,8 +219,17 @@ local function calcularStats(st)
 	s.dano = math.floor(s.dano + 0.5)
 	if s.danoMult then
 		s.dano = math.floor(s.dano * s.danoMult + 0.5)
+		s.danoPctOlho = s.danoMult - 1
 		s.danoMult = nil
 	end
+	-- campos extras para a Ficha de Atributos
+	s.danoPct = danoPct -- bônus total de dano em % (itens, joias, conjuntos, avatar, classe)
+	s.vidaPct = vidaPct
+	s.resist = { fogo = s.resistencia, gelo = s.resistencia, raio = s.resistencia, veneno = s.resistencia }
+	s.regen = (classe and classe.regeneracao) or h.Regeneracao -- % da vida por segundo fora de combate
+	local fAtualStats = Config.Fases[st.fase]
+	s.reducao = Config.ReducaoArmadura(s.armadura, fAtualStats and fAtualStats.nivel or 1) -- dano bloqueado na fase atual
+	s.golpesPorSegundo = 1 / s.intervalo
 	return s
 end
 
