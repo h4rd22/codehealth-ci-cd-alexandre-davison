@@ -298,16 +298,17 @@ Config.Classes = {
 		nome = "Mago",
 		icone = "🔮",
 		cor = Color3.fromRGB(150, 90, 240),
-		estilo = "Magia em área",
-		descricao = "Magias fortes que explodem e acertam vários inimigos juntos. Frágil e mais lento.",
-		dano = 1.15,
+		estilo = "Magias elementais",
+		descricao = "Ataque básico fraco, mas magias de gelo, raio e fogo saem sozinhas e arrasam hordas. Frágil.",
+		dano = 1.15, -- Poder Mágico: as magias usam este dano (ver Habilidades.luau)
+		danoBasico = 0.35, -- o ataque básico causa só 35% do dano (fraco de propósito)
 		vida = 0.8,
 		critico = 0,
 		alcance = 16,
 		intervalo = 0.8,
 		projetil = true,
 		area = 7, -- raio da explosão em volta do alvo
-		danoArea = 0.6, -- os outros inimigos na explosão levam 60% do dano
+		danoArea = 0.5, -- os outros inimigos na explosão levam 50% do dano do básico
 		notas = { vida = 1, dano = 5, alcance = 4, velocidade = 2 },
 	},
 }

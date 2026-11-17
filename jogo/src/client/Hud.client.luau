@@ -754,6 +754,7 @@ end
 local pgMochila = criarAba(1, "mochila", "🎒 Mochila")
 local pgForja = criarAba(2, "forja", "🔨 Forja")
 local pgHab = criarAba(3, "habilidades", "✨ Habilid.")
+pgHab.Name = "PaginaHabilidades" -- a árvore de magias é desenhada por Habilidades.client.luau
 local pgOvos = criarAba(4, "ovos", "🥚 Ovos")
 local pgTreino = criarAba(5, "treino", "🏋️ Treino")
 local pgAvatar = criarAba(6, "avatar", "🎭 Avatar")
@@ -1999,13 +2000,6 @@ local function emBreve(pagina, icone, titulo, texto, qtd)
 		})
 	end
 end
-emBreve(
-	pgHab,
-	"✨",
-	"Habilidades — em breve",
-	"Aqui vão ficar as habilidades do herói. Vamos definir quais serão com o tempo.",
-	4
-)
 emBreve(
 	pgOvos,
 	"🥚",

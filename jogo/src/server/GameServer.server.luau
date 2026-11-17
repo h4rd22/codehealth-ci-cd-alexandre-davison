@@ -49,6 +49,7 @@ local evVida = remote("Vida") -- servidor -> tela: vida do herói
 local Cenario = require(script.Parent:WaitForChild("Cenario"))
 local Modelos = require(script.Parent:WaitForChild("Modelos"))
 local Chefe = require(script.Parent:WaitForChild("Chefe"))
+local Habilidades = require(script.Parent:WaitForChild("Habilidades")) -- magias do Mago (Jorge)
 local ItemArte = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("ItemArte"))
 
 local baseplate = workspace:FindFirstChild("Baseplate")
@@ -198,6 +199,7 @@ local function enviarEstado(player)
 		return a.id > b.id
 	end)
 	local stats = calcularStats(st)
+	Habilidades.garantir(st)
 	player:SetAttribute("Alcance", stats.alcance) -- o auto-farm da tela usa para saber até onde andar
 	player:SetAttribute("Classe", st.classe)
 	evEstado:FireClient(player, {
@@ -221,6 +223,9 @@ local function enviarEstado(player)
 		avatarAtivo = st.avatarAtivo,
 		esconderEquip = st.esconderEquip,
 		classe = st.classe,
+		pontosHabilidade = st.pontosHabilidade,
+		habilidades = st.habilidades,
+		barraHab = st.barraHab,
 	})
 end
 
@@ -779,6 +784,7 @@ local function ganharXP(player, quanto)
 	while st.xp >= Config.XPParaNivel(st.nivel) do
 		st.xp -= Config.XPParaNivel(st.nivel)
 		st.nivel += 1
+		Habilidades.ganharNivel(st) -- +1 ponto de habilidade
 		evAviso:FireClient(player, "nivel", st.nivel)
 	end
 end
@@ -968,7 +974,8 @@ local function piscar(m)
 end
 
 -- Tira vida de um inimigo, mostra o número e confere se morreu
-local function ferirInimigo(player, alvo, dano, critico)
+-- elemento (opcional): "gelo", "raio", "fogo" ou "queima" = número colorido das magias
+local function ferirInimigo(player, alvo, dano, critico, elemento)
 	local vida = math.max(0, (alvo:GetAttribute("Vida") or 0) - dano)
 	alvo:SetAttribute("Vida", vida)
 	local barra = alvo:FindFirstChild("Barra")
@@ -980,7 +987,11 @@ local function ferirInimigo(player, alvo, dano, critico)
 		):Play()
 	end
 	piscar(alvo)
-	evDano:FireClient(player, "dano", alvo.PrimaryPart.Position, dano, critico)
+	if elemento then
+		evDano:FireClient(player, "danoElem", alvo.PrimaryPart.Position, dano, critico, elemento)
+	else
+		evDano:FireClient(player, "dano", alvo.PrimaryPart.Position, dano, critico)
+	end
 	if vida <= 0 then
 		monstroMorreu(player, alvo)
 	end
@@ -1013,9 +1024,10 @@ local function golpe(player, root)
 	if critico then
 		dano *= h.MultCritico
 	end
+	local classe = Config.ClassePorId(st.classe)
+	dano *= classe and classe.danoBasico or 1 -- o ataque básico do Mago é fraco: a força dele são as magias
 	dano = math.max(1, math.floor(dano + 0.5))
 
-	local classe = Config.ClassePorId(st.classe)
 	local posAlvo = alvo.PrimaryPart.Position
 	if classe and classe.projetil then
 		-- flecha ou magia voando até o alvo (o efeito é desenhado na tela do jogador)
@@ -1051,6 +1063,15 @@ local function loopCombate(player)
 		task.wait(classe and classe.intervalo or Config.Heroi.Intervalo)
 	end
 end
+
+Habilidades.iniciar({
+	estado = estado,
+	calcularStats = calcularStats,
+	monstrosDe = monstrosDe,
+	ferirInimigo = ferirInimigo,
+	evDano = evDano,
+	enviarEstado = enviarEstado,
+})
 
 ------------------------------------------------------------------------
 -- Vida do herói e ataques dos inimigos
@@ -1135,8 +1156,9 @@ local function loopPerseguir(player)
 					if d > 0.1 and (d <= mapa.Aggro or m:GetAttribute("Viu")) then
 						m:SetAttribute("Viu", true) -- depois de ver o herói, não para mais de seguir
 						local novaPos = raiz.Position
-						if d > perto then
-							novaPos += dif.Unit * math.min(d - perto, mapa.VelocidadeInimigo * passo)
+						local vel = Habilidades.velocidade(m) -- lento/congelado/atordoado pelas magias
+						if d > perto and vel > 0 then
+							novaPos += dif.Unit * math.min(d - perto, mapa.VelocidadeInimigo * vel * passo)
 							correndo = true
 						end
 						-- empurra um pouco para longe dos outros, para não ficarem todos no mesmo lugar
@@ -1179,7 +1201,11 @@ local function loopInimigos(player)
 				if raiz then
 					local chefe = m:GetAttribute("Chefe") == true
 					local d = ((raiz.Position - raizHeroi.Position) * Vector3.new(1, 0, 1)).Magnitude
-					if d <= (chefe and alcance + 4 or alcance) and agora >= (m:GetAttribute("ProxAtaque") or 0) then
+					if
+						d <= (chefe and alcance + 4 or alcance)
+						and agora >= (m:GetAttribute("ProxAtaque") or 0)
+						and not Habilidades.impedido(m)
+					then
 						m:SetAttribute(
 							"ProxAtaque",
 							agora + Config.Inimigo.AtaqueIntervalo * (0.85 + math.random() * 0.3)
@@ -1797,6 +1823,7 @@ Players.PlayerAdded:Connect(function(player)
 	task.spawn(loopCombate, player)
 	task.spawn(loopInimigos, player)
 	task.spawn(loopPerseguir, player)
+	task.spawn(Habilidades.loop, player) -- magias automáticas
 end)
 
 Players.PlayerRemoving:Connect(function(player)
