@@ -1,5 +1,6 @@
--- GameClient: tela do jogador, auto-farm (herói anda sozinho) e efeitos.
--- Versão de TESTE: fases 1-1, 1-2 e 1-3.
+-- GameClient: auto-farm (o herói anda sozinho) e efeitos:
+-- números de dano, tremida de tela, explosão, drop de itens com brilho
+-- da raridade, avisos de fase/nível e anúncio de lendário.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -9,184 +10,113 @@ local Debris = game:GetService("Debris")
 local Config = require(ReplicatedStorage:WaitForChild("Config"))
 local remotes = ReplicatedStorage:WaitForChild("Remotes")
 local evDano = remotes:WaitForChild("Dano")
-local evFase = remotes:WaitForChild("Fase")
-local evAuto = remotes:WaitForChild("AutoFarm")
+local evAviso = remotes:WaitForChild("Aviso")
+local evLoot = remotes:WaitForChild("Loot")
 
 local player = Players.LocalPlayer
 local pasta = workspace:WaitForChild("Monstros")
-local autoFarm = true
+
+local function raridade(id)
+	for i, r in ipairs(Config.Raridades) do if r.id == id then return r, i end end
+	return Config.Raridades[1], 1
+end
 
 ------------------------------------------------------------------------
--- Tela
+-- Tela de efeitos (avisos e notificações)
 ------------------------------------------------------------------------
 local gui = Instance.new("ScreenGui")
-gui.Name = "Tela"
+gui.Name = "Efeitos"
 gui.ResetOnSpawn = false
 gui.IgnoreGuiInset = true
+gui.DisplayOrder = 3
 gui.Parent = player:WaitForChild("PlayerGui")
 
--- Esconde o placar padrão do Roblox (o ouro já aparece na nossa tela)
-pcall(function()
-	game:GetService("StarterGui"):SetCoreGuiEnabled(Enum.CoreGuiType.PlayerList, false)
-end)
+local faixa = Instance.new("TextLabel")
+faixa.AnchorPoint = Vector2.new(0.5, 0.5)
+faixa.Position = UDim2.fromScale(0.5, 0.36)
+faixa.Size = UDim2.new(0.9, 0, 0, 80)
+faixa.BackgroundTransparency = 1
+faixa.Font = Enum.Font.GothamBlack
+faixa.TextScaled = true
+faixa.TextWrapped = true
+faixa.TextColor3 = Color3.fromRGB(255, 225, 120)
+faixa.TextStrokeColor3 = Color3.fromRGB(70, 35, 130)
+faixa.TextTransparency = 1
+faixa.TextStrokeTransparency = 1
+faixa.Text = ""
+faixa.Parent = gui
+local lim = Instance.new("UITextSizeConstraint")
+lim.MaxTextSize = 48
+lim.Parent = faixa
+local escala = Instance.new("UIScale")
+escala.Parent = faixa
 
-local function canto(obj, r)
-	local c = Instance.new("UICorner")
-	c.CornerRadius = UDim.new(0, r or 10)
-	c.Parent = obj
-end
-
-local function texto(pai, props)
-	local t = Instance.new("TextLabel")
-	t.BackgroundTransparency = 1
-	t.Font = Enum.Font.GothamBold
-	t.TextColor3 = Color3.new(1, 1, 1)
-	for k, v in pairs(props) do t[k] = v end
-	t.Parent = pai
-	return t
-end
-
--- Painel da fase (topo)
-local topo = Instance.new("Frame")
-topo.AnchorPoint = Vector2.new(0.5, 0)
-topo.Position = UDim2.new(0.5, 0, 0, 64)
-topo.Size = UDim2.new(1, -32, 0, 64)
-local limiteTopo = Instance.new("UISizeConstraint")
-limiteTopo.MaxSize = Vector2.new(340, 64)
-limiteTopo.Parent = topo
-topo.BackgroundColor3 = Color3.fromRGB(20, 18, 30)
-topo.BackgroundTransparency = 0.15
-topo.Parent = gui
-canto(topo, 12)
-local borda = Instance.new("UIStroke")
-borda.Color = Color3.fromRGB(150, 120, 255)
-borda.Thickness = 2
-borda.Parent = topo
-
-local lblFase = texto(topo, {Position = UDim2.fromOffset(14, 8), Size = UDim2.new(1, -28, 0, 22),
-	TextSize = 20, TextXAlignment = Enum.TextXAlignment.Left, Text = "Fase 1-1"})
-local lblMonstro = texto(topo, {Position = UDim2.fromOffset(14, 8), Size = UDim2.new(1, -28, 0, 22),
-	TextSize = 14, TextXAlignment = Enum.TextXAlignment.Right, Font = Enum.Font.Gotham,
-	TextColor3 = Color3.fromRGB(200, 195, 230), Text = ""})
-
-local fundoBarra = Instance.new("Frame")
-fundoBarra.Position = UDim2.fromOffset(14, 36)
-fundoBarra.Size = UDim2.new(1, -28, 0, 18)
-fundoBarra.BackgroundColor3 = Color3.fromRGB(45, 40, 65)
-fundoBarra.BorderSizePixel = 0
-fundoBarra.Parent = topo
-canto(fundoBarra, 9)
-local barra = Instance.new("Frame")
-barra.Size = UDim2.new(0, 0, 1, 0)
-barra.BackgroundColor3 = Color3.fromRGB(150, 120, 255)
-barra.BorderSizePixel = 0
-barra.Parent = fundoBarra
-canto(barra, 9)
-local lblKills = texto(fundoBarra, {Size = UDim2.fromScale(1, 1), TextSize = 13, Text = "0 / 10", ZIndex = 2})
-
--- Ouro (logo abaixo do painel da fase)
-local caixaOuro = Instance.new("Frame")
-caixaOuro.AnchorPoint = Vector2.new(0.5, 0)
-caixaOuro.Position = UDim2.new(0.5, 0, 0, 136)
-caixaOuro.Size = UDim2.fromOffset(140, 40)
-caixaOuro.BackgroundColor3 = Color3.fromRGB(20, 18, 30)
-caixaOuro.BackgroundTransparency = 0.15
-caixaOuro.Parent = gui
-canto(caixaOuro, 12)
-local moeda = Instance.new("Frame")
-moeda.Position = UDim2.fromOffset(10, 10)
-moeda.Size = UDim2.fromOffset(20, 20)
-moeda.BackgroundColor3 = Color3.fromRGB(255, 200, 50)
-moeda.Parent = caixaOuro
-canto(moeda, 10)
-local lblOuro = texto(caixaOuro, {Position = UDim2.fromOffset(38, 0), Size = UDim2.new(1, -44, 1, 0),
-	TextSize = 20, TextXAlignment = Enum.TextXAlignment.Left, TextColor3 = Color3.fromRGB(255, 215, 90), Text = "0"})
-
--- Botão de auto-farm (embaixo)
-local botao = Instance.new("TextButton")
-botao.AnchorPoint = Vector2.new(0.5, 1)
-botao.Position = UDim2.new(0.5, 0, 1, -24)
-botao.Size = UDim2.fromOffset(230, 52)
-botao.Font = Enum.Font.GothamBlack
-botao.TextSize = 18
-botao.TextColor3 = Color3.new(1, 1, 1)
-botao.AutoButtonColor = true
-botao.Parent = gui
-canto(botao, 14)
-
-local function atualizarBotao()
-	botao.Text = autoFarm and "AUTO-FARM: LIGADO" or "AUTO-FARM: DESLIGADO"
-	botao.BackgroundColor3 = autoFarm and Color3.fromRGB(60, 185, 95) or Color3.fromRGB(95, 95, 105)
-end
-atualizarBotao()
-
--- Faixa de aviso (centro)
-local faixa = texto(gui, {AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.4),
-	Size = UDim2.new(0.92, 0, 0, 90), TextScaled = true, TextWrapped = true, Font = Enum.Font.GothamBlack,
-	TextColor3 = Color3.fromRGB(255, 225, 120), TextStrokeTransparency = 0, TextTransparency = 1,
-	TextStrokeColor3 = Color3.fromRGB(80, 40, 140), Text = ""})
-local limiteTexto = Instance.new("UITextSizeConstraint")
-limiteTexto.MaxTextSize = 46
-limiteTexto.Parent = faixa
-local escalaFaixa = Instance.new("UIScale")
-escalaFaixa.Parent = faixa
-
-local function mostrarFaixa(msg)
+local function mostrarFaixa(msg, cor, tempo)
 	faixa.Text = msg
-	faixa.TextTransparency = 1
-	faixa.TextStrokeTransparency = 1
-	escalaFaixa.Scale = 0.6
-	TweenService:Create(escalaFaixa, TweenInfo.new(0.35, Enum.EasingStyle.Back), {Scale = 1}):Play()
-	TweenService:Create(faixa, TweenInfo.new(0.35),
-		{TextTransparency = 0, TextStrokeTransparency = 0}):Play()
-	task.delay(2.2, function()
+	faixa.TextColor3 = cor or Color3.fromRGB(255, 225, 120)
+	escala.Scale = 0.6
+	TweenService:Create(escala, TweenInfo.new(0.35, Enum.EasingStyle.Back), {Scale = 1}):Play()
+	TweenService:Create(faixa, TweenInfo.new(0.3), {TextTransparency = 0, TextStrokeTransparency = 0}):Play()
+	task.delay(tempo or 2.2, function()
 		if faixa.Text == msg then
 			TweenService:Create(faixa, TweenInfo.new(0.5), {TextTransparency = 1, TextStrokeTransparency = 1}):Play()
 		end
 	end)
 end
 
-------------------------------------------------------------------------
--- Atualiza a tela com o que o servidor manda
-------------------------------------------------------------------------
-local function atualizarFase()
-	local fase = player:GetAttribute("Fase") or "1-1"
-	local kills = player:GetAttribute("Kills") or 0
-	local meta = player:GetAttribute("Meta") or Config.MonstrosPorFase
-	lblFase.Text = "Fase " .. fase
-	lblMonstro.Text = player:GetAttribute("Monstro") or ""
-	lblKills.Text = kills .. " / " .. meta
-	TweenService:Create(barra, TweenInfo.new(0.2), {Size = UDim2.new(math.clamp(kills / meta, 0, 1), 0, 1, 0)}):Play()
-end
-local function atualizarOuro()
-	lblOuro.Text = tostring(player:GetAttribute("Ouro") or 0)
-end
-for _, a in ipairs({"Fase", "Kills", "Meta", "Monstro"}) do
-	player:GetAttributeChangedSignal(a):Connect(atualizarFase)
-end
-player:GetAttributeChangedSignal("Ouro"):Connect(function()
-	atualizarOuro()
-	moeda.Size = UDim2.fromOffset(26, 26)
-	moeda.Position = UDim2.fromOffset(7, 7)
-	TweenService:Create(moeda, TweenInfo.new(0.2), {Size = UDim2.fromOffset(20, 20), Position = UDim2.fromOffset(10, 10)}):Play()
-end)
-atualizarFase()
-atualizarOuro()
+-- Notificações de itens (lado direito)
+local pilha = Instance.new("Frame")
+pilha.AnchorPoint = Vector2.new(1, 0)
+pilha.Position = UDim2.new(1, -14, 0, 144)
+pilha.Size = UDim2.fromOffset(240, 300)
+pilha.BackgroundTransparency = 1
+pilha.Parent = gui
+local layout = Instance.new("UIListLayout")
+layout.Padding = UDim.new(0, 6)
+layout.HorizontalAlignment = Enum.HorizontalAlignment.Right
+layout.SortOrder = Enum.SortOrder.LayoutOrder
+layout.Parent = pilha
+local ordem = 0
 
-botao.Activated:Connect(function()
-	autoFarm = not autoFarm
-	atualizarBotao()
-	evAuto:FireServer(autoFarm)
-	local char = player.Character
-	local hum = char and char:FindFirstChildOfClass("Humanoid")
-	local root = char and char:FindFirstChild("HumanoidRootPart")
-	if not autoFarm and hum and root then
-		hum:MoveTo(root.Position) -- para de andar
+local function notificar(texto, cor)
+	ordem -= 1
+	local f = Instance.new("TextLabel")
+	f.LayoutOrder = ordem
+	f.Size = UDim2.fromOffset(240, 30)
+	f.BackgroundColor3 = Color3.fromRGB(22, 20, 34)
+	f.BackgroundTransparency = 0.1
+	f.Font = Enum.Font.GothamBold
+	f.TextSize = 13
+	f.TextColor3 = cor
+	f.TextTruncate = Enum.TextTruncate.AtEnd
+	f.Text = "  " .. texto
+	f.TextXAlignment = Enum.TextXAlignment.Left
+	f.Parent = pilha
+	local c = Instance.new("UICorner")
+	c.CornerRadius = UDim.new(0, 8)
+	c.Parent = f
+	local s = Instance.new("UIStroke")
+	s.Color = cor
+	s.Thickness = 1.5
+	s.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	s.Parent = f
+	local fila = {}
+	for _, x in ipairs(pilha:GetChildren()) do if x:IsA("TextLabel") then table.insert(fila, x) end end
+	if #fila > 6 then
+		table.sort(fila, function(a, b) return a.LayoutOrder > b.LayoutOrder end)
+		fila[1]:Destroy()
 	end
-end)
+	task.delay(3.5, function()
+		if f.Parent then
+			TweenService:Create(f, TweenInfo.new(0.4), {BackgroundTransparency = 1, TextTransparency = 1}):Play()
+			TweenService:Create(s, TweenInfo.new(0.4), {Transparency = 1}):Play()
+			Debris:AddItem(f, 0.45)
+		end
+	end)
+end
 
 ------------------------------------------------------------------------
--- Efeitos: números de dano, tremida de tela, explosão ao morrer
+-- Efeitos no mundo
 ------------------------------------------------------------------------
 local function textoFlutuante(pos, msg, cor, tamanho)
 	local ancora = Instance.new("Part")
@@ -197,19 +127,23 @@ local function textoFlutuante(pos, msg, cor, tamanho)
 	ancora.Size = Vector3.new(0.2, 0.2, 0.2)
 	ancora.Position = pos + Vector3.new(math.random(-15, 15) / 10, 3, math.random(-15, 15) / 10)
 	ancora.Parent = workspace
-
 	local bb = Instance.new("BillboardGui")
-	bb.Size = UDim2.fromOffset(200, 60)
+	bb.Size = UDim2.fromOffset(220, 60)
 	bb.AlwaysOnTop = true
 	bb.Adornee = ancora
 	bb.Parent = ancora
-	local t = texto(bb, {Size = UDim2.fromScale(1, 1), Text = msg, TextColor3 = cor, TextSize = tamanho,
-		Font = Enum.Font.GothamBlack, TextStrokeTransparency = 0, TextStrokeColor3 = Color3.fromRGB(30, 20, 40)})
-
-	TweenService:Create(ancora, TweenInfo.new(0.8, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
-		{Position = ancora.Position + Vector3.new(0, 3, 0)}):Play()
-	TweenService:Create(t, TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.In, 0, false, 0.35),
-		{TextTransparency = 1, TextStrokeTransparency = 1}):Play()
+	local t = Instance.new("TextLabel")
+	t.Size = UDim2.fromScale(1, 1)
+	t.BackgroundTransparency = 1
+	t.Text = msg
+	t.TextColor3 = cor
+	t.TextSize = tamanho
+	t.Font = Enum.Font.GothamBlack
+	t.TextStrokeTransparency = 0
+	t.TextStrokeColor3 = Color3.fromRGB(30, 20, 40)
+	t.Parent = bb
+	TweenService:Create(ancora, TweenInfo.new(0.8, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Position = ancora.Position + Vector3.new(0, 3, 0)}):Play()
+	TweenService:Create(t, TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.In, 0, false, 0.35), {TextTransparency = 1, TextStrokeTransparency = 1}):Play()
 	Debris:AddItem(ancora, 0.9)
 end
 
@@ -227,8 +161,8 @@ local function tremer(forca, duracao)
 	end)
 end
 
-local function explosao(pos, cor)
-	for _ = 1, 10 do
+local function explosao(pos, cor, qtd)
+	for _ = 1, qtd or 10 do
 		local p = Instance.new("Part")
 		p.Anchored = true
 		p.CanCollide = false
@@ -245,7 +179,25 @@ local function explosao(pos, cor)
 	end
 end
 
-evDano.OnClientEvent:Connect(function(tipo, pos, valor, extra)
+-- Coluna de luz da cor da raridade no lugar onde o item caiu
+local function feixe(pos, cor, forte)
+	local altura = forte and 40 or 14
+	local p = Instance.new("Part")
+	p.Anchored = true
+	p.CanCollide = false
+	p.CanQuery = false
+	p.Material = Enum.Material.Neon
+	p.Color = cor
+	p.Transparency = 0.25
+	p.Shape = Enum.PartType.Cylinder
+	p.Size = Vector3.new(altura, forte and 2 or 1, forte and 2 or 1)
+	p.CFrame = CFrame.new(pos.X, pos.Y - 1 + altura / 2, pos.Z) * CFrame.Angles(0, 0, math.rad(90))
+	p.Parent = workspace
+	TweenService:Create(p, TweenInfo.new(forte and 2.2 or 1.2), {Transparency = 1, Size = Vector3.new(altura, 0.1, 0.1)}):Play()
+	Debris:AddItem(p, forte and 2.3 or 1.3)
+end
+
+evDano.OnClientEvent:Connect(function(tipo, pos, valor, extra, xp)
 	if tipo == "dano" then
 		if extra then
 			textoFlutuante(pos, "CRÍTICO! " .. valor, Color3.fromRGB(255, 220, 60), 34)
@@ -256,15 +208,49 @@ evDano.OnClientEvent:Connect(function(tipo, pos, valor, extra)
 	elseif tipo == "morte" then
 		explosao(pos, extra)
 		textoFlutuante(pos + Vector3.new(0, 1, 0), "+" .. valor .. " ouro", Color3.fromRGB(255, 205, 70), 22)
+		if xp then textoFlutuante(pos + Vector3.new(0, 2.5, 0), "+" .. xp .. " XP", Color3.fromRGB(80, 220, 170), 18) end
 	end
 end)
 
-evFase.OnClientEvent:Connect(function(tipo, nome)
-	if tipo == "nova" then
-		mostrarFaixa("FASE " .. nome .. "!")
+evLoot.OnClientEvent:Connect(function(tipo, pos, item, ouro)
+	local r, ri = raridade(item.raridade)
+	if tipo == "cheio" then
+		notificar("Mochila cheia: " .. item.nome .. " virou " .. ouro .. " ouro", Color3.fromRGB(255, 205, 70))
+		return
+	end
+	if pos then
+		feixe(pos, r.cor, ri >= 4)
+		textoFlutuante(pos + Vector3.new(0, 4, 0), item.nome, r.cor, ri >= 4 and 26 or 18)
+	end
+	if tipo == "forja" then
+		notificar("🔨 Forjou: " .. item.nome .. " (" .. r.nome .. ")", r.cor)
+		mostrarFaixa("FORJADO: " .. string.upper(r.nome) .. "!", r.cor, 1.6)
+		local char = player.Character
+		local root = char and char:FindFirstChild("HumanoidRootPart")
+		if root then explosao(root.Position, r.cor, 16) end
+	else
+		notificar(item.nome .. " (" .. r.nome .. ")", r.cor)
+	end
+	if ri >= 5 then
+		tremer(1.2, 0.5)
+	elseif ri >= 4 then
+		tremer(0.6, 0.25)
+	end
+end)
+
+evAviso.OnClientEvent:Connect(function(tipo, a, b)
+	if tipo == "fase" then
+		mostrarFaixa("FASE " .. a .. "!")
 		tremer(0.8, 0.3)
+	elseif tipo == "nivel" then
+		mostrarFaixa("NÍVEL " .. a .. "!", Color3.fromRGB(80, 230, 180))
+		local char = player.Character
+		local root = char and char:FindFirstChild("HumanoidRootPart")
+		if root then explosao(root.Position, Color3.fromRGB(80, 230, 180), 18) end
 	elseif tipo == "completo" then
-		mostrarFaixa("TESTE COMPLETO! Você passou da " .. nome)
+		mostrarFaixa("TESTE COMPLETO! Você passou da " .. a)
+	elseif tipo == "lendario" then
+		mostrarFaixa(a .. " achou um item LENDÁRIO: " .. b .. "!", Color3.fromRGB(255, 160, 40), 3.5)
 	end
 end)
 
@@ -272,15 +258,17 @@ end)
 -- Auto-farm: o herói anda sozinho até o monstro mais perto
 ------------------------------------------------------------------------
 local alcance = Config.Heroi.Alcance
+local estavaLigado = true
 
 task.spawn(function()
 	while true do
 		task.wait(0.2)
-		if autoFarm then
-			local char = player.Character
-			local hum = char and char:FindFirstChildOfClass("Humanoid")
-			local root = char and char:FindFirstChild("HumanoidRootPart")
-			if hum and root and hum.Health > 0 then
+		local ligado = player:GetAttribute("AutoFarm") ~= false
+		local char = player.Character
+		local hum = char and char:FindFirstChildOfClass("Humanoid")
+		local root = char and char:FindFirstChild("HumanoidRootPart")
+		if hum and root and hum.Health > 0 then
+			if ligado then
 				local alvo, menor = nil, math.huge
 				for _, m in ipairs(pasta:GetChildren()) do
 					if m:GetAttribute("Dono") == player.UserId and (m:GetAttribute("Vida") or 0) > 0 and m.PrimaryPart then
@@ -298,7 +286,10 @@ task.spawn(function()
 						root.CFrame = CFrame.lookAt(root.Position, plano)
 					end
 				end
+			elseif estavaLigado then
+				hum:MoveTo(root.Position) -- acabou de desligar: para de andar
 			end
 		end
+		estavaLigado = ligado
 	end
 end)
