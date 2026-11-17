@@ -6,6 +6,7 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 local Debris = game:GetService("Debris")
+local RunService = game:GetService("RunService")
 
 local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
 local ItemArte = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("ItemArte"))
@@ -390,6 +391,174 @@ local function corte(pos, critico)
 	end
 end
 
+-- Peça de efeito (neon, sem colisão)
+local function pecaFx(tamanho, cor, forma)
+	local p = Instance.new("Part")
+	p.Anchored = true
+	p.CanCollide = false
+	p.CanQuery = false
+	p.CanTouch = false
+	p.CastShadow = false
+	p.Material = Enum.Material.Neon
+	p.Color = cor
+	p.Size = tamanho
+	if forma then
+		p.Shape = forma
+	end
+	return p
+end
+
+-- Rastro de luz atrás de um projétil
+local function rastro(parte, cor, largura, vida)
+	local a0 = Instance.new("Attachment")
+	a0.Position = Vector3.new(0, largura / 2, 0)
+	a0.Parent = parte
+	local a1 = Instance.new("Attachment")
+	a1.Position = Vector3.new(0, -largura / 2, 0)
+	a1.Parent = parte
+	local t = Instance.new("Trail")
+	t.Attachment0 = a0
+	t.Attachment1 = a1
+	t.Color = ColorSequence.new(cor:Lerp(Color3.new(1, 1, 1), 0.5), cor)
+	t.Transparency = NumberSequence.new(0.1, 1)
+	t.LightEmission = 1
+	t.Lifetime = vida
+	t.FaceCamera = true
+	t.Parent = parte
+end
+
+-- Faíscas pequenas no ponto atingido (caçador e mago não usam o corte de espada)
+local function faiscas(pos, cor, qtd)
+	for _ = 1, qtd do
+		local s = pecaFx(Vector3.new(0.12, 0.12, 0.8), cor)
+		local d = Vector3.new(math.random() - 0.5, math.random() - 0.1, math.random() - 0.5).Unit
+		s.CFrame = CFrame.lookAt(pos, pos + d)
+		s.Parent = workspace
+		TweenService:Create(s, TweenInfo.new(0.22), { CFrame = s.CFrame * CFrame.new(0, 0, -2.5), Transparency = 1 })
+			:Play()
+		Debris:AddItem(s, 0.25)
+	end
+end
+
+-- Explosão de magia em área (raio do mago = 7 studs): anel no chão + esfera + faíscas
+local function explosaoMagia(pos, cor, raio, critico)
+	local chao = pos - Vector3.new(0, 2.2, 0)
+	local anel = pecaFx(Vector3.new(0.2, 1, 1), cor, Enum.PartType.Cylinder)
+	anel.CFrame = CFrame.new(chao) * CFrame.Angles(0, 0, math.rad(90))
+	anel.Transparency = 0.2
+	anel.Parent = workspace
+	TweenService:Create(anel, TweenInfo.new(0.35, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+		Size = Vector3.new(0.1, raio * 2, raio * 2),
+		Transparency = 1,
+	}):Play()
+	Debris:AddItem(anel, 0.4)
+	local bola = pecaFx(Vector3.new(1, 1, 1), cor, Enum.PartType.Ball)
+	bola.Material = Enum.Material.ForceField
+	bola.Position = pos
+	bola.Transparency = 0
+	-- clarão branco no centro
+	local clarao = pecaFx(Vector3.new(1.5, 1.5, 1.5), Color3.new(1, 1, 1), Enum.PartType.Ball)
+	clarao.Position = pos
+	clarao.Parent = workspace
+	TweenService:Create(clarao, TweenInfo.new(0.18), { Size = Vector3.new(4, 4, 4), Transparency = 1 }):Play()
+	Debris:AddItem(clarao, 0.2)
+	-- segundo anel (cor forte) um pouco atrás do primeiro
+	local anel2 = pecaFx(Vector3.new(0.3, 1, 1), cor:Lerp(Color3.new(0, 0, 0), 0.15), Enum.PartType.Cylinder)
+	anel2.CFrame = CFrame.new(chao + Vector3.new(0, 0.05, 0)) * CFrame.Angles(0, 0, math.rad(90))
+	anel2.Parent = workspace
+	TweenService:Create(anel2, TweenInfo.new(0.5, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
+		Size = Vector3.new(0.1, raio * 1.6, raio * 1.6),
+		Transparency = 1,
+	}):Play()
+	Debris:AddItem(anel2, 0.55)
+	bola.Parent = workspace
+	local tam = critico and raio * 1.4 or raio
+	TweenService:Create(bola, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+		Size = Vector3.new(tam, tam, tam),
+		Transparency = 1,
+	}):Play()
+	Debris:AddItem(bola, 0.35)
+	local luz = Instance.new("PointLight")
+	luz.Color = cor
+	luz.Range = raio * 2
+	luz.Brightness = 4
+	luz.Parent = bola
+	explosao(pos, cor, critico and 16 or 9)
+end
+
+local COR_MAGIA = Color3.fromRGB(170, 100, 255)
+local COR_FLECHA = Color3.fromRGB(140, 255, 150)
+local DOURADO = Color3.fromRGB(255, 215, 80)
+
+-- Flecha (caçador) ou bola de magia (mago) voando do herói até o alvo
+local function projetil(origem, destino, classeId, critico)
+	if typeof(origem) ~= "Vector3" or typeof(destino) ~= "Vector3" then
+		return
+	end
+	local inicio = origem + Vector3.new(0, 0.6, 0)
+	local dist = (destino - inicio).Magnitude
+	if dist < 0.5 then
+		return
+	end
+	if classeId == "mago" then
+		local cor = critico and DOURADO or COR_MAGIA
+		local bola = pecaFx(Vector3.new(1.1, 1.1, 1.1), cor, Enum.PartType.Ball)
+		bola.Position = inicio
+		bola.Parent = workspace
+		local nucleo = pecaFx(Vector3.new(0.6, 0.6, 0.6), Color3.new(1, 1, 1), Enum.PartType.Ball)
+		nucleo.Position = inicio
+		nucleo.Parent = bola
+		local luz = Instance.new("PointLight")
+		luz.Color = cor
+		luz.Range = 10
+		luz.Brightness = 3
+		luz.Parent = bola
+		rastro(bola, cor, 0.9, 0.25)
+		local tempo = math.clamp(dist / 70, 0.12, 0.3)
+		local t0 = os.clock()
+		local con
+		con = RunService.Heartbeat:Connect(function()
+			local a = math.min((os.clock() - t0) / tempo, 1)
+			-- sobe um pouco no meio do caminho (arco de magia)
+			local p = inicio:Lerp(destino, a) + Vector3.new(0, math.sin(a * math.pi) * dist * 0.12, 0)
+			bola.Position = p
+			nucleo.Position = p
+			if a >= 1 then
+				con:Disconnect()
+				bola:Destroy()
+				explosaoMagia(destino, cor, 7, critico)
+			end
+		end)
+		Debris:AddItem(bola, 1)
+	else
+		local cor = critico and DOURADO or COR_FLECHA
+		local flecha = Instance.new("Model")
+		local haste = pecaFx(Vector3.new(0.12, 0.12, 2.2), Color3.fromRGB(150, 110, 70))
+		haste.Material = Enum.Material.Wood
+		haste.Parent = flecha
+		local ponta = pecaFx(Vector3.new(0.3, 0.3, 0.5), cor)
+		ponta.Parent = flecha
+		rastro(haste, cor, 0.35, 0.18)
+		flecha.Parent = workspace
+		local tempo = math.clamp(dist / 110, 0.06, 0.2)
+		local t0 = os.clock()
+		local con
+		con = RunService.Heartbeat:Connect(function()
+			local a = math.min((os.clock() - t0) / tempo, 1)
+			local p = inicio:Lerp(destino, a)
+			local cf = CFrame.lookAt(p, destino + (destino - inicio).Unit)
+			haste.CFrame = cf
+			ponta.CFrame = cf * CFrame.new(0, 0, -1.2)
+			if a >= 1 then
+				con:Disconnect()
+				flecha:Destroy()
+				faiscas(destino, cor, critico and 8 or 4)
+			end
+		end)
+		Debris:AddItem(flecha, 1)
+	end
+end
+
 -- Tela vermelha quando o herói apanha
 local flash = Instance.new("Frame")
 flash.Size = UDim2.fromScale(1, 1)
@@ -414,8 +583,17 @@ evDano.OnClientEvent:Connect(function(tipo, pos, valor, extra, xp, chefe)
 		end
 		return
 	end
+	if tipo == "projetil" then
+		projetil(pos, valor, extra, xp)
+		return
+	end
 	if tipo == "dano" then
-		corte(pos, extra)
+		local minhaClasse = player:GetAttribute("Classe")
+		if minhaClasse == "cacador" or minhaClasse == "mago" then
+			faiscas(pos, extra and DOURADO or Color3.new(1, 1, 1), extra and 5 or 2)
+		else
+			corte(pos, extra)
+		end
 		if extra then
 			textoFlutuante(pos, "CRÍTICO! " .. valor, Color3.fromRGB(255, 220, 60), 34)
 			tremer(0.6, 0.15)
@@ -426,7 +604,7 @@ evDano.OnClientEvent:Connect(function(tipo, pos, valor, extra, xp, chefe)
 		explosao(pos, extra, chefe and 40 or 10)
 		if chefe then
 			tremer(1.6, 0.8)
-			mostrarFaixa("LORDE DOR DERROTADO!", Color3.fromRGB(220, 170, 255), 3)
+			mostrarFaixa("PEN DERROTADO!", Color3.fromRGB(220, 170, 255), 3)
 		end
 		textoFlutuante(pos + Vector3.new(0, 1, 0), "+" .. valor .. " ouro", Color3.fromRGB(255, 205, 70), 22)
 		if xp then
