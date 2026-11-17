@@ -1225,4 +1225,51 @@ evEstado.OnClientEvent:Connect(function(novoEstado)
 	desenhar()
 end)
 
+------------------------------------------------------------------------
+-- Barra de vida do chefe (topo da tela)
+------------------------------------------------------------------------
+local barraChefe = caixa(gui, {
+	Name = "BarraChefe",
+	AnchorPoint = Vector2.new(0.5, 0),
+	Position = UDim2.new(0.5, 0, 0, 148),
+	Size = UDim2.new(0.6, 0, 0, 46),
+	Visible = false,
+})
+novo("UISizeConstraint", barraChefe, { MaxSize = Vector2.new(460, 46) })
+canto(barraChefe, 12)
+contorno(barraChefe, Color3.fromRGB(190, 90, 255), 2.5)
+local lblChefe = rotulo(barraChefe, {
+	Position = UDim2.fromOffset(12, 3),
+	Size = UDim2.new(1, -24, 0, 18),
+	Text = "",
+	TextSize = 15,
+	Font = Enum.Font.GothamBlack,
+	TextColor3 = Color3.fromRGB(225, 185, 255),
+})
+local _, chefeCheio, chefeTxt = barra(barraChefe, {
+	Position = UDim2.fromOffset(12, 23),
+	Size = UDim2.new(1, -24, 0, 16),
+}, Color3.fromRGB(190, 90, 255))
+
+local pastaMonstros = workspace:WaitForChild("Monstros")
+task.spawn(function()
+	while true do
+		task.wait(0.1)
+		local chefe
+		for _, m in ipairs(pastaMonstros:GetChildren()) do
+			if m:GetAttribute("Chefe") and m:GetAttribute("Dono") == player.UserId then
+				chefe = m
+			end
+		end
+		barraChefe.Visible = chefe ~= nil
+		if chefe then
+			local vida = chefe:GetAttribute("Vida") or 0
+			local maximo = chefe:GetAttribute("VidaMax") or 1
+			lblChefe.Text = "☠ " .. chefe.Name
+			chefeTxt.Text = vida .. " / " .. maximo
+			chefeCheio.Size = UDim2.fromScale(math.clamp(vida / maximo, 0, 1), 1)
+		end
+	end
+end)
+
 evPedirEstado:FireServer()

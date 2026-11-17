@@ -1,10 +1,11 @@
 -- GameServer: arena, monstros, combate automático, XP, ouro, loot,
 -- inventário, equipamentos, forja e portal de fases.
--- Versão de TESTE: mundo 1, fases 1-1 a 1-3. (Ainda não salva o progresso.)
+-- Mundo 1 (fases 1-1 a 1-10, chefe na 1-10). Ainda não salva o progresso.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
+local RunService = game:GetService("RunService")
 
 local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
 
@@ -30,19 +31,16 @@ local evEquipar = remote("Equipar")
 local evDesequipar = remote("Desequipar")
 local evVender = remote("Vender")
 local evForjar = remote("Forjar")
+local evForjarAuto = remote("ForjarAuto")
 local evIrFase = remote("IrFase")
 
 ------------------------------------------------------------------------
--- Arena pequena
+-- Arena pequena com cenário por tema (ver Cenario.luau)
 ------------------------------------------------------------------------
-local baseplate = workspace:FindFirstChild("Baseplate")
-if baseplate then
-	baseplate.Size = Vector3.new(140, baseplate.Size.Y, 140)
-	baseplate.Color = Color3.fromRGB(28, 26, 38)
-	baseplate.Material = Enum.Material.Slate
-end
-local alturaChao = baseplate and (baseplate.Position.Y + baseplate.Size.Y / 2) or 0
+local Cenario = require(script.Parent:WaitForChild("Cenario"))
+local Modelos = require(script.Parent:WaitForChild("Modelos"))
 
+local baseplate = workspace:FindFirstChild("Baseplate")
 local spawn = workspace:FindFirstChildOfClass("SpawnLocation")
 if spawn then
 	spawn.Transparency = 1
@@ -53,49 +51,7 @@ if spawn then
 		end
 	end
 end
-
-local arena = workspace:FindFirstChild("Arena")
-if arena then
-	arena:Destroy()
-end
-arena = Instance.new("Model")
-arena.Name = "Arena"
-arena.Parent = workspace
-
-local chao = Instance.new("Part")
-chao.Name = "Chao"
-chao.Shape = Enum.PartType.Cylinder
-chao.Anchored = true
-chao.Size = Vector3.new(1, Config.RaioArena * 2, Config.RaioArena * 2)
-chao.CFrame = CFrame.new(0, alturaChao + 0.5, 0) * CFrame.Angles(0, 0, math.rad(90))
-chao.Material = Enum.Material.Grass
-chao.TopSurface = Enum.SurfaceType.Smooth
-chao.Parent = arena
-
-local borda = {}
-local nPedras = 26
-for i = 1, nPedras do
-	local a = (i / nPedras) * math.pi * 2
-	local r = Config.RaioArena + 1
-	local h = 1.2 + (i % 3) * 0.7
-	local pedra = Instance.new("Part")
-	pedra.Anchored = true
-	pedra.Size = Vector3.new(2.2 + (i % 2), h, 2.4)
-	pedra.CFrame = CFrame.new(math.cos(a) * r, alturaChao + 0.6 + h / 2, math.sin(a) * r)
-		* CFrame.Angles(math.rad((i * 37) % 20 - 10), a + (i % 2) * 0.6, math.rad((i * 53) % 24 - 12))
-	pedra.Material = Enum.Material.Rock
-	pedra.Parent = arena
-	table.insert(borda, pedra)
-end
-
-local function pintarArena(f)
-	TweenService:Create(chao, TweenInfo.new(1), { Color = f.chao }):Play()
-	for _, p in ipairs(borda) do
-		TweenService:Create(p, TweenInfo.new(1), { Color = f.chao:Lerp(Color3.new(0, 0, 0), 0.45) }):Play()
-	end
-end
-
-local topoArena = alturaChao + 1
+local topoArena = Cenario.iniciar(baseplate)
 
 local pasta = workspace:FindFirstChild("Monstros") or Instance.new("Folder")
 pasta.Name = "Monstros"
@@ -105,6 +61,11 @@ pasta.Parent = workspace
 -- Estado dos jogadores
 ------------------------------------------------------------------------
 local estado = {} -- estado[player] = {...}
+
+-- Quantos inimigos derrotar para passar de fase (o chefe é 1 só)
+local function metaDaFase(faseIdx)
+	return Config.Fases[faseIdx].chefe and 1 or Config.MonstrosPorFase
+end
 
 local function raridadePorId(id)
 	for i, r in ipairs(Config.Raridades) do
@@ -141,8 +102,14 @@ local function calcularStats(st)
 				s.ouro += item.valor
 			elseif slot.atributo == "velocidade" then
 				s.velocidade += item.valor
+			elseif slot.atributo == "danoMult" then
+				s.danoMult = (s.danoMult or 1) + item.valor
 			end
 		end
+	end
+	if s.danoMult then
+		s.dano = math.floor(s.dano * s.danoMult + 0.5)
+		s.danoMult = nil
 	end
 	return s
 end
@@ -167,7 +134,7 @@ local function enviarEstado(player)
 		faseIdx = st.fase,
 		faseMax = st.faseMax,
 		kills = st.kills,
-		meta = Config.MonstrosPorFase,
+		meta = metaDaFase(st.fase),
 		inventario = lista,
 		equipado = st.equipado,
 		stats = calcularStats(st),
@@ -327,6 +294,48 @@ local function vestir(player)
 		end
 	end
 
+	-- Olho do Além-Ciclo: olhos roxos brilhando e uma aura na cabeça
+	local olhoId = st.equipado.olho
+	if olhoId and st.itens[olhoId] then
+		local cabeca = char:FindFirstChild("Head")
+		if cabeca then
+			local roxo = Color3.fromRGB(190, 90, 255)
+			for _, lado in ipairs({ -1, 1 }) do
+				-- disco virado para a frente (o eixo do cilindro aponta para fora do rosto)
+				local olho = grudar(
+					pastaEq,
+					cabeca,
+					Vector3.new(0.05, 0.24, 0.24),
+					CFrame.new(0.2 * lado, 0.12, -cabeca.Size.Z / 2 - 0.02) * CFrame.Angles(0, math.pi / 2, 0),
+					roxo,
+					Enum.Material.Neon,
+					false
+				)
+				olho.Shape = Enum.PartType.Cylinder
+			end
+			local aura = Instance.new("ParticleEmitter")
+			aura.Name = "AuraOlho"
+			aura.Color = ColorSequence.new(roxo)
+			aura.LightEmission = 1
+			aura.Size = NumberSequence.new(0.35, 0)
+			aura.Lifetime = NumberRange.new(0.5, 0.9)
+			aura.Rate = 14
+			aura.Speed = NumberRange.new(0.5, 1.5)
+			aura.SpreadAngle = Vector2.new(180, 180)
+			aura.Parent = cabeca
+			local antigo = cabeca:FindFirstChild("AuraOlho")
+			if antigo and antigo ~= aura then
+				antigo:Destroy()
+			end
+		end
+	else
+		local cabeca = char:FindFirstChild("Head")
+		local antigo = cabeca and cabeca:FindFirstChild("AuraOlho")
+		if antigo then
+			antigo:Destroy()
+		end
+	end
+
 	local hum = char:FindFirstChildOfClass("Humanoid")
 	if hum then
 		hum.WalkSpeed = calcularStats(st).velocidade
@@ -351,10 +360,29 @@ local function sortearRaridade()
 	return 1
 end
 
-local function criarItem(st, raridadeIdx, faseIdx, slotId)
+-- Slots que podem cair aleatoriamente (o olho é especial e não entra)
+local slotsComuns = {}
+for _, s in ipairs(Config.Slots) do
+	if not s.especial then
+		table.insert(slotsComuns, s)
+	end
+end
+
+-- Nível do item que cai: mistura nível do inimigo e do herói, com variação
+local function nivelDoDrop(nivelInimigo, nivelHeroi)
+	local c = Config.ItemNivel
+	local base = nivelInimigo * c.PesoInimigo + nivelHeroi * c.PesoHeroi
+	return math.max(1, math.floor(base + 0.5) + math.random(-c.Variacao, c.Variacao))
+end
+
+local function criarItem(st, raridadeIdx, nivel, slotId)
 	local rar = Config.Raridades[raridadeIdx]
-	local slot = slotId and slotPorId(slotId) or Config.Slots[math.random(#Config.Slots)]
-	local bruto = slot.valor * rar.mult * (1 + 0.35 * (faseIdx - 1)) * (0.85 + math.random() * 0.3)
+	local slot = slotId and slotPorId(slotId) or slotsComuns[math.random(#slotsComuns)]
+	local cresc = 1 + Config.ItemNivel.CrescimentoPorNivel * (nivel - 1)
+	local bruto = slot.valor * rar.mult * cresc * (0.85 + math.random() * 0.3)
+	if slot.especial then
+		bruto = slot.valor -- o olho tem valor fixo
+	end
 	local valor
 	if slot.atributo == "dano" or slot.atributo == "velocidade" then
 		valor = math.max(1, math.floor(bruto + 0.5))
@@ -366,9 +394,9 @@ local function criarItem(st, raridadeIdx, faseIdx, slotId)
 		id = st.proximoId,
 		slot = slot.id,
 		raridade = rar.id,
-		nome = slot.base .. " " .. rar.material,
+		nome = slot.especial and Config.OlhoChefe.nome or (slot.base .. " " .. rar.material),
 		valor = valor,
-		fase = faseIdx,
+		nivel = nivel,
 	}
 	return item
 end
@@ -399,99 +427,37 @@ local function guardarItem(player, item, pos, origem)
 end
 
 ------------------------------------------------------------------------
--- Monstros
+-- Monstros (o visual vem de Modelos.luau)
 ------------------------------------------------------------------------
-local function parte(modelo, props)
-	local p = Instance.new("Part")
-	p.Anchored = true
-	p.CanCollide = false
-	p.TopSurface = Enum.SurfaceType.Smooth
-	p.BottomSurface = Enum.SurfaceType.Smooth
-	for k, v in pairs(props) do
-		p[k] = v
-	end
-	p.Parent = modelo
-	return p
-end
-
 local function criarMonstro(player, indiceFase)
 	local f = Config.Fases[indiceFase]
-	local s = f.tamanho
-	local ang = math.random() * math.pi * 2
-	local raio = 7 + math.random() * (Config.RaioMonstros - 7)
-	local base = Vector3.new(math.cos(ang) * raio, topoArena, math.sin(ang) * raio)
-
-	local m = Instance.new("Model")
-	m.Name = f.monstro
-
-	local corpo
-	if f.forma == "bola" then
-		corpo = parte(m, {
-			Name = "Corpo",
-			Shape = Enum.PartType.Ball,
-			Size = Vector3.new(s, s, s),
-			Color = f.cor,
-			Material = Enum.Material.SmoothPlastic,
-			Transparency = 0.1,
-			CFrame = CFrame.new(base + Vector3.new(0, s / 2, 0)),
-		})
-	elseif f.forma == "cogumelo" then
-		corpo = parte(m, {
-			Name = "Corpo",
-			Size = Vector3.new(s * 0.5, s * 0.6, s * 0.5),
-			Color = Color3.fromRGB(235, 225, 200),
-			Material = Enum.Material.SmoothPlastic,
-			CFrame = CFrame.new(base + Vector3.new(0, s * 0.3, 0)),
-		})
-		local chapeu = parte(m, {
-			Name = "Chapeu",
-			Shape = Enum.PartType.Ball,
-			Size = Vector3.new(s * 1.2, s * 0.7, s * 1.2),
-			Color = f.cor,
-			Material = Enum.Material.SmoothPlastic,
-			CFrame = CFrame.new(base + Vector3.new(0, s * 0.75, 0)),
-		})
-		chapeu:SetAttribute("CorOriginal", f.cor)
+	local base
+	if f.chefe then
+		base = Vector3.new(0, topoArena, -11)
 	else
-		corpo = parte(m, {
-			Name = "Corpo",
-			Size = Vector3.new(s * 1.3, s * 0.8, s * 0.8),
-			Color = f.cor,
-			Material = Enum.Material.Slate,
-			CFrame = CFrame.new(base + Vector3.new(0, s * 0.4, 0)),
-		})
-		parte(m, {
-			Name = "Cabeca",
-			Size = Vector3.new(s * 0.6, s * 0.6, s * 0.6),
-			Color = f.cor,
-			Material = Enum.Material.Slate,
-			CFrame = CFrame.new(base + Vector3.new(s * 0.75, s * 0.75, 0)),
-		})
+		local ang = math.random() * math.pi * 2
+		local raio = 7 + math.random() * (Config.RaioMonstros - 7)
+		base = Vector3.new(math.cos(ang) * raio, topoArena, math.sin(ang) * raio)
 	end
-	corpo:SetAttribute("CorOriginal", corpo.Color)
-
-	local olhoY = corpo.Position.Y + s * 0.15
-	for _, lado in ipairs({ -1, 1 }) do
-		parte(m, {
-			Name = "Olho",
-			Shape = Enum.PartType.Ball,
-			Size = Vector3.new(s * 0.18, s * 0.18, s * 0.18),
-			Color = Color3.fromRGB(20, 20, 25),
-			Material = Enum.Material.Neon,
-			CFrame = CFrame.new(corpo.Position.X + lado * s * 0.2, olhoY, corpo.Position.Z + s * 0.42),
-		})
-	end
-
-	m.PrimaryPart = corpo
+	-- olha para o centro da arena, onde o herói começa
+	local cf = CFrame.lookAt(base, Vector3.new(0, topoArena, 0))
+	local m, corpo, altura = Modelos.criar(f.modelo, cf)
+	m.Name = f.monstro
 	m:SetAttribute("Dono", player.UserId)
-	m:SetAttribute("Vida", f.vida)
-	m:SetAttribute("VidaMax", f.vida)
+	local vida = Config.VidaInimigo(f.nivel, f.chefe)
+	m:SetAttribute("Vida", vida)
+	m:SetAttribute("VidaMax", vida)
+	m:SetAttribute("Nivel", f.nivel)
+	m:SetAttribute("Dano", Config.DanoInimigo(f.nivel))
 	m:SetAttribute("Fase", indiceFase)
+	if f.chefe then
+		m:SetAttribute("Chefe", true)
+	end
 
 	local bb = Instance.new("BillboardGui")
 	bb.Name = "Barra"
-	bb.Size = UDim2.fromOffset(110, 30)
-	bb.StudsOffsetWorldSpace = Vector3.new(0, s * 1.1 + 1, 0)
+	bb.Size = UDim2.fromOffset(f.chefe and 180 or 120, 30)
+	bb.StudsOffsetWorldSpace = Vector3.new(0, (base.Y + altura) - corpo.Position.Y + 1.2, 0)
 	bb.AlwaysOnTop = true
 	bb.MaxDistance = 90
 	bb.Adornee = corpo
@@ -500,11 +466,11 @@ local function criarMonstro(player, indiceFase)
 	local nome = Instance.new("TextLabel")
 	nome.Size = UDim2.new(1, 0, 0, 14)
 	nome.BackgroundTransparency = 1
-	nome.Text = f.monstro
-	nome.TextColor3 = Color3.new(1, 1, 1)
-	nome.TextStrokeTransparency = 0.4
-	nome.Font = Enum.Font.GothamBold
-	nome.TextSize = 12
+	nome.Text = "Nv " .. f.nivel .. "  " .. f.monstro
+	nome.TextColor3 = f.chefe and Color3.fromRGB(220, 170, 255) or Color3.new(1, 1, 1)
+	nome.TextStrokeTransparency = 0.3
+	nome.Font = Enum.Font.GothamBlack
+	nome.TextSize = f.chefe and 15 or 12
 	nome.Parent = bb
 
 	local fundo = Instance.new("Frame")
@@ -519,18 +485,37 @@ local function criarMonstro(player, indiceFase)
 	local barra = Instance.new("Frame")
 	barra.Name = "Vida"
 	barra.Size = UDim2.fromScale(1, 1)
-	barra.BackgroundColor3 = Color3.fromRGB(235, 70, 70)
+	barra.BackgroundColor3 = f.chefe and Color3.fromRGB(190, 90, 255) or Color3.fromRGB(235, 70, 70)
 	barra.BorderSizePixel = 0
 	barra.Parent = fundo
 	Instance.new("UICorner", barra).CornerRadius = UDim.new(1, 0)
 
 	m.Parent = pasta
 
-	for _, p in ipairs(m:GetChildren()) do
-		if p:IsA("BasePart") then
-			local tam = p.Size
-			p.Size = tam * 0.1
-			TweenService:Create(p, TweenInfo.new(0.35, Enum.EasingStyle.Back), { Size = tam }):Play()
+	if m:GetAttribute("UsaArte") then
+		-- Personagem 3D: aparece crescendo inteiro e começa a "respirar"
+		Modelos.animar(m)
+		local final = m:GetScale()
+		local escala = Instance.new("NumberValue")
+		escala.Value = final * 0.15
+		escala.Changed:Connect(function(v)
+			if m.Parent then
+				m:ScaleTo(v)
+			end
+		end)
+		local tw = TweenService:Create(escala, TweenInfo.new(0.35, Enum.EasingStyle.Back), { Value = final })
+		tw.Completed:Connect(function()
+			escala:Destroy()
+		end)
+		tw:Play()
+	else
+		-- Modelo de peças: cada peça cresce no próprio lugar
+		for _, p in ipairs(m:GetDescendants()) do
+			if p:IsA("BasePart") then
+				local tam = p.Size
+				p.Size = tam * 0.1
+				TweenService:Create(p, TweenInfo.new(0.35, Enum.EasingStyle.Back), { Size = tam }):Play()
+			end
 		end
 	end
 	return m
@@ -559,7 +544,9 @@ local function completarMonstros(player)
 	if not st then
 		return
 	end
-	for _ = 1, Config.MonstrosVivos - #monstrosDe(player) do
+	local f = Config.Fases[st.fase]
+	local vivos = f.chefe and 1 or Config.MonstrosVivos
+	for _ = 1, vivos - #monstrosDe(player) do
 		criarMonstro(player, st.fase)
 	end
 end
@@ -570,13 +557,16 @@ end
 local function aplicarFase(player)
 	local st = estado[player]
 	local f = Config.Fases[st.fase]
-	pintarArena(f)
+	Cenario.aplicar(f.tema, baseplate)
 	limparMonstros(player)
 	completarMonstros(player)
 	local char = player.Character
 	local root = char and char:FindFirstChild("HumanoidRootPart")
 	if root then
-		root.CFrame = CFrame.new(0, topoArena + 3, 0)
+		root.CFrame = CFrame.new(0, topoArena + 3, 4)
+	end
+	if f.chefe then
+		evAviso:FireClient(player, "chefe", f.monstro)
 	end
 	enviarEstado(player)
 end
@@ -589,6 +579,36 @@ local function ganharXP(player, quanto)
 		st.nivel += 1
 		evAviso:FireClient(player, "nivel", st.nivel)
 	end
+end
+
+-- Baú especial do chefe: abre, solta ouro e um item Épico ou Lendário
+local function abrirBau(player, pos)
+	local st = estado[player]
+	local cf = CFrame.new(pos.X, topoArena, pos.Z) * CFrame.Angles(0, math.pi, 0)
+	local bau, tampa = Modelos.bau(cf)
+	bau.Parent = workspace
+	task.delay(0.6, function()
+		TweenService:Create(tampa, TweenInfo.new(0.4, Enum.EasingStyle.Back), {
+			CFrame = tampa.CFrame * CFrame.new(0, 0.6, 1) * CFrame.Angles(math.rad(-70), 0, 0),
+		}):Play()
+		if not estado[player] then
+			return
+		end
+		st.ouro += Config.BauChefe.Ouro
+		local f = Config.Fases[st.fase]
+		local nivel = nivelDoDrop(f.nivel, st.nivel) + 2
+		local raridadeIdx = math.random() < Config.BauChefe.ChanceLendario and 5 or 4
+		guardarItem(player, criarItem(st, raridadeIdx, nivel), pos + Vector3.new(0, 3, 0), "bau")
+		if math.random() < Config.BauChefe.ChanceOlho then
+			local _, mitico = raridadePorId(Config.OlhoChefe.raridade)
+			guardarItem(player, criarItem(st, mitico, nivel, "olho"), pos + Vector3.new(0, 5, 0), "bau")
+		end
+		evAviso:FireClient(player, "bau", Config.BauChefe.Ouro)
+		enviarEstado(player)
+	end)
+	task.delay(4, function()
+		bau:Destroy()
+	end)
 end
 
 local function monstroMorreu(player, m)
@@ -606,23 +626,30 @@ local function monstroMorreu(player, m)
 	local ouro = math.max(1, math.floor(f.ouro * stats.ouro + 0.5))
 	st.ouro += ouro
 	ganharXP(player, f.xp)
-	evDano:FireClient(player, "morte", pos, ouro, cor, f.xp)
+	evDano:FireClient(player, "morte", pos, ouro, cor, f.xp, f.chefe)
 
-	for _, p in ipairs(m:GetChildren()) do
-		if p:IsA("BasePart") then
-			TweenService:Create(p, TweenInfo.new(0.2), { Size = p.Size * 0.05, Transparency = 1 }):Play()
+	local tempoSumir = f.chefe and 0.8 or 0.2
+	for _, p in ipairs(m:GetDescendants()) do
+		if p:IsA("BasePart") or p:IsA("Decal") then
+			local alvo = { Transparency = 1 }
+			if p:IsA("BasePart") and not m:GetAttribute("UsaArte") then
+				alvo.Size = p.Size * 0.05
+			end
+			TweenService:Create(p, TweenInfo.new(tempoSumir), alvo):Play()
 		end
 	end
-	task.delay(0.25, function()
+	task.delay(f.chefe and 0.85 or 0.25, function()
 		m:Destroy()
 	end)
 
-	if math.random() < Config.ChanceDrop then
-		guardarItem(player, criarItem(st, sortearRaridade(), faseIdx), pos)
+	if f.chefe then
+		abrirBau(player, pos)
+	elseif math.random() < Config.ChanceDrop then
+		guardarItem(player, criarItem(st, sortearRaridade(), nivelDoDrop(f.nivel, st.nivel)), pos)
 	end
 
 	st.kills += 1
-	if st.kills >= Config.MonstrosPorFase then
+	if st.kills >= metaDaFase(st.fase) then
 		st.kills = 0
 		if st.fase < #Config.Fases then
 			st.fase += 1
@@ -631,8 +658,8 @@ local function monstroMorreu(player, m)
 			evAviso:FireClient(player, "fase", nova.nome, nova.monstro)
 			task.delay(0.5, aplicarFase, player)
 		else
-			evAviso:FireClient(player, "completo", f.nome)
-			task.delay(0.3, completarMonstros, player)
+			evAviso:FireClient(player, "completo", "Mundo " .. f.mundo)
+			task.delay(4, completarMonstros, player)
 		end
 	else
 		task.delay(0.6, completarMonstros, player)
@@ -643,17 +670,24 @@ end
 ------------------------------------------------------------------------
 -- Combate: o herói bate sozinho no monstro mais perto dentro do alcance
 ------------------------------------------------------------------------
+-- Pisca branco ao levar golpe (funciona em qualquer modelo, até com textura)
 local function piscar(m)
-	for _, p in ipairs(m:GetChildren()) do
-		if p:IsA("BasePart") and p:GetAttribute("CorOriginal") then
-			p.Color = Color3.new(1, 1, 1)
-			task.delay(0.08, function()
-				if p.Parent then
-					p.Color = p:GetAttribute("CorOriginal")
-				end
-			end)
-		end
+	local h = m:FindFirstChild("Piscar")
+	if not h then
+		h = Instance.new("Highlight")
+		h.Name = "Piscar"
+		h.FillColor = Color3.new(1, 1, 1)
+		h.FillTransparency = 0.25
+		h.OutlineTransparency = 1
+		h.DepthMode = Enum.HighlightDepthMode.Occluded
+		h.Parent = m
 	end
+	h.Enabled = true
+	task.delay(0.08, function()
+		if h.Parent then
+			h.Enabled = false
+		end
+	end)
 end
 
 local function golpe(player, root)
@@ -758,45 +792,109 @@ evVender.OnServerEvent:Connect(function(player, itemId)
 	enviarEstado(player)
 end)
 
-evForjar.OnServerEvent:Connect(function(player, raridadeId)
-	local st = estado[player]
-	if not st then
-		return
-	end
-	local _, ri = raridadePorId(raridadeId)
-	if not ri or ri >= #Config.Raridades then
-		return
-	end
-	local custo = Config.Forja.Custo[raridadeId] or 0
-	if st.ouro < custo then
-		return
-	end
+-- Forja: 3 itens da mesma raridade viram 1 da raridade de cima.
+-- O servidor confere tudo (a tela do jogador pode ser hackeada).
+local ultimaForja = {}
 
+local function podeUsarForja(player)
+	local agora = os.clock()
+	if ultimaForja[player] and agora - ultimaForja[player] < 0.15 then
+		return false
+	end
+	ultimaForja[player] = agora
+	return true
+end
+
+local function forjarItens(player, st, itens)
+	local rar, ri = raridadePorId(itens[1].raridade)
+	local proxima = Config.Raridades[ri + 1]
+	if not rar or rar.forjavel == false or not proxima or proxima.peso == 0 then
+		return nil
+	end
+	local custo = Config.Forja.Custo[rar.id] or 0
+	if st.ouro < custo then
+		return nil
+	end
+	local nivel = 1
+	for _, it in ipairs(itens) do
+		nivel = math.max(nivel, it.nivel or 1)
+		st.itens[it.id] = nil
+	end
+	st.ouro -= custo
+	local novo = criarItem(st, ri + 1, nivel)
+	guardarItem(player, novo, nil, "forja")
+	return novo
+end
+
+local function itensLivres(st)
 	local vestidos = {}
 	for _, id in pairs(st.equipado) do
 		vestidos[id] = true
 	end
-	local usar = {}
-	for _, item in pairs(st.itens) do
-		if item.raridade == raridadeId and not vestidos[item.id] then
-			table.insert(usar, item)
-		end
-	end
-	if #usar < Config.Forja.Quantidade then
+	return vestidos
+end
+
+-- Forja manual: a tela manda os ids dos 3 itens colocados nos espaços
+evForjar.OnServerEvent:Connect(function(player, ids)
+	local st = estado[player]
+	if not st or type(ids) ~= "table" or #ids ~= Config.Forja.Quantidade or not podeUsarForja(player) then
 		return
 	end
-	table.sort(usar, function(a, b)
-		return a.valor < b.valor
-	end) -- usa os mais fracos primeiro
-
-	local faseMaior = 1
-	for i = 1, Config.Forja.Quantidade do
-		faseMaior = math.max(faseMaior, usar[i].fase or 1)
-		st.itens[usar[i].id] = nil
+	local vestidos = itensLivres(st)
+	local vistos, itens = {}, {}
+	for _, id in ipairs(ids) do
+		local item = type(id) == "number" and st.itens[id]
+		if not item or vistos[id] or vestidos[id] then
+			return
+		end
+		if #itens > 0 and item.raridade ~= itens[1].raridade then
+			return
+		end
+		vistos[id] = true
+		table.insert(itens, item)
 	end
-	st.ouro -= custo
-	local novo = criarItem(st, ri + 1, faseMaior)
-	guardarItem(player, novo, nil, "forja")
+	forjarItens(player, st, itens)
+	enviarEstado(player)
+end)
+
+-- Forja automática: combina sozinha as raridades marcadas, das mais fracas para as mais fortes
+evForjarAuto.OnServerEvent:Connect(function(player, raridadesMarcadas)
+	local st = estado[player]
+	if not st or type(raridadesMarcadas) ~= "table" or not podeUsarForja(player) then
+		return
+	end
+	local marcadas = {}
+	for _, id in ipairs(raridadesMarcadas) do
+		if type(id) == "string" and raridadePorId(id) then
+			marcadas[id] = true
+		end
+	end
+	local feitas = 0
+	for _, rar in ipairs(Config.Raridades) do
+		if marcadas[rar.id] then
+			while feitas < 50 do
+				local vestidos = itensLivres(st)
+				local grupo = {}
+				for _, item in pairs(st.itens) do
+					if item.raridade == rar.id and not vestidos[item.id] then
+						table.insert(grupo, item)
+					end
+				end
+				if #grupo < Config.Forja.Quantidade then
+					break
+				end
+				table.sort(grupo, function(a, b)
+					return a.valor < b.valor
+				end)
+				local usar = { table.unpack(grupo, 1, Config.Forja.Quantidade) }
+				if not forjarItens(player, st, usar) then
+					break
+				end
+				feitas += 1
+			end
+		end
+	end
+	evAviso:FireClient(player, "forjaAuto", feitas)
 	enviarEstado(player)
 end)
 
@@ -824,7 +922,8 @@ Players.PlayerAdded:Connect(function(player)
 		xp = 0,
 		ouro = 0,
 		fase = 1,
-		faseMax = 1,
+		-- No Studio todas as fases ficam liberadas para testar; no jogo publicado começa só a 1-1
+		faseMax = RunService:IsStudio() and #Config.Fases or 1,
 		kills = 0,
 		itens = {},
 		equipado = {},
@@ -846,6 +945,7 @@ Players.PlayerAdded:Connect(function(player)
 end)
 
 Players.PlayerRemoving:Connect(function(player)
+	ultimaForja[player] = nil
 	limparMonstros(player)
 	estado[player] = nil
 end)

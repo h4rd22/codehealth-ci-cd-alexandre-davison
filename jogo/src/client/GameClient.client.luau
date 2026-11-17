@@ -222,8 +222,56 @@ local function feixe(pos, cor, forte)
 	Debris:AddItem(p, forte and 2.3 or 1.3)
 end
 
-evDano.OnClientEvent:Connect(function(tipo, pos, valor, extra, xp)
+-- Corte de espada estilo anime: risco de luz que atravessa o inimigo
+local function corte(pos, critico)
+	local char = player.Character
+	local root = char and char:FindFirstChild("HumanoidRootPart")
+	local origem = root and root.Position or pos + Vector3.new(0, 0, 4)
+	local dir = (pos - origem) * Vector3.new(1, 0, 1)
+	if dir.Magnitude < 0.1 then
+		dir = Vector3.new(0, 0, -1)
+	end
+	local base = CFrame.lookAt(pos, pos + dir.Unit)
+	for i = 1, critico and 2 or 1 do
+		local giro = math.rad(math.random(-60, 60) + (i == 2 and 90 or 0))
+		local p = Instance.new("Part")
+		p.Anchored = true
+		p.CanCollide = false
+		p.CanQuery = false
+		p.CanTouch = false
+		p.Material = Enum.Material.Neon
+		p.Color = critico and Color3.fromRGB(255, 220, 90) or Color3.fromRGB(190, 235, 255)
+		p.Size = Vector3.new(7, 0.25, 0.12)
+		p.CFrame = base * CFrame.Angles(0, 0, giro) * CFrame.new(-1.5, 0, 0)
+		p.Transparency = 0.1
+		p.Parent = workspace
+		TweenService:Create(p, TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+			CFrame = p.CFrame * CFrame.new(3, 0, 0),
+			Size = Vector3.new(9, 0.04, 0.04),
+			Transparency = 1,
+		}):Play()
+		Debris:AddItem(p, 0.2)
+	end
+	for _ = 1, critico and 6 or 3 do
+		local s = Instance.new("Part")
+		s.Anchored = true
+		s.CanCollide = false
+		s.CanQuery = false
+		s.Material = Enum.Material.Neon
+		s.Color = critico and Color3.fromRGB(255, 200, 60) or Color3.new(1, 1, 1)
+		s.Size = Vector3.new(0.15, 0.15, 0.9)
+		local d = Vector3.new(math.random() - 0.5, math.random() - 0.2, math.random() - 0.5).Unit
+		s.CFrame = CFrame.lookAt(pos, pos + d)
+		s.Parent = workspace
+		TweenService:Create(s, TweenInfo.new(0.25), { CFrame = s.CFrame * CFrame.new(0, 0, -3), Transparency = 1 })
+			:Play()
+		Debris:AddItem(s, 0.3)
+	end
+end
+
+evDano.OnClientEvent:Connect(function(tipo, pos, valor, extra, xp, chefe)
 	if tipo == "dano" then
+		corte(pos, extra)
 		if extra then
 			textoFlutuante(pos, "CRÍTICO! " .. valor, Color3.fromRGB(255, 220, 60), 34)
 			tremer(0.6, 0.15)
@@ -231,7 +279,11 @@ evDano.OnClientEvent:Connect(function(tipo, pos, valor, extra, xp)
 			textoFlutuante(pos, tostring(valor), Color3.new(1, 1, 1), 24)
 		end
 	elseif tipo == "morte" then
-		explosao(pos, extra)
+		explosao(pos, extra, chefe and 40 or 10)
+		if chefe then
+			tremer(1.6, 0.8)
+			mostrarFaixa("LORDE DOR DERROTADO!", Color3.fromRGB(220, 170, 255), 3)
+		end
 		textoFlutuante(pos + Vector3.new(0, 1, 0), "+" .. valor .. " ouro", Color3.fromRGB(255, 205, 70), 22)
 		if xp then
 			textoFlutuante(pos + Vector3.new(0, 2.5, 0), "+" .. xp .. " XP", Color3.fromRGB(80, 220, 170), 18)
@@ -279,9 +331,14 @@ evAviso.OnClientEvent:Connect(function(tipo, a, b)
 			explosao(root.Position, Color3.fromRGB(80, 230, 180), 18)
 		end
 	elseif tipo == "completo" then
-		mostrarFaixa("TESTE COMPLETO! Você passou da " .. a)
+		mostrarFaixa(string.upper(a) .. " COMPLETO!", Color3.fromRGB(255, 225, 120), 3)
 	elseif tipo == "lendario" then
 		mostrarFaixa(a .. " achou um item LENDÁRIO: " .. b .. "!", Color3.fromRGB(255, 160, 40), 3.5)
+	elseif tipo == "chefe" then
+		mostrarFaixa("CHEFE: " .. string.upper(a) .. "!", Color3.fromRGB(210, 120, 255), 3)
+		tremer(1.2, 0.6)
+	elseif tipo == "bau" then
+		notificar("Baú do chefe: +" .. a .. " ouro", Color3.fromRGB(255, 205, 70))
 	end
 end)
 
