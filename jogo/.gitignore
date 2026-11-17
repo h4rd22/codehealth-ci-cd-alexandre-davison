@@ -14,3 +14,6 @@ sourcemap.json
 
 # Cache do Selene com a lista de funções do Roblox
 roblox.yml
+
+# O lugar com a arte (modelos 3D) entra no backup
+!/lugar/JogoAnime.rbxl
