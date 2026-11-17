@@ -495,14 +495,17 @@ local function projetil(origem, destino, classeId, critico)
 	if typeof(origem) ~= "Vector3" or typeof(destino) ~= "Vector3" then
 		return
 	end
-	local inicio = origem + Vector3.new(0, 0.6, 0)
+	-- sai um pouco atrás e acima do ombro: mesmo com o inimigo colado, o tiro aparece voando
+	local plano = (destino - origem) * Vector3.new(1, 0, 1)
+	local frente = plano.Magnitude > 0.1 and plano.Unit or Vector3.new(0, 0, -1)
+	local inicio = origem + Vector3.new(0, 1.6, 0) - frente * 1.8
 	local dist = (destino - inicio).Magnitude
 	if dist < 0.5 then
 		return
 	end
 	if classeId == "mago" then
 		local cor = critico and DOURADO or COR_MAGIA
-		local bola = pecaFx(Vector3.new(1.1, 1.1, 1.1), cor, Enum.PartType.Ball)
+		local bola = pecaFx(Vector3.new(1.5, 1.5, 1.5), cor, Enum.PartType.Ball)
 		bola.Position = inicio
 		bola.Parent = workspace
 		local nucleo = pecaFx(Vector3.new(0.6, 0.6, 0.6), Color3.new(1, 1, 1), Enum.PartType.Ball)
@@ -513,8 +516,8 @@ local function projetil(origem, destino, classeId, critico)
 		luz.Range = 10
 		luz.Brightness = 3
 		luz.Parent = bola
-		rastro(bola, cor, 0.9, 0.25)
-		local tempo = math.clamp(dist / 70, 0.12, 0.3)
+		rastro(bola, cor, 1.2, 0.4)
+		local tempo = math.clamp(dist / 40, 0.22, 0.5)
 		local t0 = os.clock()
 		local con
 		con = RunService.Heartbeat:Connect(function()
@@ -533,26 +536,46 @@ local function projetil(origem, destino, classeId, critico)
 	else
 		local cor = critico and DOURADO or COR_FLECHA
 		local flecha = Instance.new("Model")
-		local haste = pecaFx(Vector3.new(0.12, 0.12, 2.2), Color3.fromRGB(150, 110, 70))
+		local haste = pecaFx(Vector3.new(0.2, 0.2, 2.6), Color3.fromRGB(150, 110, 70))
 		haste.Material = Enum.Material.Wood
 		haste.Parent = flecha
-		local ponta = pecaFx(Vector3.new(0.3, 0.3, 0.5), cor)
+		local ponta = pecaFx(Vector3.new(0.45, 0.45, 0.7), cor)
 		ponta.Parent = flecha
-		rastro(haste, cor, 0.35, 0.18)
+		local luzFlecha = Instance.new("PointLight")
+		luzFlecha.Color = cor
+		luzFlecha.Range = 8
+		luzFlecha.Brightness = 3
+		luzFlecha.Parent = ponta
+		-- clarão de disparo saindo do herói
+		local disparo = pecaFx(Vector3.new(0.6, 0.6, 0.6), cor, Enum.PartType.Ball)
+		disparo.Position = inicio
+		disparo.Parent = workspace
+		TweenService:Create(disparo, TweenInfo.new(0.2), { Size = Vector3.new(2.2, 2.2, 2.2), Transparency = 1 }):Play()
+		Debris:AddItem(disparo, 0.25)
+		rastro(haste, cor, 0.6, 0.35)
 		flecha.Parent = workspace
-		local tempo = math.clamp(dist / 110, 0.06, 0.2)
+		local tempo = math.clamp(dist / 55, 0.15, 0.4)
 		local t0 = os.clock()
 		local con
 		con = RunService.Heartbeat:Connect(function()
 			local a = math.min((os.clock() - t0) / tempo, 1)
-			local p = inicio:Lerp(destino, a)
+			local p = inicio:Lerp(destino, a) + Vector3.new(0, math.sin(a * math.pi) * dist * 0.08, 0)
 			local cf = CFrame.lookAt(p, destino + (destino - inicio).Unit)
 			haste.CFrame = cf
-			ponta.CFrame = cf * CFrame.new(0, 0, -1.2)
+			ponta.CFrame = cf * CFrame.new(0, 0, -1.4)
 			if a >= 1 then
 				con:Disconnect()
 				flecha:Destroy()
-				faiscas(destino, cor, critico and 8 or 4)
+				faiscas(destino, cor, critico and 10 or 6)
+				local impacto = pecaFx(Vector3.new(0.4, 0.4, 0.4), cor, Enum.PartType.Ball)
+				impacto.Position = destino
+				impacto.Parent = workspace
+				local tamImpacto = critico and 3.2 or 2
+				TweenService:Create(impacto, TweenInfo.new(0.22, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+					Size = Vector3.new(tamImpacto, tamImpacto, tamImpacto),
+					Transparency = 1,
+				}):Play()
+				Debris:AddItem(impacto, 0.25)
 			end
 		end)
 		Debris:AddItem(flecha, 1)
