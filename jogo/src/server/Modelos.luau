@@ -463,13 +463,18 @@ local ANIM_PARADO = {
 local AJUSTES = {
 	novato = { escala = 1, cor = Color3.fromRGB(80, 80, 90) },
 	mascarado = { escala = 1, cor = Color3.fromRGB(220, 220, 230) },
-	elite = { escala = 1.05, cor = Color3.fromRGB(80, 120, 200) },
+	elite = { escala = 1.05, cor = Color3.fromRGB(80, 120, 200), elite = true },
 	discipulo = { escala = 1.05, cor = Color3.fromRGB(150, 100, 210) },
 	cloneDoro = { escala = 1.05, cor = Color3.fromRGB(120, 200, 120) },
-	dorochimaru = { escala = 1.2, cor = Color3.fromRGB(150, 90, 220), aura = Color3.fromRGB(120, 220, 120) },
+	dorochimaru = {
+		escala = 1.2,
+		cor = Color3.fromRGB(150, 90, 220),
+		aura = Color3.fromRGB(120, 220, 120),
+		elite = true,
+	},
 	recrutaKatsuki = { escala = 1.05, cor = Color3.fromRGB(220, 60, 70) },
-	itachu = { escala = 1.1, cor = Color3.fromRGB(230, 50, 60) },
-	caminhoPen = { escala = 1.15, cor = Color3.fromRGB(240, 140, 60) },
+	itachu = { escala = 1.1, cor = Color3.fromRGB(230, 50, 60), elite = true },
+	caminhoPen = { escala = 1.15, cor = Color3.fromRGB(240, 140, 60), elite = true },
 	pen = { escala = 2, cor = Color3.fromRGB(190, 90, 255), aura = Color3.fromRGB(180, 90, 255) },
 }
 
@@ -541,6 +546,9 @@ local function deArte(nomeModelo, cf)
 	end
 	m:SetAttribute("UsaArte", true)
 	m:SetAttribute("Escala", m:GetScale())
+	if aj.elite then
+		m:SetAttribute("Elite", true) -- pose ameaçadora e rugido (AnimInimigos, no cliente)
+	end
 	return m, raiz, tam.Y, hum
 end
 
@@ -591,6 +599,8 @@ function Modelos.andar(m, correndo)
 end
 
 function Modelos.atacar(m)
+	-- avisa a tela do jogador para tocar o bote (preparar e avançar) por cima da animação
+	m:SetAttribute("Ataque", (m:GetAttribute("Ataque") or 0) + 1)
 	local hum = m:FindFirstChildWhichIsA("Humanoid", true)
 	local animador = hum and hum:FindFirstChildOfClass("Animator")
 	if not animador then

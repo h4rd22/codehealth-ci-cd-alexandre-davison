@@ -1,16 +1,25 @@
 -- Chefe: comportamento do chefe final do ato (Pen).
--- Ele flutua, olha para o herói, se teleporta e usa 3 habilidades com aviso no chão:
+-- Ele desce do céu com um raio e ruge, flutua indo atrás do herói, se teleporta
+-- e usa 3 habilidades com aviso no chão. As poses (braços, corpo) são desenhadas na tela
+-- do jogador pelo AnimInimigos: aqui só avisamos com o atributo "Pose" e "Movendo".
 --   Repulsão Divina  - onda de choque em volta dele que empurra o herói
 --   Esferas Negras   - 3 esferas que voam até onde o herói estava
 --   Chuva de Pregos  - círculos vermelhos no chão que viram pregos caindo do céu
 
 local TweenService = game:GetService("TweenService")
 local Debris = game:GetService("Debris")
+local RunService = game:GetService("RunService")
 
 local Chefe = {}
 
 local ROXO = Color3.fromRGB(180, 90, 255)
 local VERMELHO = Color3.fromRGB(255, 60, 70)
+local XZ = Vector3.new(1, 0, 1)
+
+local ALTURA_ENTRADA = 22 -- de onde ele desce na entrada
+local ALTURA_FLUTUAR = 1.2
+local VELOCIDADE = 7 -- studs por segundo indo atrás do herói
+local DISTANCIA_IDEAL = 9 -- para de chegar perto a essa distância
 
 local function peca(props)
 	local p = Instance.new("Part")
@@ -60,60 +69,97 @@ end
 	}
 ]]
 function Chefe.iniciar(m, ctx)
-	-- Entrada: um raio roxo cai do céu onde ele aparece
-	local p0 = m:GetPivot().Position
-	local relampago = peca({
-		Shape = Enum.PartType.Cylinder,
-		Size = Vector3.new(120, 6, 6),
-		CFrame = CFrame.new(p0 + Vector3.new(0, 60, 0)) * CFrame.Angles(0, 0, math.rad(90)),
-		Color = ROXO,
-		Transparency = 0.1,
-	})
-	luz(relampago, ROXO, 40)
-	TweenService:Create(relampago, TweenInfo.new(0.9), { Size = Vector3.new(120, 0.2, 0.2), Transparency = 1 }):Play()
-	Debris:AddItem(relampago, 1)
-	local anel = disco(Vector3.new(p0.X, ctx.chao + 0.15, p0.Z), 2, ROXO, 0.2)
-	TweenService:Create(anel, TweenInfo.new(0.8, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-		Size = Vector3.new(0.15, 40, 40),
-		Transparency = 1,
-	}):Play()
-	Debris:AddItem(anel, 0.85)
+	local contadorPose = 0
+	local function pose(nome)
+		contadorPose += 1
+		m:SetAttribute("Pose", nome .. "#" .. contadorPose)
+	end
 
-	task.spawn(function()
-		task.wait(0.6) -- espera ele terminar de aparecer
+	local p0 = m:GetPivot().Position
+	local pivo0 = m:GetPivot()
+	local base = pivo0.Position
+	local rot0 = pivo0.Rotation
+	local centroLuta = ctx.centro or Vector3.new(0, base.Y, 0)
+	local frente0 = (Vector3.new(centroLuta.X, base.Y, centroLuta.Z) - base) * XZ
+	if frente0.Magnitude < 0.1 then
+		frente0 = Vector3.new(0, 0, 1)
+	end
+	frente0 = frente0.Unit
+	local rMax = ctx.raioTeleporte or 14
+	local alturaExtra = 0
+	local alturaAtual = ALTURA_ENTRADA
+	local angAtual = 0
+	local ocupado = true -- parado (entrada e habilidades); senão vai atrás do herói
+	local movendo = false
+
+	-- movimento suave a cada quadro: desce do céu, flutua, vira e anda até o herói
+	local con
+	con = RunService.Heartbeat:Connect(function(dt)
+		if not (ctx.vivo() and m.Parent) then
+			con:Disconnect()
+			return
+		end
+		local raiz = ctx.raizHeroi()
+		local angAlvo = angAtual
+		local andou = false
+		if raiz then
+			local d = (raiz.Position - base) * XZ
+			if d.Magnitude > 0.5 then
+				local u = d.Unit
+				angAlvo = math.atan2(frente0.X * u.Z - frente0.Z * u.X, frente0.X * u.X + frente0.Z * u.Z)
+			end
+			if not ocupado and d.Magnitude > DISTANCIA_IDEAL + 1 then
+				local nova = base + d.Unit * math.min(d.Magnitude - DISTANCIA_IDEAL, VELOCIDADE * dt)
+				local rel = (nova - centroLuta) * XZ
+				if rel.Magnitude > rMax then
+					nova = Vector3.new(centroLuta.X, base.Y, centroLuta.Z) + rel.Unit * rMax
+				end
+				andou = (nova - base).Magnitude > 0.001
+				base = Vector3.new(nova.X, base.Y, nova.Z)
+			end
+		end
+		if andou ~= movendo then
+			movendo = andou
+			m:SetAttribute("Movendo", movendo)
+		end
+		local dif = (angAlvo - angAtual + math.pi) % (2 * math.pi) - math.pi
+		angAtual += dif * math.min(1, dt * 5)
+		local alvoAltura = ALTURA_FLUTUAR + alturaExtra
+		alturaAtual += (alvoAltura - alturaAtual) * math.min(1, dt * (alturaAtual > alvoAltura + 3 and 5 or 3))
+		m:PivotTo(CFrame.new(base + Vector3.new(0, alturaAtual, 0)) * CFrame.Angles(0, -angAtual, 0) * rot0)
+	end)
+
+	-- Entrada: desce do céu, um raio roxo cai onde ele pousa e ele ruge
+	pose("entrada")
+	task.delay(0.55, function()
 		if not ctx.vivo() then
 			return
 		end
-		local pivo0 = m:GetPivot()
-		local base = pivo0.Position
-		local rot0 = pivo0.Rotation
-		local centroLuta = ctx.centro or Vector3.new(0, base.Y, 0)
-		local frente0 = (Vector3.new(centroLuta.X, base.Y, centroLuta.Z) - base) * Vector3.new(1, 0, 1)
-		if frente0.Magnitude < 0.1 then
-			frente0 = Vector3.new(0, 0, 1)
-		end
-		frente0 = frente0.Unit
-		local alturaExtra = 0
-		local t = 0
+		local relampago = peca({
+			Shape = Enum.PartType.Cylinder,
+			Size = Vector3.new(120, 6, 6),
+			CFrame = CFrame.new(p0 + Vector3.new(0, 60, 0)) * CFrame.Angles(0, 0, math.rad(90)),
+			Color = ROXO,
+			Transparency = 0.1,
+		})
+		luz(relampago, ROXO, 40)
+		TweenService:Create(relampago, TweenInfo.new(0.9), { Size = Vector3.new(120, 0.2, 0.2), Transparency = 1 })
+			:Play()
+		Debris:AddItem(relampago, 1)
+		local anel = disco(Vector3.new(base.X, ctx.chao + 0.15, base.Z), 2, ROXO, 0.2)
+		TweenService:Create(anel, TweenInfo.new(0.8, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+			Size = Vector3.new(0.15, 40, 40),
+			Transparency = 1,
+		}):Play()
+		Debris:AddItem(anel, 0.85)
+	end)
 
-		-- movimento: flutua e vira para o herói
-		task.spawn(function()
-			while ctx.vivo() and m.Parent do
-				t += 0.05
-				local raiz = ctx.raizHeroi()
-				local ang = 0
-				if raiz then
-					local d = (raiz.Position - base) * Vector3.new(1, 0, 1)
-					if d.Magnitude > 0.5 then
-						d = d.Unit
-						ang = math.atan2(frente0.X * d.Z - frente0.Z * d.X, frente0.X * d.X + frente0.Z * d.Z)
-					end
-				end
-				local sobe = 1.2 + math.sin(t * 2) * 0.5 + alturaExtra
-				m:PivotTo(CFrame.new(base + Vector3.new(0, sobe, 0)) * CFrame.Angles(0, -ang, 0) * rot0)
-				task.wait(0.05)
-			end
-		end)
+	task.spawn(function()
+		task.wait(1.1) -- espera ele pousar
+		if not ctx.vivo() then
+			return
+		end
+		pose("rugido")
 
 		local function posHeroi()
 			local raiz = ctx.raizHeroi()
@@ -125,6 +171,7 @@ function Chefe.iniciar(m, ctx)
 		-- 1) Repulsão Divina
 		function habilidades.repulsao()
 			ctx.aviso("Repulsão Divina!")
+			pose("repulsao")
 			local centro = Vector3.new(base.X, ctx.chao + 0.1, base.Z)
 			local raio = 15
 			local aviso = disco(centro, 2, ROXO, 0.6)
@@ -139,6 +186,7 @@ function Chefe.iniciar(m, ctx)
 				return
 			end
 			ctx.atacar()
+			pose("repulsaoSolta")
 			aviso:Destroy()
 			local onda = peca({
 				Shape = Enum.PartType.Ball,
@@ -174,6 +222,7 @@ function Chefe.iniciar(m, ctx)
 				if not alvo or not ctx.vivo() then
 					break
 				end
+				pose("esferas")
 				local inicio = base + Vector3.new(math.random(-3, 3), 7, math.random(-3, 3))
 				local esf = peca({
 					Shape = Enum.PartType.Ball,
@@ -213,6 +262,7 @@ function Chefe.iniciar(m, ctx)
 		-- 3) Chuva de Pregos
 		function habilidades.pregos()
 			ctx.aviso("Chuva de Pregos!")
+			pose("pregos")
 			local centro = posHeroi()
 			if not centro then
 				return
@@ -230,6 +280,7 @@ function Chefe.iniciar(m, ctx)
 			end
 			ctx.atacar()
 			task.wait(1.2)
+			pose("pregosSolta")
 			local jaAcertou = false -- cada chuva acerta o herói no máximo uma vez
 			for i, p in ipairs(pontos) do
 				marcas[i]:Destroy()
@@ -267,32 +318,42 @@ function Chefe.iniciar(m, ctx)
 			end
 		end
 
-		-- Teleporte: some numa fumaça e aparece em outro canto da arena
-		local function teleportar()
-			local fumaca = peca({
+		-- Teleporte: gira e some numa fumaça, aparece em outro canto da arena
+		local function fumaca(pos)
+			local f = peca({
 				Shape = Enum.PartType.Ball,
 				Size = Vector3.new(6, 6, 6),
-				Position = base + Vector3.new(0, 3, 0),
+				Position = pos + Vector3.new(0, 3, 0),
 				Color = Color3.fromRGB(60, 40, 80),
 				Material = Enum.Material.SmoothPlastic,
 				Transparency = 0.2,
 			})
-			TweenService:Create(fumaca, TweenInfo.new(0.5), { Size = Vector3.new(12, 12, 12), Transparency = 1 }):Play()
-			Debris:AddItem(fumaca, 0.55)
+			TweenService:Create(f, TweenInfo.new(0.5), { Size = Vector3.new(12, 12, 12), Transparency = 1 }):Play()
+			Debris:AddItem(f, 0.55)
+		end
+		local function teleportar()
+			pose("sumir")
+			task.wait(0.25)
+			fumaca(base)
 			local a = math.random() * math.pi * 2
-			local rMax = ctx.raioTeleporte or 14
-			local r = math.min(8, rMax * 0.6) + math.random() * (rMax - math.min(8, rMax * 0.6))
+			local rMin = math.min(8, rMax * 0.6)
+			local r = rMin + math.random() * (rMax - rMin)
 			base = Vector3.new(centroLuta.X + math.cos(a) * r, base.Y, centroLuta.Z + math.sin(a) * r)
+			fumaca(base)
+			pose("surgir")
 		end
 
 		local ordem = { "repulsao", "esferas", "pregos" }
 		local ultima
-		task.wait(2) -- respiro antes da primeira habilidade
+		task.wait(1.4) -- termina o rugido
+		ocupado = false
+		task.wait(0.6) -- respiro antes da primeira habilidade
 		while ctx.vivo() and m.Parent do
 			task.wait(3.5 + math.random() * 2)
 			if not ctx.vivo() then
 				break
 			end
+			ocupado = true
 			if math.random() < 0.35 then
 				teleportar()
 				task.wait(0.6)
@@ -303,6 +364,8 @@ function Chefe.iniciar(m, ctx)
 			until escolha ~= ultima
 			ultima = escolha
 			habilidades[escolha]()
+			task.wait(0.4)
+			ocupado = false
 		end
 	end)
 end
