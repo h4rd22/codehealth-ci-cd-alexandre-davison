@@ -84,6 +84,13 @@ local LUZES = {
 		bloom = { Intensity = 0.5, Size = 24, Threshold = 1.3 },
 		chao = { Color3.fromRGB(110, 175, 80), Enum.Material.Grass },
 		fundo = Color3.fromRGB(95, 140, 70),
+		terreno = {
+			Grass = Color3.fromRGB(96, 160, 72),
+			LeafyGrass = Color3.fromRGB(78, 148, 60),
+			Rock = Color3.fromRGB(122, 116, 106),
+			Snow = Color3.fromRGB(240, 246, 255),
+			Ground = Color3.fromRGB(112, 92, 70),
+		},
 	},
 	pantano = {
 		ClockTime = 17.3,
@@ -101,6 +108,13 @@ local LUZES = {
 		bloom = { Intensity = 0.8, Size = 28, Threshold = 1.1 },
 		chao = { Color3.fromRGB(70, 95, 60), Enum.Material.Mud },
 		fundo = Color3.fromRGB(40, 55, 45),
+		terreno = {
+			Grass = Color3.fromRGB(58, 84, 54),
+			LeafyGrass = Color3.fromRGB(50, 74, 52),
+			Rock = Color3.fromRGB(72, 78, 66),
+			Snow = Color3.fromRGB(160, 180, 160),
+			Ground = Color3.fromRGB(62, 56, 46),
+		},
 	},
 	crepusculo = {
 		ClockTime = 17.9,
@@ -118,6 +132,13 @@ local LUZES = {
 		bloom = { Intensity = 0.8, Size = 26, Threshold = 1.1 },
 		chao = { Color3.fromRGB(120, 95, 90), Enum.Material.Slate },
 		fundo = Color3.fromRGB(70, 45, 45),
+		terreno = {
+			Grass = Color3.fromRGB(122, 86, 62),
+			LeafyGrass = Color3.fromRGB(112, 72, 52),
+			Rock = Color3.fromRGB(112, 72, 62),
+			Snow = Color3.fromRGB(255, 205, 185),
+			Ground = Color3.fromRGB(92, 62, 50),
+		},
 	},
 	chefe = {
 		ClockTime = 0.4,
@@ -135,6 +156,13 @@ local LUZES = {
 		bloom = { Intensity = 1.1, Size = 30, Threshold = 0.95 },
 		chao = { Color3.fromRGB(55, 45, 70), Enum.Material.Basalt },
 		fundo = Color3.fromRGB(25, 20, 35),
+		terreno = {
+			Grass = Color3.fromRGB(56, 46, 72),
+			LeafyGrass = Color3.fromRGB(50, 40, 66),
+			Rock = Color3.fromRGB(52, 42, 62),
+			Snow = Color3.fromRGB(160, 125, 210),
+			Ground = Color3.fromRGB(42, 34, 52),
+		},
 	},
 }
 
@@ -160,6 +188,46 @@ local function aplicarLuz(tema, baseplate)
 	TweenService:Create(chao, info, { Color = c.chao[1] }):Play()
 	if baseplate then
 		TweenService:Create(baseplate, info, { Color = c.fundo }):Play()
+	end
+	local terreno = workspace.Terrain
+	for material, cor in pairs(c.terreno) do
+		terreno:SetMaterialColor(Enum.Material[material], cor)
+	end
+end
+
+-- Mapa fechado: chão de terreno até longe e um anel de montanhas enormes em volta
+local function gerarMontanhas()
+	local terreno = workspace.Terrain
+	terreno:Clear()
+	-- chão em volta da arena (logo abaixo dela)
+	terreno:FillCylinder(CFrame.new(0, alturaChao - 2, 0), 4, 150, Enum.Material.Grass)
+	-- dentro da arena o chão é a peça redonda (sem grama alta escondendo os pés)
+	terreno:FillCylinder(CFrame.new(0, alturaChao - 2, 0), 6, raio + 1.5, Enum.Material.Air)
+	-- morrinhos de grama entre a vila e as montanhas
+	local aleatorio = Random.new(7)
+	for i = 1, 30 do
+		local a = (i / 30) * math.pi * 2 + aleatorio:NextNumber(-0.1, 0.1)
+		local r = 60 + aleatorio:NextNumber(-4, 6)
+		local tam = aleatorio:NextNumber(10, 16)
+		terreno:FillBall(
+			Vector3.new(math.cos(a) * r, alturaChao - tam * 0.45, math.sin(a) * r),
+			tam,
+			Enum.Material.LeafyGrass
+		)
+	end
+	-- montanhas de rocha (dois anéis para dar profundidade) com neve no topo
+	for anel, cfg in ipairs({ { 30, 82, 24, 34, 0 }, { 26, 104, 32, 44, 22 } }) do
+		local n, r0, rmin, rmax, sobe = cfg[1], cfg[2], cfg[3], cfg[4], cfg[5]
+		for i = 1, n do
+			local a = (i / n) * math.pi * 2 + (anel == 2 and math.pi / n or 0) + aleatorio:NextNumber(-0.06, 0.06)
+			local r = r0 + aleatorio:NextNumber(-5, 5)
+			local tam = aleatorio:NextNumber(rmin, rmax)
+			local centro = Vector3.new(math.cos(a) * r, alturaChao + sobe + tam * 0.25, math.sin(a) * r)
+			terreno:FillBall(centro, tam, Enum.Material.Rock)
+			if tam > rmin + (rmax - rmin) * 0.45 then
+				terreno:FillBall(centro + Vector3.new(0, tam * 0.78, 0), tam * 0.38, Enum.Material.Snow)
+			end
+		end
 	end
 end
 
@@ -671,8 +739,10 @@ function Cenario.iniciar(baseplate)
 	if baseplate then
 		baseplate.Size = Vector3.new(160, baseplate.Size.Y, 160)
 		baseplate.Material = Enum.Material.Grass
+		baseplate.Transparency = 1 -- o chão de verdade agora é o terreno
 		alturaChao = baseplate.Position.Y + baseplate.Size.Y / 2
 	end
+	gerarMontanhas()
 	local velho = workspace:FindFirstChild("Arena")
 	if velho then
 		velho:Destroy()
@@ -694,6 +764,25 @@ function Cenario.iniciar(baseplate)
 	pastaDecor = Instance.new("Folder")
 	pastaDecor.Name = "Decoracao"
 	pastaDecor.Parent = arena
+	-- Parede invisível em volta da arena: o herói não sai do mapa
+	local paredes = Instance.new("Folder")
+	paredes.Name = "ParedeInvisivel"
+	paredes.Parent = arena
+	local n = 40
+	for i = 1, n do
+		local a = (i / n) * math.pi * 2
+		local r = raio + 1.5
+		local p = Instance.new("Part")
+		p.Anchored = true
+		p.Transparency = 1
+		p.CanCollide = true
+		p.CanQuery = false
+		p.CanTouch = false
+		p.CastShadow = false
+		p.Size = Vector3.new(2 * math.pi * r / n + 0.6, 60, 1)
+		p.CFrame = CFrame.new(math.cos(a) * r, alturaChao + 30, math.sin(a) * r) * CFrame.Angles(0, -a + math.pi / 2, 0)
+		p.Parent = paredes
+	end
 	return alturaChao + 1
 end
 

@@ -8,6 +8,7 @@ local TweenService = game:GetService("TweenService")
 local RunService = game:GetService("RunService")
 
 local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
+local ItemArte = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("ItemArte"))
 local remotes = ReplicatedStorage:WaitForChild("Remotes")
 local R = function(n)
 	return remotes:WaitForChild(n)
@@ -17,6 +18,7 @@ local evAutoFarm, evEquipar, evDesequipar = R("AutoFarm"), R("Equipar"), R("Dese
 local evVender, evForjar, evIrFase = R("Vender"), R("Forjar"), R("IrFase")
 local evForjarAuto, evAlquimia, evConfigForja = R("ForjarAuto"), R("Alquimia"), R("ConfigForja")
 local evVida = R("Vida")
+local evRepetir, evTreinar = R("Repetir"), R("Treinar")
 
 local player = Players.LocalPlayer
 pcall(function()
@@ -214,13 +216,15 @@ cartaoItem = function(pai, item, props)
 		BackgroundTransparency = ri >= 3 and 0.72 or 0.86,
 	})
 	canto(luz, 100)
-	rotulo(b, {
-		Position = UDim2.fromScale(0.16, 0.1),
-		Size = UDim2.fromScale(0.68, 0.68),
-		Text = s.icone,
-		TextScaled = true,
+	-- desenho 3D do item (muda com a categoria e o tier)
+	local vp = novo("ViewportFrame", b, {
+		Name = "Icone3D",
+		Position = UDim2.fromScale(0.04, 0.02),
+		Size = UDim2.fromScale(0.92, 0.84),
+		BackgroundTransparency = 1,
 		ZIndex = 2,
 	})
+	ItemArte.mostrar(vp, s.id, ri, r.cor)
 	rotulo(b, {
 		AnchorPoint = Vector2.new(0.5, 1),
 		Position = UDim2.new(0.5, 0, 1, -1),
@@ -364,6 +368,7 @@ local lblOuro = rotulo(caixaOuro, {
 ------------------------------------------------------------------------
 -- Portal (canto direito de cima): fase atual + botão que abre os mundos
 ------------------------------------------------------------------------
+local btnRepetir -- criado logo depois do painel da fase
 local painelFase = novo("TextButton", gui, {
 	Name = "PainelFase",
 	AnchorPoint = Vector2.new(1, 0),
@@ -439,6 +444,21 @@ local lblFase = rotulo(painelFase, {
 local _, killCheio, killTxt =
 	barra(painelFase, { Position = UDim2.fromOffset(72, 46), Size = UDim2.new(1, -82, 0, 15) }, COR.roxo)
 
+-- Repetir a mesma fase (para farmar): não avança sozinho, mas libera a próxima no portal
+btnRepetir = botao(gui, {
+	Name = "Repetir",
+	AnchorPoint = Vector2.new(1, 0),
+	Position = UDim2.new(1, -14, 0, 138),
+	Size = UDim2.fromOffset(170, 30),
+	Text = "🔁 Repetir fase: NÃO",
+	TextSize = 13,
+})
+btnRepetir.Activated:Connect(function()
+	if estado then
+		evRepetir:FireServer(not estado.repetir)
+	end
+end)
+
 ------------------------------------------------------------------------
 -- Menu lateral
 ------------------------------------------------------------------------
@@ -446,7 +466,7 @@ local menu = novo("Frame", gui, {
 	Name = "MenuLateral",
 	AnchorPoint = Vector2.new(0, 0.5),
 	Position = UDim2.new(0, 14, 0.55, 0),
-	Size = UDim2.fromOffset(70, 4 * 78),
+	Size = UDim2.fromOffset(70, 5 * 78),
 	BackgroundTransparency = 1,
 })
 novo("UIListLayout", menu, { Padding = UDim.new(0, 8), SortOrder = Enum.SortOrder.LayoutOrder })
@@ -503,6 +523,7 @@ botaoMenu(1, "mochila", "🎒", "Mochila", Color3.fromRGB(70, 120, 230))
 botaoMenu(2, "forja", "🔨", "Forja", Color3.fromRGB(215, 110, 45))
 botaoMenu(3, "habilidades", "✨", "Habilid.", Color3.fromRGB(140, 80, 220))
 botaoMenu(4, "ovos", "🥚", "Ovos", Color3.fromRGB(60, 170, 120))
+botaoMenu(5, "treino", "🏋️", "Treino", Color3.fromRGB(200, 60, 60))
 
 ------------------------------------------------------------------------
 -- Botão de auto-farm
@@ -640,7 +661,7 @@ local function criarAba(ordem, id, texto)
 	local b = botao(abas, {
 		Name = "Aba_" .. id,
 		LayoutOrder = ordem,
-		Size = UDim2.new(0.24, -5, 1, 0),
+		Size = UDim2.new(0.2, -5, 1, 0),
 		Text = texto,
 		TextSize = 13,
 		TextScaled = false,
@@ -654,6 +675,7 @@ local pgMochila = criarAba(1, "mochila", "🎒 Mochila")
 local pgForja = criarAba(2, "forja", "🔨 Forja")
 local pgHab = criarAba(3, "habilidades", "✨ Habilid.")
 local pgOvos = criarAba(4, "ovos", "🥚 Ovos")
+local pgTreino = criarAba(5, "treino", "🏋️ Treino")
 
 local desenhar -- definida mais abaixo
 local function mostrarAba(id)
@@ -722,7 +744,7 @@ for i, s in ipairs(Config.Slots) do
 	})
 	canto(ic, 8)
 	local icStroke = contorno(ic, COR.cinza, 2)
-	rotulo(ic, { Size = UDim2.fromScale(1, 1), Text = s.icone, TextSize = 22 })
+	local icEmoji = rotulo(ic, { Size = UDim2.fromScale(1, 1), Text = s.icone, TextSize = 22 })
 	local nome = rotulo(linha, {
 		Position = UDim2.fromOffset(52, 5),
 		Size = UDim2.new(1, -56, 0, 18),
@@ -741,7 +763,7 @@ for i, s in ipairs(Config.Slots) do
 		Text = "",
 		TextColor3 = COR.fraco,
 	})
-	slotUI[s.id] = { linha = linha, stroke = icStroke, nome = nome, stat = stat }
+	slotUI[s.id] = { linha = linha, stroke = icStroke, nome = nome, stat = stat, ic = ic, emoji = icEmoji }
 end
 
 local lblStats = rotulo(colEquip, {
@@ -892,7 +914,7 @@ local function desenharDetalhe()
 	local r = raridade(it.raridade)
 	local s = slotInfo(it.slot)
 	detNome.Text = s.icone .. " " .. it.nome
-	detNome.TextColor3 = r.cor
+	detNome.TextColor3 = r.corBorda or r.cor
 	local comparar = ""
 	local atualId = estado.equipado[it.slot]
 	local atual = atualId and itemPorId(atualId)
@@ -919,10 +941,26 @@ local function desenharMochila()
 		local ui = slotUI[s.id]
 		local id = estado.equipado[s.id]
 		local it = id and itemPorId(id)
+		local antigo = ui.ic:FindFirstChild("Icone3D")
+		if antigo and antigo:GetAttribute("Item") ~= (it and it.id or -1) then
+			antigo:Destroy()
+			antigo = nil
+		end
+		ui.emoji.Visible = it == nil
+		if it and not antigo then
+			local r3, ri3 = raridade(it.raridade)
+			local vp = novo("ViewportFrame", ui.ic, {
+				Name = "Icone3D",
+				Size = UDim2.fromScale(1, 1),
+				BackgroundTransparency = 1,
+			})
+			vp:SetAttribute("Item", it.id)
+			ItemArte.mostrar(vp, it.slot, ri3, r3.cor)
+		end
 		if it then
 			local r = raridade(it.raridade)
 			ui.nome.Text = it.nome
-			ui.nome.TextColor3 = r.cor
+			ui.nome.TextColor3 = r.corBorda or r.cor
 			ui.stat.Text = textoItem(it)
 			ui.stroke.Color = r.cor
 		else
@@ -962,16 +1000,19 @@ local function desenharMochila()
 			contorno(b, Color3.new(1, 1, 1), 3)
 		end
 		if vestido(it.id) then
+			-- selo verde no canto: item vestido (não cobre o nível)
 			local tag = rotulo(b, {
-				Position = UDim2.new(0, 0, 1, -16),
-				Size = UDim2.new(1, 0, 0, 14),
-				Text = "VESTIDO",
-				TextSize = 9,
-				Font = FONTE,
-				BackgroundTransparency = 0.2,
+				AnchorPoint = Vector2.new(1, 0),
+				Position = UDim2.new(1, 2, 0, -2),
+				Size = UDim2.fromOffset(18, 18),
+				Text = "✔",
+				TextSize = 12,
+				BackgroundTransparency = 0,
 				BackgroundColor3 = COR.verde,
+				ZIndex = 6,
 			})
-			canto(tag, 6)
+			canto(tag, 9)
+			contorno(tag, Color3.new(1, 1, 1), 1.5)
 		end
 		b.Activated:Connect(function()
 			selecionado = it.id
@@ -1531,6 +1572,109 @@ local function podeForjarAlgo()
 end
 
 ------------------------------------------------------------------------
+-- Aba Treinamento: sobe atributos pagando ouro
+------------------------------------------------------------------------
+rotulo(pgTreino, {
+	Size = UDim2.new(1, 0, 0, 22),
+	Text = "Treine o herói com ouro. Cada nível fica mais caro: farme para treinar!",
+	TextSize = 13,
+	Font = FONTE_TEXTO,
+	TextColor3 = COR.fraco,
+	TextXAlignment = Enum.TextXAlignment.Left,
+})
+local listaTreino = novo("Frame", pgTreino, {
+	Position = UDim2.fromOffset(0, 28),
+	Size = UDim2.new(1, 0, 1, -28),
+	BackgroundTransparency = 1,
+})
+novo("UIGridLayout", listaTreino, {
+	CellSize = UDim2.new(0.5, -5, 0.5, -5),
+	CellPadding = UDim2.fromOffset(10, 10),
+	SortOrder = Enum.SortOrder.LayoutOrder,
+})
+local linhasTreino = {}
+for i, tr in ipairs(Config.Treino) do
+	local c = novo("Frame", listaTreino, { LayoutOrder = i, BackgroundColor3 = COR.painel2, BorderSizePixel = 0 })
+	canto(c, 12)
+	contorno(c, COR.borda, 2)
+	local medalha = novo("Frame", c, {
+		Position = UDim2.fromOffset(10, 10),
+		Size = UDim2.fromOffset(54, 54),
+		BackgroundColor3 = COR.madeira,
+	})
+	canto(medalha, 27)
+	contorno(medalha, COR.dourado, 2.5)
+	rotulo(medalha, { Size = UDim2.fromScale(1, 1), Text = tr.icone, TextSize = 28 })
+	rotulo(c, {
+		Position = UDim2.fromOffset(74, 8),
+		Size = UDim2.new(1, -84, 0, 22),
+		Text = tr.nome,
+		TextSize = 18,
+		TextColor3 = Color3.fromRGB(255, 220, 130),
+		TextXAlignment = Enum.TextXAlignment.Left,
+	})
+	local nv = rotulo(c, {
+		AnchorPoint = Vector2.new(1, 0),
+		Position = UDim2.new(1, -10, 0, 10),
+		Size = UDim2.fromOffset(80, 20),
+		Text = "Nv 0",
+		TextSize = 15,
+		TextXAlignment = Enum.TextXAlignment.Right,
+	})
+	local efeito = rotulo(c, {
+		Position = UDim2.fromOffset(74, 32),
+		Size = UDim2.new(1, -84, 0, 32),
+		Text = "",
+		TextSize = 12,
+		Font = FONTE_TEXTO,
+		TextColor3 = COR.fraco,
+		TextWrapped = true,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		TextYAlignment = Enum.TextYAlignment.Top,
+	})
+	local b = botao(c, {
+		Name = "Treinar_" .. tr.id,
+		AnchorPoint = Vector2.new(0.5, 1),
+		Position = UDim2.new(0.5, 0, 1, -8),
+		Size = UDim2.new(1, -20, 0, 34),
+		Text = "",
+		TextSize = 15,
+		BackgroundColor3 = COR.verde,
+	})
+	b.Activated:Connect(function()
+		evTreinar:FireServer(tr.id)
+	end)
+	linhasTreino[tr.id] = { nv = nv, efeito = efeito, botao = b, tr = tr }
+end
+
+local function desenharTreino()
+	if not estado or not estado.treino then
+		return
+	end
+	for id, l in pairs(linhasTreino) do
+		local n = estado.treino[id] or 0
+		local tr = l.tr
+		l.nv.Text = "Nv " .. n .. (n >= tr.max and " (máx)" or "")
+		local total
+		if id == "precisao" then
+			total = string.format("+%.1f%% de crítico", n * tr.valor * 100)
+		elseif id == "ganancia" then
+			total = string.format("+%d%% de ouro", math.floor(n * tr.valor * 100 + 0.5))
+		elseif id == "vitalidade" then
+			total = string.format("+%d de vida", n * tr.valor)
+		else
+			total = string.format("+%d de dano", math.floor(n * tr.valor + 0.5))
+		end
+		l.efeito.Text = tr.texto:gsub("%%d", tostring(tr.valor)) .. "\nTotal agora: " .. total
+		local custo = Config.CustoTreino(tr, n)
+		local pode = n < tr.max and estado.ouro >= custo
+		l.botao.Text = n >= tr.max and "MÁXIMO" or ("Treinar  💰 " .. custo)
+		l.botao.BackgroundColor3 = pode and COR.verde or COR.cinza
+		l.botao.AutoButtonColor = pode
+	end
+end
+
+------------------------------------------------------------------------
 -- Abas Habilidades e Ovos (em breve)
 ------------------------------------------------------------------------
 local function emBreve(pagina, icone, titulo, texto, qtd)
@@ -1586,72 +1730,93 @@ emBreve(
 )
 
 ------------------------------------------------------------------------
--- Janela do Portal: mundos e fases
+-- Janela do Portal: mundos (com imagem 3D) e fases (com o rosto do inimigo)
 ------------------------------------------------------------------------
 local jPortal, corpoPortal, _, fecharPortal = criarJanela("🌀 Portal")
 fecharPortal.Activated:Connect(fecharJanelas)
-painelFase.Activated:Connect(function()
-	abrirJanela(jPortal)
-	desenhar()
-end)
 
-local colMundos = novo("Frame", corpoPortal, { Size = UDim2.new(0.32, -6, 1, 0), BackgroundTransparency = 1 })
-novo("UIListLayout", colMundos, { Padding = UDim.new(0, 8), SortOrder = Enum.SortOrder.LayoutOrder })
-local mundoSel = 1
-local botoesMundo = {}
-for i, m in ipairs(Config.Mundos) do
-	local b =
-		botao(colMundos, { LayoutOrder = i, Size = UDim2.new(1, 0, 0, 54), Text = "", BackgroundColor3 = COR.painel2 })
-	rotulo(b, {
-		Position = UDim2.fromOffset(10, 6),
-		Size = UDim2.new(1, -20, 0, 20),
-		Text = "Mundo " .. i,
-		TextSize = 15,
-		Font = FONTE,
-		TextXAlignment = Enum.TextXAlignment.Left,
-	})
-	rotulo(b, {
-		Position = UDim2.fromOffset(10, 27),
-		Size = UDim2.new(1, -20, 0, 18),
-		Text = m.nome,
-		TextSize = 12,
-		Font = FONTE_TEXTO,
-		TextColor3 = COR.fraco,
-		TextXAlignment = Enum.TextXAlignment.Left,
-		TextTruncate = Enum.TextTruncate.AtEnd,
-	})
-	botoesMundo[i] = b
-	b.Activated:Connect(function()
-		mundoSel = i
-		desenhar()
+local ArteReplicada = ReplicatedStorage:WaitForChild("Arte", 10)
+
+-- Coloca uma cópia 3D de um modelo dentro de um ViewportFrame e aponta a câmera
+local function retrato(vp, modelo, enquadrar)
+	local mundo = novo("WorldModel", vp)
+	local m = modelo:Clone()
+	for _, d in ipairs(m:GetDescendants()) do
+		if d:IsA("BasePart") then
+			d.Anchored = true
+		elseif d:IsA("LuaSourceContainer") or d:IsA("ParticleEmitter") then
+			d:Destroy()
+		end
+	end
+	m.Parent = mundo
+	local cam = novo("Camera", vp, { FieldOfView = 40 })
+	vp.CurrentCamera = cam
+	enquadrar(m, cam)
+	return m
+end
+
+local function retratoInimigo(vp, nomeModelo)
+	local pasta = ArteReplicada and ArteReplicada:FindFirstChild("Inimigos")
+	local original = pasta and pasta:FindFirstChild(nomeModelo)
+	if not original then
+		return
+	end
+	retrato(vp, original, function(m, cam)
+		local raiz = m:FindFirstChild("HumanoidRootPart", true)
+			or m.PrimaryPart
+			or m:FindFirstChildWhichIsA("BasePart", true)
+		local cabeca = m:FindFirstChild("Head", true) or raiz
+		-- enquadra rosto e ombros
+		local alvo = cabeca.Position - Vector3.new(0, cabeca.Size.Y * 0.35, 0)
+		local frente = raiz.CFrame.LookVector
+		local dist = math.max(4.5, cabeca.Size.Y * 4)
+		cam.CFrame = CFrame.lookAt(alvo + frente * dist + Vector3.new(0, 0.4, 0), alvo)
 	end)
 end
 
-local colFases = novo("Frame", corpoPortal, {
-	Position = UDim2.new(0.32, 6, 0, 0),
-	Size = UDim2.new(0.68, -6, 1, 0),
-	BackgroundColor3 = COR.painel2,
-	BorderSizePixel = 0,
-})
-canto(colFases, 12)
-local lblMundoSel = rotulo(colFases, {
-	Position = UDim2.fromOffset(12, 6),
-	Size = UDim2.new(1, -24, 0, 24),
-	Text = "",
-	TextSize = 16,
-	Font = FONTE,
-	TextXAlignment = Enum.TextXAlignment.Left,
-})
-local gradeFases = novo(
-	"Frame",
-	colFases,
-	{ Position = UDim2.fromOffset(12, 36), Size = UDim2.new(1, -24, 1, -48), BackgroundTransparency = 1 }
-)
-novo("UIGridLayout", gradeFases, {
-	CellSize = UDim2.new(0.2, -8, 0, 56),
-	CellPadding = UDim2.fromOffset(8, 8),
-	SortOrder = Enum.SortOrder.LayoutOrder,
-})
+local function imagemMundo(vp)
+	local pasta = ArteReplicada and ArteReplicada:FindFirstChild("Cenario")
+	if not pasta then
+		return
+	end
+	local cena = novo("Model", vp)
+	local function poe(nome, pos, escala, rotY)
+		local o = pasta:FindFirstChild(nome)
+		if not o then
+			return
+		end
+		local m = o:Clone()
+		m:ScaleTo(m:GetScale() * escala)
+		m:PivotTo(CFrame.new(pos) * CFrame.Angles(0, math.rad(rotY or 0), 0))
+		local cx, tam = m:GetBoundingBox()
+		m:PivotTo(m:GetPivot() + Vector3.new(0, pos.Y - (cx.Position.Y - tam.Y / 2), 0))
+		m.Parent = cena
+	end
+	poe("casaFeudal", Vector3.new(-9, 0, 6), 0.35, 25)
+	poe("torii", Vector3.new(2, 0, 2), 0.55, 0)
+	poe("cerejeira", Vector3.new(9, 0, 4), 0.2, 0)
+	poe("bambu", Vector3.new(-2, 0, 10), 0.16, 0)
+	poe("cerejeira", Vector3.new(-5, 0, -2), 0.14, 90)
+	local chao = Instance.new("Part")
+	chao.Anchored = true
+	chao.Size = Vector3.new(60, 1, 60)
+	chao.Position = Vector3.new(0, -0.5, 0)
+	chao.Color = Color3.fromRGB(100, 165, 75)
+	chao.Material = Enum.Material.Grass
+	chao.Parent = cena
+	local cam = novo("Camera", vp, { FieldOfView = 45 })
+	vp.CurrentCamera = cam
+	cam.CFrame = CFrame.lookAt(Vector3.new(0, 7, -16), Vector3.new(0, 3, 4))
+	vp.Ambient = Color3.fromRGB(170, 160, 150)
+	vp.LightColor = Color3.fromRGB(255, 240, 220)
+	vp.LightDirection = Vector3.new(-0.5, -1, 0.4)
+end
+
+-- coluna dos mundos
+local colMundos = novo("Frame", corpoPortal, { Size = UDim2.new(0.3, -6, 1, 0), BackgroundTransparency = 1 })
+novo("UIListLayout", colMundos, { Padding = UDim.new(0, 8), SortOrder = Enum.SortOrder.LayoutOrder })
+local mundoSel = 1
+local botoesMundo = {}
 
 local function faseIndice(mundo, numero)
 	for i, f in ipairs(Config.Fases) do
@@ -1661,62 +1826,276 @@ local function faseIndice(mundo, numero)
 	end
 end
 
-local function desenharPortal()
-	for i, b in pairs(botoesMundo) do
-		local temFase = faseIndice(i, 1) ~= nil
-		b.BackgroundColor3 = (i == mundoSel) and COR.roxo or COR.painel2
-		b.TextTransparency = temFase and 0 or 0.5
+for i, m in ipairs(Config.Mundos) do
+	local existe = faseIndice(i, 1) ~= nil
+	local b = novo("ImageButton", colMundos, {
+		Name = "Mundo_" .. i,
+		LayoutOrder = i,
+		Size = UDim2.new(1, 0, 0, i == 1 and 150 or 70),
+		BackgroundColor3 = COR.painel2,
+		AutoButtonColor = true,
+		Image = "",
+	})
+	canto(b, 12)
+	local borda = contorno(b, COR.borda, 2)
+	if i == 1 then
+		local vp = novo("ViewportFrame", b, {
+			Size = UDim2.fromScale(1, 1),
+			BackgroundColor3 = Color3.fromRGB(150, 200, 255),
+		})
+		canto(vp, 12)
+		novo("UIGradient", vp, {
+			Rotation = 90,
+			Color = ColorSequence.new(Color3.fromRGB(255, 255, 255), Color3.fromRGB(200, 220, 255)),
+		})
+		task.spawn(imagemMundo, vp)
+		local sombra = novo("Frame", b, {
+			Position = UDim2.new(0, 0, 1, -46),
+			Size = UDim2.new(1, 0, 0, 46),
+			BackgroundColor3 = Color3.new(0, 0, 0),
+			BackgroundTransparency = 0.35,
+			ZIndex = 2,
+		})
+		canto(sombra, 12)
 	end
-	local m = Config.Mundos[mundoSel]
-	lblMundoSel.Text = "Mundo " .. mundoSel .. " · " .. m.nome
+	rotulo(b, {
+		Position = UDim2.new(0, 10, 1, -44),
+		Size = UDim2.new(1, -20, 0, 20),
+		Text = "Mundo " .. i,
+		TextSize = 16,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		ZIndex = 3,
+	})
+	rotulo(b, {
+		Position = UDim2.new(0, 10, 1, -24),
+		Size = UDim2.new(1, -20, 0, 18),
+		Text = existe and m.nome or ("🔒 " .. m.nome .. " (em breve)"),
+		TextSize = 12,
+		TextColor3 = COR.dourado,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		TextTruncate = Enum.TextTruncate.AtEnd,
+		ZIndex = 3,
+	})
+	botoesMundo[i] = { botao = b, borda = borda, existe = existe }
+	b.Activated:Connect(function()
+		if existe then
+			mundoSel = i
+			desenhar()
+		end
+	end)
+end
+
+-- coluna das fases
+local colFases = novo("Frame", corpoPortal, {
+	Position = UDim2.new(0.3, 6, 0, 0),
+	Size = UDim2.new(0.7, -6, 1, 0),
+	BackgroundColor3 = COR.painel2,
+	BorderSizePixel = 0,
+})
+canto(colFases, 12)
+contorno(colFases, COR.borda, 2)
+local lblMundoSel = rotulo(colFases, {
+	Position = UDim2.fromOffset(12, 6),
+	Size = UDim2.new(1, -24, 0, 24),
+	Text = "",
+	TextSize = 17,
+	TextColor3 = Color3.fromRGB(255, 220, 130),
+	TextXAlignment = Enum.TextXAlignment.Left,
+})
+local gradeFases = novo("Frame", colFases, {
+	Position = UDim2.fromOffset(10, 34),
+	Size = UDim2.new(1, -20, 1, -96),
+	BackgroundTransparency = 1,
+})
+novo("UIGridLayout", gradeFases, {
+	CellSize = UDim2.new(0.2, -6, 0.5, -4),
+	CellPadding = UDim2.fromOffset(6, 6),
+	SortOrder = Enum.SortOrder.LayoutOrder,
+})
+
+-- drops do chefe embaixo
+local caixaDrops = novo("Frame", colFases, {
+	Position = UDim2.new(0, 10, 1, -58),
+	Size = UDim2.new(1, -20, 0, 50),
+	BackgroundColor3 = Color3.fromRGB(26, 18, 30),
+	BorderSizePixel = 0,
+})
+canto(caixaDrops, 10)
+contorno(caixaDrops, Color3.fromRGB(150, 80, 220), 1.5)
+rotulo(caixaDrops, {
+	Position = UDim2.fromOffset(10, 2),
+	Size = UDim2.new(1, -20, 0, 18),
+	Text = "☠ Drops do chefe Pen (1-10)",
+	TextSize = 12,
+	TextColor3 = Color3.fromRGB(220, 170, 255),
+	TextXAlignment = Enum.TextXAlignment.Left,
+})
+local listaDrops = novo("Frame", caixaDrops, {
+	Position = UDim2.fromOffset(8, 22),
+	Size = UDim2.new(1, -16, 0, 24),
+	BackgroundTransparency = 1,
+})
+novo("UIListLayout", listaDrops, {
+	FillDirection = Enum.FillDirection.Horizontal,
+	Padding = UDim.new(0, 4),
+	SortOrder = Enum.SortOrder.LayoutOrder,
+	VerticalAlignment = Enum.VerticalAlignment.Center,
+})
+do
+	local ordem = 0
+	local function chip(texto, cor)
+		ordem += 1
+		local c = rotulo(listaDrops, {
+			LayoutOrder = ordem,
+			AutomaticSize = Enum.AutomaticSize.X,
+			Size = UDim2.fromOffset(0, 20),
+			Text = " " .. texto .. " ",
+			TextSize = 11,
+			TextColor3 = cor,
+			BackgroundTransparency = 0.2,
+			BackgroundColor3 = Color3.fromRGB(14, 10, 18),
+		})
+		canto(c, 6)
+		contorno(c, cor, 1)
+	end
+	local d = Config.DropsChefe
+	chip("💰 " .. d.Ouro, COR.ouro)
+	for _, par in ipairs(d.Equipamento) do
+		local r = raridade(par[1])
+		chip(r.nome .. " " .. math.floor(par[2] * 100 + 0.5) .. "%", r.cor)
+	end
+	for _, esp in ipairs(d.Especiais) do
+		local r = raridade(esp.raridade)
+		chip(esp.icone .. " " .. esp.nome .. " " .. (esp.chance * 100) .. "%", r.cor)
+	end
+end
+
+-- cartões das fases (montados uma vez; o estado é atualizado em desenharPortal)
+local cartoesFase = {}
+local function montarCartoes(mundo)
 	for _, c in ipairs(gradeFases:GetChildren()) do
-		if c:IsA("GuiButton") then
+		if c:IsA("GuiObject") then
 			c:Destroy()
 		end
 	end
-	for n = 1, m.totalFases do
-		local idx = faseIndice(mundoSel, n)
-		local atual = idx and estado and idx == estado.faseIdx
-		local liberada = idx and estado and idx <= estado.faseMax
-		local b = botao(
-			gradeFases,
-			{ Name = "Fase_" .. n, LayoutOrder = n, Text = "", AutoButtonColor = liberada and not atual }
-		)
-		local nome = mundoSel .. "-" .. n
-		if atual then
-			b.BackgroundColor3 = COR.roxo
-			contorno(b, Color3.new(1, 1, 1), 2)
-		elseif liberada then
-			b.BackgroundColor3 = Color3.fromRGB(60, 120, 200)
-		else
-			b.BackgroundColor3 = Color3.fromRGB(45, 42, 60)
+	cartoesFase = {}
+	for n = 1, Config.Mundos[mundo].totalFases do
+		local idx = faseIndice(mundo, n)
+		local f = idx and Config.Fases[idx]
+		local b = novo("ImageButton", gradeFases, {
+			Name = "Fase_" .. n,
+			LayoutOrder = n,
+			BackgroundColor3 = f and f.chefe and Color3.fromRGB(60, 25, 80) or Color3.fromRGB(40, 32, 28),
+			AutoButtonColor = true,
+			Image = "",
+		})
+		canto(b, 10)
+		local borda = contorno(b, f and f.chefe and Color3.fromRGB(190, 90, 255) or COR.borda, f and f.chefe and 3 or 2)
+		local vp = novo("ViewportFrame", b, {
+			Size = UDim2.fromScale(1, 1),
+			BackgroundTransparency = 1,
+			Ambient = Color3.fromRGB(190, 180, 170),
+			LightColor = Color3.fromRGB(255, 240, 220),
+		})
+		canto(vp, 10)
+		if f then
+			task.spawn(retratoInimigo, vp, f.modelo)
 		end
-		rotulo(b, {
-			Position = UDim2.fromOffset(0, 6),
-			Size = UDim2.new(1, 0, 0, 22),
-			Text = nome,
-			TextSize = 17,
-			Font = FONTE,
-			TextTransparency = (liberada or atual) and 0 or 0.5,
+		local faixa = novo("Frame", b, {
+			Position = UDim2.new(0, 0, 1, -30),
+			Size = UDim2.new(1, 0, 0, 30),
+			BackgroundColor3 = Color3.new(0, 0, 0),
+			BackgroundTransparency = 0.35,
+			ZIndex = 2,
 		})
-		local sub = atual and "aqui" or (liberada and "ir" or (idx and "🔒" or "em breve"))
+		canto(faixa, 10)
 		rotulo(b, {
-			Position = UDim2.fromOffset(0, 30),
-			Size = UDim2.new(1, 0, 0, 16),
-			Text = sub,
-			TextSize = 11,
-			Font = FONTE_TEXTO,
+			Position = UDim2.fromOffset(5, 3),
+			Size = UDim2.new(1, -10, 0, 18),
+			Text = mundo .. "-" .. n,
+			TextSize = 16,
+			TextXAlignment = Enum.TextXAlignment.Left,
+			ZIndex = 3,
+		})
+		if f and f.chefe then
+			rotulo(b, {
+				AnchorPoint = Vector2.new(1, 0),
+				Position = UDim2.new(1, -4, 0, 4),
+				Size = UDim2.fromOffset(46, 16),
+				Text = "CHEFE",
+				TextSize = 11,
+				TextColor3 = Color3.fromRGB(255, 120, 255),
+				ZIndex = 3,
+			})
+		end
+		local sub = rotulo(b, {
+			Position = UDim2.new(0, 0, 1, -29),
+			Size = UDim2.new(1, 0, 0, 14),
+			Text = f and ("Nv " .. f.nivel) or "em breve",
+			TextSize = 12,
+			ZIndex = 3,
+		})
+		local estadoTxt = rotulo(b, {
+			Position = UDim2.new(0, 0, 1, -15),
+			Size = UDim2.new(1, 0, 0, 13),
+			Text = "",
+			TextSize = 10,
 			TextColor3 = COR.fraco,
+			ZIndex = 3,
 		})
-		if liberada and not atual then
-			b.Activated:Connect(function()
+		local veu = novo("Frame", b, {
+			Size = UDim2.fromScale(1, 1),
+			BackgroundColor3 = Color3.new(0, 0, 0),
+			BackgroundTransparency = 0.45,
+			ZIndex = 4,
+			Visible = false,
+		})
+		canto(veu, 10)
+		local cadeado = rotulo(veu, { Size = UDim2.fromScale(1, 1), Text = "🔒", TextSize = 26, ZIndex = 5 })
+		cadeado.Visible = true
+		b.Activated:Connect(function()
+			if idx and estado and idx <= estado.faseMax and idx ~= estado.faseIdx then
 				evIrFase:FireServer(idx)
 				fecharJanelas()
-			end)
+			end
+		end)
+		cartoesFase[n] = { idx = idx, borda = borda, sub = sub, estado = estadoTxt, veu = veu, chefe = f and f.chefe }
+	end
+end
+local mundoMontado
+
+painelFase.Activated:Connect(function()
+	abrirJanela(jPortal)
+	desenhar()
+end)
+
+local function desenharPortal()
+	if mundoMontado ~= mundoSel then
+		montarCartoes(mundoSel)
+		mundoMontado = mundoSel
+	end
+	for i, info in pairs(botoesMundo) do
+		info.borda.Color = (i == mundoSel) and COR.dourado or COR.borda
+		info.borda.Thickness = (i == mundoSel) and 3 or 2
+	end
+	lblMundoSel.Text = "Mundo " .. mundoSel .. " · " .. Config.Mundos[mundoSel].nome
+	for _, c in pairs(cartoesFase) do
+		local atual = c.idx and estado and c.idx == estado.faseIdx
+		local liberada = c.idx and estado and c.idx <= estado.faseMax
+		c.veu.Visible = not liberada
+		c.estado.Text = atual and "▶ VOCÊ ESTÁ AQUI" or (liberada and "toque para ir" or "")
+		c.estado.TextColor3 = atual and Color3.fromRGB(120, 255, 140) or COR.fraco
+		if atual then
+			c.borda.Color = Color3.fromRGB(120, 255, 140)
+		elseif c.chefe then
+			c.borda.Color = Color3.fromRGB(190, 90, 255)
+		else
+			c.borda.Color = liberada and COR.dourado or COR.borda
 		end
 	end
 end
 
+------------------------------------------------------------------------
 ------------------------------------------------------------------------
 -- Atualizar tudo quando chega o estado novo do servidor
 ------------------------------------------------------------------------
@@ -1741,6 +2120,8 @@ desenhar = function()
 	local f = Config.Fases[estado.faseIdx]
 	lblMundo.Text = "Mundo " .. f.mundo .. " · " .. Config.Mundos[f.mundo].nome
 	lblFase.Text = "Fase " .. f.nome
+	btnRepetir.Text = estado.repetir and "🔁 Repetir fase: SIM" or "🔁 Repetir fase: NÃO"
+	btnRepetir.BackgroundColor3 = estado.repetir and COR.verde or COR.madeira
 	killTxt.Text = estado.kills .. " / " .. estado.meta .. "  " .. f.monstro
 	TweenService
 		:Create(
@@ -1755,6 +2136,8 @@ desenhar = function()
 	if jMenu.Visible then
 		if abaAtual == "mochila" then
 			desenharMochila()
+		elseif abaAtual == "treino" then
+			desenharTreino()
 		elseif abaAtual == "forja" then
 			desenharForja()
 		end

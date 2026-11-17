@@ -8,6 +8,7 @@ local TweenService = game:GetService("TweenService")
 local Debris = game:GetService("Debris")
 
 local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
+local ItemArte = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("ItemArte"))
 local remotes = ReplicatedStorage:WaitForChild("Remotes")
 local evDano = remotes:WaitForChild("Dano")
 local evAviso = remotes:WaitForChild("Aviso")
@@ -71,7 +72,7 @@ end
 -- Notificações de itens (lado direito)
 local pilha = Instance.new("Frame")
 pilha.AnchorPoint = Vector2.new(1, 0)
-pilha.Position = UDim2.new(1, -14, 0, 144)
+pilha.Position = UDim2.new(1, -14, 0, 176)
 pilha.Size = UDim2.fromOffset(240, 300)
 pilha.BackgroundTransparency = 1
 pilha.Parent = gui
@@ -146,12 +147,27 @@ local function textoFlutuante(pos, msg, cor, tamanho)
 	t.Size = UDim2.fromScale(1, 1)
 	t.BackgroundTransparency = 1
 	t.Text = msg
-	t.TextColor3 = cor
+	t.TextColor3 = Color3.new(1, 1, 1)
 	t.TextSize = tamanho
-	t.Font = Enum.Font.GothamBlack
-	t.TextStrokeTransparency = 0
-	t.TextStrokeColor3 = Color3.fromRGB(30, 20, 40)
+	t.Font = Enum.Font.FredokaOne
 	t.Parent = bb
+	-- contorno grosso + degradê da cor (estilo anime)
+	local contorno = Instance.new("UIStroke")
+	contorno.Color = Color3.fromRGB(25, 12, 10)
+	contorno.Thickness = tamanho >= 28 and 3 or 2.2
+	contorno.Parent = t
+	local degrade = Instance.new("UIGradient")
+	degrade.Rotation = 90
+	degrade.Color = ColorSequence.new(cor:Lerp(Color3.new(1, 1, 1), 0.55), cor)
+	degrade.Parent = t
+	-- "pop": nasce grande e encolhe rapidinho
+	local escalaPop = Instance.new("UIScale")
+	escalaPop.Scale = tamanho >= 28 and 1.9 or 1.5
+	escalaPop.Parent = t
+	TweenService:Create(escalaPop, TweenInfo.new(0.22, Enum.EasingStyle.Back), { Scale = 1 }):Play()
+	TweenService:Create(contorno, TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.In, 0, false, 0.35), {
+		Transparency = 1,
+	}):Play()
 	TweenService:Create(
 		ancora,
 		TweenInfo.new(0.8, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
@@ -163,6 +179,73 @@ local function textoFlutuante(pos, msg, cor, tamanho)
 		{ TextTransparency = 1, TextStrokeTransparency = 1 }
 	):Play()
 	Debris:AddItem(ancora, 0.9)
+end
+
+-- O item que caiu aparece em 3D, pula do inimigo com o brilho da raridade e sobe
+local function itemPulando(pos, item, cor, ri)
+	local ancora = Instance.new("Part")
+	ancora.Anchored = true
+	ancora.CanCollide = false
+	ancora.CanQuery = false
+	ancora.Transparency = 1
+	ancora.Size = Vector3.new(0.2, 0.2, 0.2)
+	ancora.Position = pos + Vector3.new(0, 1, 0)
+	ancora.Parent = workspace
+	local tamanho = ri >= 5 and 110 or 80
+	local bb = Instance.new("BillboardGui")
+	bb.Size = UDim2.fromOffset(tamanho, tamanho + 22)
+	bb.AlwaysOnTop = true
+	bb.Adornee = ancora
+	bb.Parent = ancora
+	local brilho = Instance.new("Frame")
+	brilho.AnchorPoint = Vector2.new(0.5, 0.5)
+	brilho.Position = UDim2.new(0.5, 0, 0, tamanho / 2)
+	brilho.Size = UDim2.fromOffset(tamanho, tamanho)
+	brilho.BackgroundColor3 = cor
+	brilho.BackgroundTransparency = 0.35
+	brilho.Parent = bb
+	Instance.new("UICorner", brilho).CornerRadius = UDim.new(1, 0)
+	local g = Instance.new("UIGradient")
+	g.Transparency = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 0.2),
+		NumberSequenceKeypoint.new(0.5, 0.55),
+		NumberSequenceKeypoint.new(1, 1),
+	})
+	g.Rotation = 90
+	g.Parent = brilho
+	local vp = Instance.new("ViewportFrame")
+	vp.BackgroundTransparency = 1
+	vp.Size = UDim2.fromOffset(tamanho, tamanho)
+	vp.Parent = bb
+	ItemArte.mostrar(vp, item.slot, ri, cor)
+	local nome = Instance.new("TextLabel")
+	nome.Position = UDim2.fromOffset(-40, tamanho)
+	nome.Size = UDim2.new(1, 80, 0, 20)
+	nome.BackgroundTransparency = 1
+	nome.Text = item.nome
+	nome.TextColor3 = cor
+	nome.Font = Enum.Font.FredokaOne
+	nome.TextSize = ri >= 5 and 18 or 14
+	nome.TextStrokeTransparency = 0
+	nome.TextStrokeColor3 = Color3.fromRGB(20, 10, 8)
+	nome.Parent = bb
+	local escalaPop = Instance.new("UIScale")
+	escalaPop.Scale = 0.2
+	escalaPop.Parent = bb
+	TweenService:Create(escalaPop, TweenInfo.new(0.35, Enum.EasingStyle.Back), { Scale = 1 }):Play()
+	TweenService:Create(ancora, TweenInfo.new(0.5, Enum.EasingStyle.Back), { Position = pos + Vector3.new(0, 5, 0) })
+		:Play()
+	-- gira o brilho devagar
+	local giro = TweenService:Create(g, TweenInfo.new(1.6, Enum.EasingStyle.Linear), { Rotation = 450 })
+	giro:Play()
+	task.delay(1.4 + (ri >= 5 and 1 or 0), function()
+		if bb.Parent then
+			TweenService:Create(escalaPop, TweenInfo.new(0.3), { Scale = 0 }):Play()
+			TweenService:Create(ancora, TweenInfo.new(0.3), { Position = ancora.Position + Vector3.new(0, 3, 0) })
+				:Play()
+		end
+	end)
+	Debris:AddItem(ancora, 2.2 + (ri >= 5 and 1 or 0))
 end
 
 local function tremer(forca, duracao)
@@ -316,24 +399,25 @@ end)
 
 evLoot.OnClientEvent:Connect(function(tipo, pos, item, ouro)
 	local r, ri = raridade(item.raridade)
+	local corTexto = r.corBorda or r.cor -- itens pretos (Secreto) usam a borda clara
 	if tipo == "cheio" then
 		notificar("Mochila cheia: " .. item.nome .. " virou " .. ouro .. " ouro", Color3.fromRGB(255, 205, 70))
 		return
 	end
 	if pos then
 		feixe(pos, r.cor, ri >= 4)
-		textoFlutuante(pos + Vector3.new(0, 4, 0), item.nome, r.cor, ri >= 4 and 26 or 18)
+		itemPulando(pos, item, corTexto, ri)
 	end
 	if tipo == "forja" then
-		notificar("🔨 Forjou: " .. item.nome .. " (" .. r.nome .. ")", r.cor)
-		mostrarFaixa("FORJADO: " .. string.upper(r.nome) .. "!", r.cor, 1.6)
+		notificar("🔨 Forjou: " .. item.nome .. " (" .. r.nome .. ")", corTexto)
+		mostrarFaixa("FORJADO: " .. string.upper(r.nome) .. "!", corTexto, 1.6)
 		local char = player.Character
 		local root = char and char:FindFirstChild("HumanoidRootPart")
 		if root then
 			explosao(root.Position, r.cor, 16)
 		end
 	else
-		notificar(item.nome .. " (" .. r.nome .. ")", r.cor)
+		notificar(item.nome .. " (" .. r.nome .. ")", corTexto)
 	end
 	if ri >= 5 then
 		tremer(1.2, 0.5)
@@ -357,6 +441,8 @@ evAviso.OnClientEvent:Connect(function(tipo, a, b)
 		mostrarFaixa(string.upper(a) .. " COMPLETO!", Color3.fromRGB(255, 225, 120), 3)
 	elseif tipo == "lendario" then
 		mostrarFaixa(a .. " achou um item LENDÁRIO: " .. b .. "!", Color3.fromRGB(255, 160, 40), 3.5)
+	elseif tipo == "repetir" then
+		notificar("🔁 Fase " .. a .. " de novo (repetindo)", Color3.fromRGB(150, 230, 160))
 	elseif tipo == "habilidade" then
 		mostrarFaixa(string.upper(a), Color3.fromRGB(200, 120, 255), 1.4)
 	elseif tipo == "empurrao" then

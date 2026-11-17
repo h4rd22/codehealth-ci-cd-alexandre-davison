@@ -3,8 +3,8 @@
 
 local Config = {}
 
--- No jogo final serão 70 monstros por fase. No teste, 10 para ir rápido.
-Config.MonstrosPorFase = 10
+-- No jogo final serão 70 monstros por fase. Por enquanto 20 (balanceado para ser difícil).
+Config.MonstrosPorFase = 20
 -- Quantos monstros ficam vivos no mapa ao mesmo tempo.
 Config.MonstrosVivos = 5
 -- Mapa pequeno: cada fase é uma arena redonda e compacta.
@@ -13,7 +13,7 @@ Config.RaioMonstros = 19 -- até onde os monstros aparecem (dentro da arena)
 
 Config.Heroi = {
 	Dano = 10, -- dano base de cada golpe
-	DanoPorNivel = 1.5, -- dano extra a cada nível (pouco: o que importa é o equipamento)
+	DanoPorNivel = 1.0, -- dano extra a cada nível (pouco: o que importa é o equipamento e o treino)
 	Variacao = 0.25, -- o dano varia 25% para mais ou para menos
 	ChanceCritico = 0.10, -- 10% de chance de crítico (o elmo aumenta)
 	MultCritico = 2.5, -- crítico causa 2,5x o dano
@@ -79,10 +79,10 @@ Config.Fases = {
 -- Inimigos: vida e dano crescem com o nível (fórmula provisória, ver Quadro de Avisos)
 Config.Inimigo = {
 	VidaBase = 30, -- vida no nível 1
-	VidaCrescimento = 1.20, -- cada nível multiplica a vida por isto (jogo difícil!)
+	VidaCrescimento = 1.24, -- cada nível multiplica a vida por isto (jogo difícil!)
 	DanoBase = 2, -- dano de cada golpe no nível 1
-	DanoPorNivel = 0.9, -- dano extra a cada nível do inimigo
-	MultChefe = 10, -- o chefe tem 10x a vida de um inimigo do mesmo nível
+	DanoPorNivel = 1.2, -- dano extra a cada nível do inimigo
+	MultChefe = 14, -- o chefe tem 14x a vida de um inimigo do mesmo nível
 	AtaqueIntervalo = 1.6, -- segundos entre os golpes de cada inimigo
 	AtaqueAlcance = 5.5, -- distância para o inimigo conseguir bater no herói
 	DanoChefeGolpe = 1.3, -- o golpe normal do chefe dá 1,3x o dano do nível dele
@@ -100,8 +100,57 @@ function Config.DanoInimigo(nivel)
 	return math.floor(Config.Inimigo.DanoBase + Config.Inimigo.DanoPorNivel * (nivel - 1) + 0.5)
 end
 -- Baú especial que o chefe dropa
+-- Treinamento: gasta ouro para subir atributos permanentes.
+-- custo do próximo nível = custoBase * crescimento ^ nível atual
+Config.Treino = {
+	{
+		id = "forca",
+		nome = "Força",
+		icone = "💪",
+		texto = "+%d de dano por nível",
+		valor = 1.5,
+		custoBase = 25,
+		crescimento = 1.2,
+		max = 200,
+	},
+	{
+		id = "vitalidade",
+		nome = "Vitalidade",
+		icone = "❤️",
+		texto = "+%d de vida por nível",
+		valor = 14,
+		custoBase = 25,
+		crescimento = 1.2,
+		max = 200,
+	},
+	{
+		id = "precisao",
+		nome = "Precisão",
+		icone = "🎯",
+		texto = "+0,5% de crítico por nível",
+		valor = 0.005,
+		custoBase = 40,
+		crescimento = 1.22,
+		max = 60,
+	},
+	{
+		id = "ganancia",
+		nome = "Ganância",
+		icone = "💰",
+		texto = "+3% de ouro por nível",
+		valor = 0.03,
+		custoBase = 60,
+		crescimento = 1.25,
+		max = 50,
+	},
+}
+
+function Config.CustoTreino(t, nivel)
+	return math.floor(t.custoBase * t.crescimento ^ nivel + 0.5)
+end
+
 -- Tempo para derrotar o chefe. Se acabar, o herói volta uma fase (regra do CONTEXTO.md).
-Config.ChefeTempo = 120
+Config.ChefeTempo = 90
 
 -- Nomes dos equipamentos por categoria e tier (T1 = Comum ... T5 = Lendário)
 Config.NomesItens = {
@@ -161,7 +210,7 @@ Config.DropsChefe = {
 ------------------------------------------------------------------------
 -- Loot
 ------------------------------------------------------------------------
-Config.ChanceDrop = 0.07 -- 7% dos monstros dropam um equipamento (item é raro!)
+Config.ChanceDrop = 0.05 -- 5% dos monstros dropam um equipamento (item é raro!)
 
 -- Nível do item que cai: mistura o nível do inimigo com o do herói, com variação.
 -- Fórmula provisória, ver Quadro de Avisos.

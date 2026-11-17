@@ -27,6 +27,8 @@ local evDano = remote("Dano") -- números de dano e morte de monstro
 local evAviso = remote("Aviso") -- faixas: fase nova, nível novo, lendário
 local evLoot = remote("Loot") -- item caiu / forja
 local evAutoFarm = remote("AutoFarm")
+local evRepetir = remote("Repetir") -- liga/desliga repetir a mesma fase
+local evTreinar = remote("Treinar") -- sobe um atributo do treinamento
 local evEquipar = remote("Equipar")
 local evDesequipar = remote("Desequipar")
 local evVender = remote("Vender")
@@ -114,6 +116,20 @@ local function calcularStats(st)
 			end
 		end
 	end
+	local treino = st.treino or {}
+	for _, tr in ipairs(Config.Treino) do
+		local n = treino[tr.id] or 0
+		if tr.id == "forca" then
+			s.dano += n * tr.valor
+		elseif tr.id == "vitalidade" then
+			s.vidaMax += n * tr.valor
+		elseif tr.id == "precisao" then
+			s.critico += n * tr.valor
+		elseif tr.id == "ganancia" then
+			s.ouro += n * tr.valor
+		end
+	end
+	s.dano = math.floor(s.dano + 0.5)
 	if s.danoMult then
 		s.dano = math.floor(s.dano * s.danoMult + 0.5)
 		s.danoMult = nil
@@ -147,6 +163,8 @@ local function enviarEstado(player)
 		stats = calcularStats(st),
 		autoFarm = st.autoFarm,
 		configForja = st.configForja,
+		repetir = st.repetir,
+		treino = st.treino,
 	})
 end
 
@@ -464,7 +482,7 @@ local function criarMonstro(player, indiceFase)
 			base = Vector3.new(math.cos(ang) * raio, topoArena, math.sin(ang) * raio)
 			local livre = true
 			for _, outro in ipairs(pasta:GetChildren()) do
-				if outro.PrimaryPart and (outro.PrimaryPart.Position - base).Magnitude < 9 then
+				if outro.PrimaryPart and (outro.PrimaryPart.Position - base).Magnitude < 11 then
 					livre = false
 					break
 				end
@@ -491,41 +509,78 @@ local function criarMonstro(player, indiceFase)
 		m:SetAttribute("Fim", workspace:GetServerTimeNow() + Config.ChefeTempo)
 	end
 
+	-- Plaquinha estilo anime: selo de nível, nome com contorno e barra de vida em degradê
 	local bb = Instance.new("BillboardGui")
 	bb.Name = "Barra"
-	bb.Size = UDim2.fromOffset(f.chefe and 180 or 120, 30)
-	bb.StudsOffsetWorldSpace = Vector3.new(0, (base.Y + altura) - corpo.Position.Y + 1.2, 0)
+	bb.Size = UDim2.fromOffset(f.chefe and 200 or 150, 40)
+	bb.StudsOffsetWorldSpace = Vector3.new(0, (base.Y + altura) - corpo.Position.Y + 1.4, 0)
 	bb.AlwaysOnTop = true
 	bb.MaxDistance = 90
 	bb.Adornee = corpo
 	bb.Parent = m
 
+	local corTema = f.chefe and Color3.fromRGB(190, 90, 255) or Color3.fromRGB(235, 70, 60)
+	local selo = Instance.new("Frame")
+	selo.Position = UDim2.fromOffset(0, 4)
+	selo.Size = UDim2.fromOffset(28, 28)
+	selo.BackgroundColor3 = Color3.fromRGB(40, 26, 20)
+	selo.ZIndex = 3
+	selo.Parent = bb
+	Instance.new("UICorner", selo).CornerRadius = UDim.new(1, 0)
+	local seloBorda = Instance.new("UIStroke")
+	seloBorda.Color = Color3.fromRGB(230, 185, 100)
+	seloBorda.Thickness = 2
+	seloBorda.Parent = selo
+	local nv = Instance.new("TextLabel")
+	nv.Size = UDim2.fromScale(1, 1)
+	nv.BackgroundTransparency = 1
+	nv.Text = tostring(f.nivel)
+	nv.TextColor3 = Color3.fromRGB(255, 225, 140)
+	nv.Font = Enum.Font.FredokaOne
+	nv.TextSize = 14
+	nv.ZIndex = 4
+	nv.Parent = selo
+
 	local nome = Instance.new("TextLabel")
-	nome.Size = UDim2.new(1, 0, 0, 14)
+	nome.Position = UDim2.fromOffset(32, 2)
+	nome.Size = UDim2.new(1, -32, 0, 16)
 	nome.BackgroundTransparency = 1
-	nome.Text = "Nv " .. f.nivel .. "  " .. f.monstro
-	nome.TextColor3 = f.chefe and Color3.fromRGB(220, 170, 255) or Color3.new(1, 1, 1)
-	nome.TextStrokeTransparency = 0.3
-	nome.Font = Enum.Font.GothamBlack
-	nome.TextSize = f.chefe and 15 or 12
+	nome.Text = f.monstro
+	nome.TextColor3 = f.chefe and Color3.fromRGB(235, 190, 255) or Color3.new(1, 1, 1)
+	nome.TextXAlignment = Enum.TextXAlignment.Left
+	nome.TextStrokeTransparency = 0
+	nome.TextStrokeColor3 = Color3.fromRGB(20, 12, 10)
+	nome.Font = Enum.Font.FredokaOne
+	nome.TextSize = f.chefe and 16 or 13
+	nome.TextTruncate = Enum.TextTruncate.AtEnd
 	nome.Parent = bb
 
 	local fundo = Instance.new("Frame")
 	fundo.Name = "Fundo"
-	fundo.Position = UDim2.fromOffset(0, 17)
-	fundo.Size = UDim2.new(1, 0, 0, 8)
-	fundo.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
+	fundo.Position = UDim2.fromOffset(26, 20)
+	fundo.Size = UDim2.new(1, -28, 0, 11)
+	fundo.BackgroundColor3 = Color3.fromRGB(24, 16, 14)
 	fundo.BorderSizePixel = 0
+	fundo.ZIndex = 2
 	fundo.Parent = bb
 	Instance.new("UICorner", fundo).CornerRadius = UDim.new(1, 0)
+	local borda = Instance.new("UIStroke")
+	borda.Color = Color3.fromRGB(20, 10, 8)
+	borda.Thickness = 1.5
+	borda.Parent = fundo
 
 	local barra = Instance.new("Frame")
 	barra.Name = "Vida"
 	barra.Size = UDim2.fromScale(1, 1)
-	barra.BackgroundColor3 = f.chefe and Color3.fromRGB(190, 90, 255) or Color3.fromRGB(235, 70, 70)
+	barra.BackgroundColor3 = Color3.new(1, 1, 1)
 	barra.BorderSizePixel = 0
+	barra.ZIndex = 2
 	barra.Parent = fundo
 	Instance.new("UICorner", barra).CornerRadius = UDim.new(1, 0)
+	local degrade = Instance.new("UIGradient")
+	degrade.Rotation = 90
+	degrade.Color = ColorSequence.new(corTema:Lerp(Color3.new(1, 1, 1), 0.35), corTema:Lerp(Color3.new(0, 0, 0), 0.25))
+	degrade.Parent = barra
 
 	m.Parent = pasta
 
@@ -739,7 +794,12 @@ local function monstroMorreu(player, m)
 	st.kills += 1
 	if st.kills >= metaDaFase(st.fase) then
 		st.kills = 0
-		if st.fase < #Config.Fases then
+		if st.repetir then
+			-- repete a mesma fase, mas já libera a próxima no portal
+			st.faseMax = math.max(st.faseMax, math.min(st.fase + 1, #Config.Fases))
+			evAviso:FireClient(player, "repetir", f.nome)
+			task.delay(f.chefe and 3 or 0.6, completarMonstros, player)
+		elseif st.fase < #Config.Fases then
 			st.fase += 1
 			st.faseMax = math.max(st.faseMax, st.fase)
 			local nova = Config.Fases[st.fase]
@@ -938,6 +998,42 @@ end
 -- Pedidos da tela
 ------------------------------------------------------------------------
 evPedirEstado.OnServerEvent:Connect(enviarEstado)
+
+evRepetir.OnServerEvent:Connect(function(player, ligado)
+	local st = estado[player]
+	if st then
+		st.repetir = ligado == true
+		enviarEstado(player)
+	end
+end)
+
+-- Treinamento: sobe 1 nível do atributo pagando ouro (o servidor confere tudo)
+local ultimoTreino = {}
+evTreinar.OnServerEvent:Connect(function(player, id)
+	local st = estado[player]
+	if not st or type(id) ~= "string" then
+		return
+	end
+	local agora = os.clock()
+	if ultimoTreino[player] and agora - ultimoTreino[player] < 0.08 then
+		return
+	end
+	ultimoTreino[player] = agora
+	for _, tr in ipairs(Config.Treino) do
+		if tr.id == id then
+			local n = st.treino[id] or 0
+			local custo = Config.CustoTreino(tr, n)
+			if n < tr.max and st.ouro >= custo then
+				st.ouro -= custo
+				st.treino[id] = n + 1
+				vestir(player) -- atualiza vida/velocidade
+				enviarEstado(player)
+				enviarVida(player)
+			end
+			return
+		end
+	end
+end)
 
 evAutoFarm.OnServerEvent:Connect(function(player, ligado)
 	local st = estado[player]
@@ -1184,6 +1280,12 @@ if RunService:IsStudio() then
 				local item = criarItem(st, b or sortearRaridade(), nivelDoDrop(f.nivel, st.nivel))
 				st.itens[item.id] = item
 			end
+		elseif acao == "drop" then
+			-- faz um item "cair" na frente do herói (para ver o efeito)
+			local char = player.Character
+			local raizHeroi = char and char:FindFirstChild("HumanoidRootPart")
+			local pos = raizHeroi and (raizHeroi.Position + raizHeroi.CFrame.LookVector * 6) or Vector3.new(0, 5, 0)
+			guardarItem(player, criarItem(st, b or sortearRaridade(), 10), pos)
 		elseif acao == "vestirMelhor" then
 			for _, s in ipairs(Config.Slots) do
 				local melhor
@@ -1229,6 +1331,8 @@ Players.PlayerAdded:Connect(function(player)
 		proximoId = 0,
 		autoFarm = true,
 		vida = Config.Heroi.Vida,
+		repetir = false,
+		treino = { forca = 0, vitalidade = 0, precisao = 0, ganancia = 0 },
 		configForja = { auto = false, ate = "incomum", mesmoNivel = false },
 	}
 	player.CharacterAdded:Connect(function(char)
@@ -1248,6 +1352,7 @@ end)
 
 Players.PlayerRemoving:Connect(function(player)
 	ultimaForja[player] = nil
+	ultimoTreino[player] = nil
 	limparMonstros(player)
 	estado[player] = nil
 end)
