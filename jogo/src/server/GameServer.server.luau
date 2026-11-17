@@ -226,6 +226,8 @@ local function calcularStats(st)
 	s.danoPct = danoPct -- bônus total de dano em % (itens, joias, conjuntos, avatar, classe)
 	s.vidaPct = vidaPct
 	s.resist = { fogo = s.resistencia, gelo = s.resistencia, raio = s.resistencia, veneno = s.resistencia }
+	s.resFogo, s.resGelo, s.resRaio, s.resVeneno = s.resistencia, s.resistencia, s.resistencia, s.resistencia
+	s.xp = 1 -- multiplicador de XP (1 = normal; ainda não há bônus)
 	s.regen = (classe and classe.regeneracao) or h.Regeneracao -- % da vida por segundo fora de combate
 	local fAtualStats = Config.Fases[st.fase]
 	s.reducao = Config.ReducaoArmadura(s.armadura, fAtualStats and fAtualStats.nivel or 1) -- dano bloqueado na fase atual
