@@ -263,9 +263,15 @@ local function clonar(m)
 			or d:IsA("Animator")
 		then
 			d:Destroy()
-		elseif d:IsA("BasePart") then
-			d.Transparency = math.min(d.Transparency, 0.95)
-			d.LocalTransparencyModifier = 0
+		elseif d:IsA("BasePart") or d:IsA("Decal") then
+			-- volta a transparência de quando ele nasceu (o servidor já começou a apagá-lo)
+			local t0 = d:GetAttribute("T0")
+			if typeof(t0) == "number" then
+				d.Transparency = t0
+			end
+			if d:IsA("BasePart") then
+				d.LocalTransparencyModifier = 0
+			end
 		end
 	end
 	c.Name = m.Name .. "_Morte"
@@ -589,6 +595,11 @@ local function ligar(m)
 		return
 	end
 	mortos[m] = false
+	for _, d in ipairs(m:GetDescendants()) do
+		if d:IsA("BasePart") or d:IsA("Decal") then
+			d:SetAttribute("T0", d.Transparency) -- só nesta tela; usado no clone da morte
+		end
+	end
 	local chefe = m:GetAttribute("Chefe") == true
 	local vidaAntes = m:GetAttribute("Vida") or 0
 	local temRig = m:FindFirstChildWhichIsA("Humanoid", true) ~= nil and Animacoes.rig(m) ~= nil

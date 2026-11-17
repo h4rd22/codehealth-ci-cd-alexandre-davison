@@ -35,18 +35,19 @@ end
 ------------------------------------------------------------------------
 -- Juntas
 ------------------------------------------------------------------------
+-- Nomes possíveis de cada junta (R6, R15 e bonecos montados à mão, como o do Pen)
 local NOMES = {
-	raiz = { "RootJoint", "Root" },
-	tronco = { false, "Waist" },
-	pescoco = { "Neck", "Neck" },
-	ombroD = { "Right Shoulder", "RightShoulder" },
-	ombroE = { "Left Shoulder", "LeftShoulder" },
-	cotoveloD = { false, "RightElbow" },
-	cotoveloE = { false, "LeftElbow" },
-	quadrilD = { "Right Hip", "RightHip" },
-	quadrilE = { "Left Hip", "LeftHip" },
-	joelhoD = { false, "RightKnee" },
-	joelhoE = { false, "LeftKnee" },
+	raiz = { "RootJoint", "Root", "Root Hip", "Pelvis" },
+	tronco = { "Waist", "Torso" },
+	pescoco = { "Neck", "Head" },
+	ombroD = { "Right Shoulder", "RightShoulder", "RightUpperArm" },
+	ombroE = { "Left Shoulder", "LeftShoulder", "LeftUpperArm" },
+	cotoveloD = { "RightElbow", "RightLowerArm" },
+	cotoveloE = { "LeftElbow", "LeftLowerArm" },
+	quadrilD = { "Right Hip", "RightHip", "RightUpperLeg" },
+	quadrilE = { "Left Hip", "LeftHip", "LeftUpperLeg" },
+	joelhoD = { "RightKnee", "RightLowerLeg" },
+	joelhoE = { "LeftKnee", "LeftLowerLeg" },
 }
 
 local function paraCFrame(v)
@@ -135,7 +136,8 @@ end
 
 ------------------------------------------------------------------------
 -- Bonecos animados
--- Mexemos no C0 da junta (a mudança só existe na tela deste jogador).
+-- Mexemos no C0 da junta (Motor6D) ou no Transform (AnimationConstraint, juntas novas do Roblox).
+-- A mudança só existe na tela deste jogador.
 -- Se outra coisa mudar o C0 (ex.: o boneco crescer), pegamos o novo valor como base.
 ------------------------------------------------------------------------
 local rigs = {}
@@ -194,6 +196,24 @@ local function atualizar()
 				continue
 			end
 			local off = soma[j]
+			if j.restricao then
+				-- Juntas novas do Roblox (AnimationConstraint): o C0 não pode ser mudado,
+				-- então mexemos no Transform logo depois da animação do Roblox ser aplicada.
+				local atual = motor.Transform
+				local base = (j.escrito and atual:FuzzyEq(j.escrito, 1e-4)) and j.base or atual
+				j.base = base
+				if off then
+					local at = motor.Attachment0
+					local rc = at and at.CFrame.Rotation or CFrame.identity
+					local novo = rc:Inverse() * CFrame.new(off.Position * escala) * off.Rotation * rc * base
+					motor.Transform = novo
+					j.escrito = novo
+				elseif j.escrito then
+					motor.Transform = base
+					j.escrito = nil
+				end
+				continue
+			end
 			if j.escrito and not motor.C0:FuzzyEq(j.escrito, 1e-4) then
 				j.base = motor.C0 -- alguém mudou o C0 por fora (crescer, trocar corpo...)
 			end
@@ -223,23 +243,24 @@ function Animacoes.rig(m)
 	if r then
 		return r
 	end
-	local hum = m:FindFirstChildWhichIsA("Humanoid", true)
-	local r15 = hum ~= nil and hum.RigType == Enum.HumanoidRigType.R15
 	local motores = {}
 	for _, d in ipairs(m:GetDescendants()) do
-		if d:IsA("Motor6D") and not motores[d.Name] then
+		if (d:IsA("Motor6D") or d:IsA("AnimationConstraint")) and not motores[d.Name] then
 			motores[d.Name] = d
 		end
 	end
 	local juntas, lista = {}, {}
-	for nome, par in pairs(NOMES) do
-		local nm = par[r15 and 2 or 1]
-		local motor = nm and motores[nm]
-		if not motor and not hum then
-			motor = (par[1] and motores[par[1]]) or (par[2] and motores[par[2]])
+	for nome, nomes in pairs(NOMES) do
+		local motor
+		for _, nm in ipairs(nomes) do
+			motor = motores[nm]
+			if motor then
+				break
+			end
 		end
 		if motor then
-			local j = { motor = motor, base = motor.C0 }
+			local restricao = motor:IsA("AnimationConstraint")
+			local j = { motor = motor, restricao = restricao, base = restricao and CFrame.identity or motor.C0 }
 			juntas[nome] = j
 			table.insert(lista, j)
 		end
@@ -248,10 +269,11 @@ function Animacoes.rig(m)
 		return nil
 	end
 	juntas.tronco = juntas.tronco or juntas.raiz -- R6 não tem cintura: o corpo todo inclina
-	r = { modelo = m, juntas = juntas, lista = lista, camadas = {}, ultimo = os.clock(), r15 = r15 }
+	r = { modelo = m, juntas = juntas, lista = lista, camadas = {}, ultimo = os.clock() }
 	rigs[m] = r
 	if not laco and RunService:IsClient() then
-		laco = RunService.RenderStepped:Connect(atualizar)
+		-- logo depois das animações do Roblox e antes da física (para valer por cima delas)
+		laco = RunService.PreSimulation:Connect(atualizar)
 	end
 	return r
 end

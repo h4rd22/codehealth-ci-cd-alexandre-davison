@@ -623,12 +623,66 @@ function Modelos.atacar(m)
 	faixa:Play(0.05, 1, 1.3)
 end
 
+-- Alguns bonecos R6 da pasta Arte vieram "estátua" (sem juntas). Criamos as juntas padrão do R6
+-- para eles poderem respirar, correr, atacar e fazer as poses do AnimInimigos.
+local JUNTAS_R6 = {
+	-- nome, peça0, peça1, C0 (para tronco 2x2x1)
+	{ "RootJoint", "HumanoidRootPart", "Torso", CFrame.new(0, 0, 0, -1, 0, 0, 0, 0, 1, 0, 1, 0) },
+	{ "Neck", "Torso", "Head", CFrame.new(0, 1, 0, -1, 0, 0, 0, 0, 1, 0, 1, 0) },
+	{ "Right Shoulder", "Torso", "Right Arm", CFrame.new(1, 0.5, 0, 0, 0, 1, 0, 1, 0, -1, 0, 0) },
+	{ "Left Shoulder", "Torso", "Left Arm", CFrame.new(-1, 0.5, 0, 0, 0, -1, 0, 1, 0, 1, 0, 0) },
+	{ "Right Hip", "Torso", "Right Leg", CFrame.new(1, -1, 0, 0, 0, 1, 0, 1, 0, -1, 0, 0) },
+	{ "Left Hip", "Torso", "Left Leg", CFrame.new(-1, -1, 0, 0, 0, -1, 0, 1, 0, 1, 0, 0) },
+}
+local function criarJuntasR6(m, hum)
+	if hum.RigType ~= Enum.HumanoidRigType.R6 or m:FindFirstChildWhichIsA("Motor6D", true) then
+		return
+	end
+	local pecas = {}
+	for _, j in ipairs(JUNTAS_R6) do
+		for _, nome in ipairs({ j[2], j[3] }) do
+			local p = pecas[nome] or m:FindFirstChild(nome, true)
+			if not p or not p:IsA("BasePart") then
+				return -- não é um R6 completo: deixa como está
+			end
+			pecas[nome] = p
+		end
+	end
+	local corpo = {}
+	for _, p in pairs(pecas) do
+		corpo[p] = true
+	end
+	-- tira soldas antigas entre partes do corpo (senão os membros ficam presos)
+	for _, d in ipairs(m:GetDescendants()) do
+		if (d:IsA("JointInstance") or d:IsA("WeldConstraint")) and corpo[d.Part0] and corpo[d.Part1] then
+			d:Destroy()
+		end
+	end
+	local tronco = pecas.Torso
+	local fator = tronco.Size / Vector3.new(2, 2, 1)
+	for _, j in ipairs(JUNTAS_R6) do
+		local p0, p1 = pecas[j[2]], pecas[j[3]]
+		local c0 = CFrame.new(j[4].Position * (p0 == tronco and fator or Vector3.one)) * j[4].Rotation
+		if p0.Name == "HumanoidRootPart" then
+			c0 = CFrame.new(p0.CFrame:PointToObjectSpace(tronco.Position)) * j[4].Rotation
+		end
+		local motor = Instance.new("Motor6D")
+		motor.Name = j[1]
+		motor.Part0 = p0
+		motor.Part1 = p1
+		motor.C0 = c0
+		motor.C1 = p1.CFrame:ToObjectSpace(p0.CFrame * c0) -- mantém o membro onde já estava
+		motor.Parent = p0
+	end
+end
+
 -- Toca a animação de "respirar" depois que o modelo já está no mundo
 function Modelos.animar(m)
 	local hum = m:FindFirstChildWhichIsA("Humanoid", true)
 	if not hum then
 		return
 	end
+	criarJuntasR6(m, hum)
 	-- Acessórios (cabelo, máscara...) sem solda caem quando o boneco se mexe: prende cada peça solta.
 	-- Precisa rodar com o modelo já no mundo (antes disso o Roblox não informa as ligações).
 	local raiz = m.PrimaryPart
