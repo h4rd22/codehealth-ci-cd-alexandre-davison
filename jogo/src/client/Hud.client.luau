@@ -287,31 +287,44 @@ novo("UISizeConstraint", cartao, { MaxSize = Vector2.new(290, 84) })
 canto(cartao, 14)
 contorno(cartao, COR.dourado, 2.5)
 
-local nivelBola = novo(
-	"Frame",
-	cartao,
-	{ Position = UDim2.fromOffset(8, 14), Size = UDim2.fromOffset(56, 56), BackgroundColor3 = Color3.new(1, 1, 1) }
-)
-canto(nivelBola, 28)
-novo(
-	"UIGradient",
-	nivelBola,
-	{ Rotation = 45, Color = ColorSequence.new(Color3.fromRGB(170, 120, 255), Color3.fromRGB(80, 60, 200)) }
-)
-contorno(nivelBola, Color3.fromRGB(230, 220, 255), 2)
-rotulo(nivelBola, {
-	Position = UDim2.fromOffset(0, 7),
-	Size = UDim2.new(1, 0, 0, 12),
-	Text = "NÍVEL",
-	TextSize = 10,
-	TextColor3 = Color3.fromRGB(230, 225, 255),
+-- Retrato do herói (foto do avatar do Roblox) com o nível num selo dourado
+local retratoHeroi = novo("ImageLabel", cartao, {
+	Position = UDim2.fromOffset(8, 12),
+	Size = UDim2.fromOffset(58, 58),
+	BackgroundColor3 = Color3.fromRGB(70, 44, 30),
+	Image = "",
+	ScaleType = Enum.ScaleType.Crop,
 })
+canto(retratoHeroi, 12)
+contorno(retratoHeroi, COR.dourado, 2.5)
+novo("UIGradient", retratoHeroi, {
+	Rotation = 90,
+	Color = ColorSequence.new(Color3.new(1, 1, 1), Color3.fromRGB(215, 205, 195)),
+})
+task.spawn(function()
+	local ok, img = pcall(function()
+		return Players:GetUserThumbnailAsync(player.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size150x150)
+	end)
+	if ok and img then
+		retratoHeroi.Image = img
+	end
+end)
+local nivelBola = novo("Frame", cartao, {
+	AnchorPoint = Vector2.new(0.5, 0.5),
+	Position = UDim2.fromOffset(62, 66),
+	Size = UDim2.fromOffset(28, 28),
+	BackgroundColor3 = COR.faixa,
+	ZIndex = 3,
+})
+canto(nivelBola, 14)
+contorno(nivelBola, COR.dourado, 2)
 local lblNivel = rotulo(nivelBola, {
-	Position = UDim2.fromOffset(0, 18),
-	Size = UDim2.new(1, 0, 0, 30),
+	Size = UDim2.fromScale(1, 1),
 	Text = "1",
-	TextSize = 26,
+	TextSize = 15,
 	Font = FONTE,
+	TextColor3 = Color3.fromRGB(255, 225, 140),
+	ZIndex = 4,
 })
 
 rotulo(cartao, {
