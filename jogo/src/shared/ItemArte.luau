@@ -348,6 +348,411 @@ local function olho(m, _, cor)
 	peca(m, Vector3.new(0.4, 0.6, 0.6), frente, PRETO, Enum.Material.SmoothPlastic, Enum.PartType.Cylinder)
 end
 
+------------------------------------------------------------------------
+-- Desenhos por classe: Caçador (arco, capuz, couro) e Mago (cajado, chapéu, túnica).
+-- O Guerreiro usa os desenhos de cima (katana, elmo, colete).
+------------------------------------------------------------------------
+-- peça comprida ligando dois pontos (no plano XY), usada no arco
+local function ligar(m, cf, a, b, grossura, cor, material)
+	local d = b - a
+	local ang = math.atan2(d.X, d.Y)
+	return peca(
+		m,
+		Vector3.new(grossura, d.Magnitude + grossura * 0.5, grossura * 1.3),
+		cf * CFrame.new((a + b) / 2) * CFrame.Angles(0, 0, -ang),
+		cor,
+		material
+	)
+end
+
+local function arco(m, ri, cor)
+	local base = CFrame.Angles(0, 0, math.rad(-45))
+	local madeira = ri == 1 and Color3.fromRGB(150, 118, 72)
+		or (ri == 2 and Color3.fromRGB(122, 168, 80) or cor:Lerp(PRETO, ri >= 4 and 0.55 or 0.3))
+	local mat = ri >= 3 and Enum.Material.Metal or Enum.Material.Wood
+	-- braços do arco em ")" : o cabo fica no meio e as pontas curvam para a corda
+	local N = 6
+	local pontas = {}
+	for _, lado in ipairs({ -1, 1 }) do
+		local ant = Vector3.new(0, 0, 0)
+		for i = 1, N do
+			local t = i / N
+			local p = Vector3.new(0.95 * t ^ 1.7, lado * (0.35 + 2.6 * t), 0)
+			if ri >= 3 and i == N then
+				p += Vector3.new(-0.25, 0, 0) -- pontas recurvas
+			end
+			ligar(m, base, ant, p, 0.36 - t * 0.12, madeira, mat)
+			if ri >= 5 and i % 2 == 0 then
+				peca(m, Vector3.new(0.16, 0.16, 0.36), base * CFrame.new(p), Color3.new(1, 1, 1), Enum.Material.Neon)
+			end
+			ant = p
+		end
+		pontas[lado] = ant
+		if ri >= 3 then
+			cunha(
+				m,
+				Vector3.new(0.14, 0.5, 0.3),
+				base * CFrame.new(ant + Vector3.new(0, lado * 0.22, 0)) * CFrame.Angles(lado > 0 and 0 or math.pi, 0, 0),
+				OURO,
+				Enum.Material.Metal
+			)
+		end
+		if ri >= 6 then
+			-- lâminas de energia nas costas dos braços
+			cunha(
+				m,
+				Vector3.new(0.08, 1.1, 0.6),
+				base * CFrame.new(-0.25, lado * 1.4, 0) * CFrame.Angles(lado > 0 and 0 or math.pi, math.pi / 2, 0),
+				cor,
+				Enum.Material.Neon
+			)
+		end
+	end
+	-- corda
+	local corda = ri >= 4 and cor:Lerp(Color3.new(1, 1, 1), 0.3) or Color3.fromRGB(235, 230, 215)
+	ligar(m, base, pontas[-1], pontas[1], 0.07, corda, ri >= 4 and Enum.Material.Neon or Enum.Material.Fabric)
+	-- cabo
+	peca(m, Vector3.new(0.36, 0.9, 0.42), base, COURO, Enum.Material.Fabric)
+	peca(m, Vector3.new(0.4, 0.1, 0.46), base * CFrame.new(0, 0.42, 0), cor, Enum.Material.Metal)
+	peca(m, Vector3.new(0.4, 0.1, 0.46), base * CFrame.new(0, -0.42, 0), cor, Enum.Material.Metal)
+	-- flecha encaixada
+	if ri >= 2 then
+		local ponta = pontas[1].X
+		peca(m, Vector3.new(2.3, 0.07, 0.07), base * CFrame.new(ponta - 1.1, 0, 0), Color3.fromRGB(150, 110, 70))
+		cunha(
+			m,
+			Vector3.new(0.08, 0.45, 0.28),
+			base * CFrame.new(ponta - 2.42, 0, 0) * CFrame.Angles(0, 0, math.rad(90)),
+			ri >= 4 and cor or METAL,
+			brilho(ri)
+		)
+		for _, lado in ipairs({ -1, 1 }) do
+			cunha(
+				m,
+				Vector3.new(0.04, 0.35, 0.18),
+				base * CFrame.new(ponta - 0.15, lado * 0.1, 0) * CFrame.Angles(0, 0, math.rad(-90 * lado)),
+				cor,
+				ri >= 4 and Enum.Material.Neon or Enum.Material.Fabric
+			)
+		end
+	end
+end
+
+local function cajado(m, ri, cor)
+	local base = CFrame.Angles(0, 0, math.rad(-45))
+	local haste = ri == 1 and Color3.fromRGB(122, 88, 58)
+		or (
+			ri == 2 and Color3.fromRGB(120, 170, 80)
+			or (ri == 3 and Color3.fromRGB(70, 48, 40) or cor:Lerp(PRETO, 0.7))
+		)
+	peca(
+		m,
+		Vector3.new(0.3, 4.2, 0.3),
+		base * CFrame.new(0, -0.3, 0),
+		haste,
+		ri >= 4 and Enum.Material.Metal or Enum.Material.Wood
+	)
+	-- anéis na haste (bambu no T2, ouro do T3 para cima)
+	for i = 0, 2 do
+		peca(
+			m,
+			Vector3.new(0.38, 0.12, 0.38),
+			base * CFrame.new(0, -1.8 + i * 1.1, 0),
+			ri >= 3 and OURO or haste:Lerp(PRETO, 0.28),
+			ri >= 3 and Enum.Material.Metal or Enum.Material.Wood
+		)
+	end
+	if ri == 1 then
+		peca(
+			m,
+			Vector3.new(0.6, 0.6, 0.6),
+			base * CFrame.new(0, 1.9, 0),
+			haste:Lerp(PRETO, 0.2),
+			Enum.Material.Wood,
+			Enum.PartType.Ball
+		)
+		return
+	end
+	-- orbe mágico no topo
+	local corOrbe = ri == 2 and Color3.fromRGB(140, 220, 255) or cor:Lerp(Color3.new(1, 1, 1), 0.25)
+	local tam = ri >= 4 and 1.05 or 0.8
+	peca(m, Vector3.new(tam, tam, tam), base * CFrame.new(0, 2.35, 0), corOrbe, Enum.Material.Neon, Enum.PartType.Ball)
+	-- garras em lua segurando o orbe
+	if ri >= 3 then
+		for i = 0, 6 do
+			local a = math.rad(-110 + i * 36.6)
+			local r = tam * 0.62
+			peca(
+				m,
+				Vector3.new(0.14, 0.32, 0.18),
+				base * CFrame.new(math.sin(a) * r, 2.35 - math.cos(a) * r, 0) * CFrame.Angles(0, 0, -a),
+				OURO,
+				Enum.Material.Metal
+			)
+		end
+	end
+	if ri >= 5 then
+		-- cristais flutuando em volta do orbe
+		for i = 1, 3 do
+			local a = (i / 3) * math.pi * 2
+			cunha(
+				m,
+				Vector3.new(0.1, 0.45, 0.2),
+				base * CFrame.new(math.cos(a) * 1.05, 2.35 + math.sin(a) * 0.5, math.sin(a) * 0.4),
+				cor,
+				Enum.Material.Neon
+			)
+		end
+	end
+	if ri >= 6 then
+		for _, lado in ipairs({ -1, 1 }) do
+			cunha(
+				m,
+				Vector3.new(0.08, 1.2, 0.7),
+				base
+					* CFrame.new(0.5 * lado, 1.4, 0)
+					* CFrame.Angles(0, lado > 0 and math.pi / 2 or -math.pi / 2, math.rad(15)),
+				cor,
+				Enum.Material.Neon
+			)
+		end
+	end
+end
+
+local function chapeuMago(m, ri, cor)
+	local pano = ri == 1 and Color3.fromRGB(120, 90, 60)
+		or (ri == 2 and PANO or (ri == 3 and Color3.fromRGB(70, 46, 110) or cor:Lerp(PRETO, 0.5)))
+	-- aba larga
+	peca(
+		m,
+		Vector3.new(0.16, 3.2, 3.2),
+		CFrame.Angles(0, 0, math.rad(90)),
+		pano,
+		Enum.Material.Fabric,
+		Enum.PartType.Cylinder
+	)
+	-- cone que entorta na ponta
+	for i = 0, 7 do
+		local r = 1.75 - i * 0.2
+		peca(
+			m,
+			Vector3.new(0.34, r, r),
+			CFrame.new(0.018 * i * i, 0.22 + i * 0.3, 0.01 * i * i) * CFrame.Angles(0, 0, math.rad(90 - i * 3)),
+			pano:Lerp(PRETO, i / 22),
+			Enum.Material.Fabric,
+			Enum.PartType.Cylinder
+		)
+	end
+	-- faixa
+	peca(
+		m,
+		Vector3.new(0.28, 1.82, 1.82),
+		CFrame.new(0, 0.32, 0) * CFrame.Angles(0, 0, math.rad(90)),
+		ri >= 4 and cor or OURO,
+		ri >= 4 and Enum.Material.Neon or Enum.Material.Metal,
+		Enum.PartType.Cylinder
+	)
+	if ri >= 3 then
+		-- gema na frente da faixa
+		peca(
+			m,
+			Vector3.new(0.42, 0.42, 0.42),
+			CFrame.new(0, 0.34, -0.9),
+			ri >= 4 and Color3.new(1, 1, 1) or cor,
+			Enum.Material.Neon,
+			Enum.PartType.Ball
+		)
+	end
+	if ri >= 5 then
+		peca(m, Vector3.new(0.35, 0.35, 0.35), CFrame.new(1.2, 2.35, 0.6), cor, Enum.Material.Neon, Enum.PartType.Ball)
+	end
+end
+
+local function capuz(m, ri, cor)
+	local pano = ri == 1 and Color3.fromRGB(128, 100, 70)
+		or (ri == 2 and Color3.fromRGB(70, 110, 60) or (ri == 3 and Color3.fromRGB(56, 70, 60) or cor:Lerp(PRETO, 0.6)))
+	-- capuz puxado para trás (o rosto aparece na frente)
+	peca(m, Vector3.new(2.5, 2.55, 2.5), CFrame.new(0, 0.12, 0.35), pano, Enum.Material.Fabric, Enum.PartType.Ball)
+	cunha(
+		m,
+		Vector3.new(0.6, 0.9, 1.1),
+		CFrame.new(0, 0.95, 1.25) * CFrame.Angles(math.rad(-30), 0, 0),
+		pano,
+		Enum.Material.Fabric
+	)
+	-- borda do capuz em volta do rosto
+	peca(
+		m,
+		Vector3.new(0.16, 2.3, 2.3),
+		CFrame.new(0, 0.1, -0.55) * CFrame.Angles(0, math.rad(90), 0),
+		ri >= 4 and cor or pano:Lerp(Color3.new(1, 1, 1), 0.15),
+		ri >= 4 and Enum.Material.Neon or Enum.Material.Fabric,
+		Enum.PartType.Cylinder
+	)
+	-- sombra do rosto (só no ícone; ao vestir, o rosto do herói aparece)
+	local sombra = peca(
+		m,
+		Vector3.new(1.75, 1.95, 0.6),
+		CFrame.new(0, 0.05, -0.55),
+		Color3.fromRGB(16, 14, 20),
+		Enum.Material.SmoothPlastic,
+		Enum.PartType.Ball
+	)
+	sombra.Name = "SombraRosto"
+	for _, lado in ipairs({ -1, 1 }) do
+		local olhoBrilho = peca(
+			m,
+			Vector3.new(0.32, 0.14, 0.1),
+			CFrame.new(0.32 * lado, 0.12, -0.86) * CFrame.Angles(0, 0, math.rad(-12 * lado)),
+			ri >= 4 and cor:Lerp(Color3.new(1, 1, 1), 0.4) or Color3.fromRGB(255, 240, 200),
+			Enum.Material.Neon
+		)
+		olhoBrilho.Name = "SombraRosto"
+	end
+	if ri >= 3 then
+		-- lenço cobrindo a boca (estilo ninja caçador)
+		peca(m, Vector3.new(1.7, 0.55, 0.3), CFrame.new(0, -0.62, -0.95), pano:Lerp(PRETO, 0.35), Enum.Material.Fabric)
+		peca(
+			m,
+			Vector3.new(1.72, 0.1, 0.32),
+			CFrame.new(0, -0.38, -0.96),
+			cor,
+			ri >= 4 and Enum.Material.Neon or Enum.Material.Metal
+		)
+	end
+	if ri >= 5 then
+		-- pena brilhante
+		cunha(
+			m,
+			Vector3.new(0.1, 1.2, 0.45),
+			CFrame.new(1.05, 0.9, 0.6) * CFrame.Angles(0, math.pi / 2, math.rad(-25)),
+			cor,
+			Enum.Material.Neon
+		)
+	end
+end
+
+local function couro(m, ri, cor)
+	local corCouro = ri == 1 and Color3.fromRGB(130, 96, 62)
+		or (
+			ri == 2 and Color3.fromRGB(84, 120, 66)
+			or (ri == 3 and Color3.fromRGB(70, 82, 64) or cor:Lerp(PRETO, 0.65))
+		)
+	peca(m, Vector3.new(2.4, 2.6, 1.2), CFrame.new(0, 0, 0), corCouro, Enum.Material.Fabric)
+	peca(m, Vector3.new(2.5, 0.45, 1.3), CFrame.new(0, 1.2, 0), corCouro:Lerp(PRETO, 0.3), Enum.Material.Fabric)
+	-- alça diagonal com fivela
+	peca(
+		m,
+		Vector3.new(0.38, 3.2, 0.12),
+		CFrame.new(0, 0.1, -0.64) * CFrame.Angles(0, 0, math.rad(40)),
+		COURO,
+		Enum.Material.Fabric
+	)
+	peca(
+		m,
+		Vector3.new(0.4, 0.4, 0.14),
+		CFrame.new(-0.25, -0.15, -0.68) * CFrame.Angles(0, 0, math.rad(40)),
+		OURO,
+		Enum.Material.Metal
+	)
+	-- cinto
+	peca(
+		m,
+		Vector3.new(2.45, 0.25, 1.25),
+		CFrame.new(0, -0.9, 0),
+		ri >= 4 and cor or COURO:Lerp(PRETO, 0.3),
+		ri >= 4 and Enum.Material.Neon or Enum.Material.Fabric
+	)
+	-- aljava nas costas com flechas
+	local aljava = CFrame.new(0.55, 0.35, 0.95) * CFrame.Angles(0, 0, math.rad(-20))
+	peca(
+		m,
+		Vector3.new(2.1, 0.7, 0.7),
+		aljava * CFrame.Angles(0, 0, math.rad(90)),
+		COURO,
+		Enum.Material.Fabric,
+		Enum.PartType.Cylinder
+	)
+	peca(
+		m,
+		Vector3.new(0.16, 0.76, 0.76),
+		aljava * CFrame.new(0, 0.55, 0) * CFrame.Angles(0, 0, math.rad(90)),
+		cor,
+		Enum.Material.Metal,
+		Enum.PartType.Cylinder
+	)
+	for i = -1, 1 do
+		peca(m, Vector3.new(0.06, 0.9, 0.06), aljava * CFrame.new(i * 0.18, 1.4, 0), Color3.fromRGB(150, 110, 70))
+		cunha(
+			m,
+			Vector3.new(0.04, 0.3, 0.2),
+			aljava * CFrame.new(i * 0.18, 1.75, 0),
+			ri >= 4 and cor or Color3.fromRGB(235, 230, 215),
+			ri >= 4 and Enum.Material.Neon or Enum.Material.Fabric
+		)
+	end
+	-- ombreira só de um lado (mais ágil)
+	peca(m, Vector3.new(0.9, 0.6, 1.3), CFrame.new(-1.45, 1, 0), corCouro:Lerp(PRETO, 0.2), Enum.Material.Fabric)
+	if ri >= 3 then
+		peca(m, Vector3.new(0.95, 0.12, 1.35), CFrame.new(-1.45, 1.3, 0), cor, brilho(ri))
+	end
+end
+
+local function tunica(m, ri, cor)
+	local pano = ri == 1 and Color3.fromRGB(130, 104, 76)
+		or (ri == 2 and PANO or (ri == 3 and Color3.fromRGB(74, 50, 112) or cor:Lerp(PRETO, 0.62)))
+	peca(m, Vector3.new(2.4, 2.6, 1.2), CFrame.new(0, 0, 0), pano, Enum.Material.Fabric)
+	-- saia da túnica
+	peca(m, Vector3.new(2.55, 1.1, 1.35), CFrame.new(0, -1.6, 0), pano:Lerp(PRETO, 0.15), Enum.Material.Fabric)
+	-- gola alta e ombros
+	for _, lado in ipairs({ -1, 1 }) do
+		cunha(
+			m,
+			Vector3.new(0.2, 0.8, 0.5),
+			CFrame.new(0.55 * lado, 1.5, 0.2) * CFrame.Angles(0, 0, math.rad(-10 * lado)),
+			pano:Lerp(PRETO, 0.3),
+			Enum.Material.Fabric
+		)
+		peca(
+			m,
+			Vector3.new(0.8, 0.55, 1.25),
+			CFrame.new(1.45 * lado, 1, 0),
+			pano:Lerp(PRETO, 0.2),
+			Enum.Material.Fabric
+		)
+	end
+	-- faixa da frente e faixa da cintura
+	local enfeite = ri >= 4 and cor or OURO
+	local matEnfeite = ri >= 4 and Enum.Material.Neon or Enum.Material.Metal
+	peca(
+		m,
+		Vector3.new(0.3, 3.7, 0.08),
+		CFrame.new(0, -0.5, -0.66),
+		ri >= 3 and enfeite or pano:Lerp(Color3.new(1, 1, 1), 0.3),
+		matEnfeite
+	)
+	peca(m, Vector3.new(2.45, 0.28, 1.27), CFrame.new(0, -0.75, 0), ri >= 2 and cor or COURO, Enum.Material.Fabric)
+	if ri >= 3 then
+		peca(m, Vector3.new(0.5, 0.5, 0.2), CFrame.new(0, -0.75, -0.66), enfeite, matEnfeite, Enum.PartType.Ball)
+	end
+	if ri >= 5 then
+		for _, lado in ipairs({ -1, 1 }) do
+			peca(
+				m,
+				Vector3.new(0.25, 0.25, 0.1),
+				CFrame.new(0.6 * lado, 0.5, -0.64) * CFrame.Angles(0, 0, math.rad(45)),
+				Color3.new(1, 1, 1),
+				Enum.Material.Neon
+			)
+		end
+	end
+end
+
+local DESENHO_CLASSE = {
+	cacador = { arma = arco, elmo = capuz, armadura = couro },
+	mago = { arma = cajado, elmo = chapeuMago, armadura = tunica },
+}
+
 local DESENHO = { arma = arma, elmo = elmo, armadura = armadura, botas = botas, olho = olho }
 
 -- Detalhes dos conjuntos (sets) por cima do desenho normal
@@ -454,10 +859,11 @@ function DETALHE_CONJUNTO.katsuki(m, slot)
 end
 
 -- Cria o modelo 3D do item. ri = índice da raridade (1 = Comum ... 8 = Secreto)
-function ItemArte.criar(slot, ri, cor, conjunto)
+function ItemArte.criar(slot, ri, cor, conjunto, classe)
 	local m = Instance.new("Model")
 	m.Name = "Item3D"
-	local f = DESENHO[slot]
+	local daClasse = classe and DESENHO_CLASSE[classe]
+	local f = (daClasse and daClasse[slot]) or DESENHO[slot]
 	if f then
 		f(m, ri, cor)
 	end
@@ -493,18 +899,28 @@ local function pecaCorpo(char, r15, r6)
 end
 
 -- Veste o item no personagem (cria o modelo 3D e solda nas partes do corpo)
-function ItemArte.vestir(char, pasta, slot, ri, cor, conjunto)
+function ItemArte.vestir(char, pasta, slot, ri, cor, conjunto, classe)
 	if slot == "arma" then
 		local mao = pecaCorpo(char, "RightHand", "Right Arm")
 		if not mao then
 			return
 		end
-		local m = ItemArte.criar(slot, ri, cor, conjunto)
+		local m = ItemArte.criar(slot, ri, cor, conjunto, classe)
+		local pegada = mao.Name == "Right Arm" and mao.CFrame * CFrame.new(0, -0.95, 0)
+			or mao.CFrame * CFrame.new(0, -0.15, 0)
+		if classe == "cacador" or classe == "mago" then
+			-- arco e cajado ficam em pé na mão (o cabo na palma)
+			local sc = classe == "cacador" and 0.5 or 0.6
+			m:ScaleTo(sc)
+			local cabo = classe == "mago" and -0.7 or 0
+			m:PivotTo(pegada * CFrame.new(0, -cabo * sc, 0) * CFrame.Angles(0, 0, math.rad(45)))
+			soldar(m, mao)
+			m.Parent = pasta
+			return
+		end
 		local s = ri <= 2 and 0.55 or 0.62
 		m:ScaleTo(s)
 		local alturaCabo = (ri <= 2 and 1.1 or 1.75) * s
-		local pegada = mao.Name == "Right Arm" and mao.CFrame * CFrame.new(0, -0.95, 0)
-			or mao.CFrame * CFrame.new(0, -0.15, 0)
 		m:PivotTo(
 			pegada
 				* CFrame.Angles(math.rad(-90), 0, 0)
@@ -518,16 +934,25 @@ function ItemArte.vestir(char, pasta, slot, ri, cor, conjunto)
 		if not cabeca then
 			return
 		end
-		local m = ItemArte.criar(slot, ri, cor, conjunto)
+		local m = ItemArte.criar(slot, ri, cor, conjunto, classe)
 		local escala, desloc
 		if conjunto == "katsuki" then
 			escala, desloc = 0.55, CFrame.new(0, 0.55, 0)
+		elseif classe == "mago" then
+			escala, desloc = 0.48, CFrame.new(0, 0.62, 0)
+		elseif classe == "cacador" then
+			escala, desloc = 0.52, CFrame.new(0, 0.08, 0)
 		elseif ri <= 2 then
 			escala, desloc = 0.5, CFrame.new(0, 0.18, 0)
 		elseif ri == 3 then
 			escala, desloc = 0.46, CFrame.new(0, 0, -0.32)
 		else
 			escala, desloc = 0.55, CFrame.new(0, 0.15, 0)
+		end
+		for _, p in ipairs(m:GetChildren()) do
+			if p.Name == "SombraRosto" then
+				p:Destroy()
+			end
 		end
 		m:ScaleTo(escala)
 		m:PivotTo(cabeca.CFrame * desloc)
@@ -538,7 +963,7 @@ function ItemArte.vestir(char, pasta, slot, ri, cor, conjunto)
 		if not tronco then
 			return
 		end
-		local m = ItemArte.criar(slot, ri, cor, conjunto)
+		local m = ItemArte.criar(slot, ri, cor, conjunto, classe)
 		local r15 = tronco.Name == "UpperTorso"
 		m:ScaleTo(r15 and 0.72 or 0.82)
 		m:PivotTo(tronco.CFrame * CFrame.new(0, r15 and -0.15 or -0.05, 0))
@@ -633,8 +1058,8 @@ function ItemArte.aura(char, pasta, ri, cor)
 end
 
 -- Coloca o item num ViewportFrame com câmera enquadrando tudo
-function ItemArte.mostrar(vp, slot, ri, cor, conjunto)
-	local m = ItemArte.criar(slot, ri, cor, conjunto)
+function ItemArte.mostrar(vp, slot, ri, cor, conjunto, classe)
+	local m = ItemArte.criar(slot, ri, cor, conjunto, classe)
 	m.Parent = vp
 	local cam = Instance.new("Camera")
 	cam.FieldOfView = 30

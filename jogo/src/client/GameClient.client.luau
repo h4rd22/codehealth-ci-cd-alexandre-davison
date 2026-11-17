@@ -73,7 +73,7 @@ end
 local pilha = Instance.new("Frame")
 pilha.AnchorPoint = Vector2.new(1, 0)
 pilha.Position = UDim2.new(1, -14, 0, 176)
-pilha.Size = UDim2.fromOffset(240, 300)
+pilha.Size = UDim2.fromOffset(280, 300)
 pilha.BackgroundTransparency = 1
 pilha.Parent = gui
 local layout = Instance.new("UIListLayout")
@@ -88,12 +88,12 @@ local function notificar(texto, cor)
 	-- cartão de madeira escura com faixa na cor (raridade) e brilho, entra deslizando
 	local f = Instance.new("Frame")
 	f.LayoutOrder = ordem
-	f.Size = UDim2.fromOffset(240, 32)
+	f.Size = UDim2.fromOffset(280, 32)
 	f.BackgroundTransparency = 1
 	f.Parent = pilha
 	local card = Instance.new("Frame")
 	card.Size = UDim2.fromScale(1, 1)
-	card.Position = UDim2.fromOffset(260, 0)
+	card.Position = UDim2.fromOffset(300, 0)
 	card.BackgroundColor3 = Color3.fromRGB(34, 26, 22)
 	card.BorderSizePixel = 0
 	card.Parent = f
@@ -123,7 +123,7 @@ local function notificar(texto, cor)
 	t.Position = UDim2.fromOffset(14, 0)
 	t.Size = UDim2.new(1, -20, 1, 0)
 	t.Font = Enum.Font.FredokaOne
-	t.TextSize = 14
+	t.TextScaled = true
 	t.TextColor3 = cor:Lerp(Color3.new(1, 1, 1), 0.25)
 	t.TextStrokeTransparency = 0.3
 	t.TextStrokeColor3 = Color3.fromRGB(16, 10, 8)
@@ -131,6 +131,14 @@ local function notificar(texto, cor)
 	t.TextXAlignment = Enum.TextXAlignment.Left
 	t.Text = texto
 	t.Parent = card
+	local limite = Instance.new("UITextSizeConstraint")
+	limite.MaxTextSize = 14
+	limite.MinTextSize = 10
+	limite.Parent = t
+	local pad = Instance.new("UIPadding")
+	pad.PaddingTop = UDim.new(0, 7)
+	pad.PaddingBottom = UDim.new(0, 7)
+	pad.Parent = t
 	TweenService:Create(card, TweenInfo.new(0.3, Enum.EasingStyle.Back), { Position = UDim2.fromOffset(0, 0) }):Play()
 	local fila = {}
 	for _, x in ipairs(pilha:GetChildren()) do

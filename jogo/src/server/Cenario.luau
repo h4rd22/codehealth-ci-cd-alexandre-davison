@@ -84,60 +84,63 @@ local LUZES = {
 		bloom = { Intensity = 0.5, Size = 24, Threshold = 1.3 },
 		chao = { Color3.fromRGB(110, 175, 80), Enum.Material.Grass },
 		fundo = Color3.fromRGB(95, 140, 70),
+		nuvens = { Cover = 0.5, Density = 0.7, Color = Color3.fromRGB(255, 255, 255) },
 		terreno = {
 			Grass = Color3.fromRGB(96, 160, 72),
 			LeafyGrass = Color3.fromRGB(78, 148, 60),
-			Rock = Color3.fromRGB(122, 116, 106),
+			Rock = Color3.fromRGB(112, 128, 150),
 			Snow = Color3.fromRGB(240, 246, 255),
 			Ground = Color3.fromRGB(112, 92, 70),
 		},
 	},
 	pantano = {
-		ClockTime = 17.3,
-		Brightness = 1.8,
-		Ambient = Color3.fromRGB(95, 75, 120),
-		OutdoorAmbient = Color3.fromRGB(110, 90, 140),
+		ClockTime = 16.4,
+		Brightness = 2.4,
+		Ambient = Color3.fromRGB(118, 104, 140),
+		OutdoorAmbient = Color3.fromRGB(140, 126, 165),
 		atm = {
-			Density = 0.45,
-			Color = Color3.fromRGB(160, 130, 200),
-			Decay = Color3.fromRGB(60, 90, 70),
-			Haze = 2.2,
-			Glare = 0.1,
+			Density = 0.34,
+			Color = Color3.fromRGB(176, 160, 215),
+			Decay = Color3.fromRGB(92, 124, 108),
+			Haze = 1.6,
+			Glare = 0.15,
 		},
-		cor = { Saturation = 0.2, Contrast = 0.12, Brightness = 0, TintColor = Color3.fromRGB(235, 225, 255) },
+		cor = { Saturation = 0.28, Contrast = 0.1, Brightness = 0.04, TintColor = Color3.fromRGB(238, 232, 255) },
 		bloom = { Intensity = 0.8, Size = 28, Threshold = 1.1 },
-		chao = { Color3.fromRGB(70, 95, 60), Enum.Material.Mud },
-		fundo = Color3.fromRGB(40, 55, 45),
+		chao = { Color3.fromRGB(92, 120, 76), Enum.Material.Mud },
+		fundo = Color3.fromRGB(52, 70, 56),
+		nuvens = { Cover = 0.62, Density = 0.55, Color = Color3.fromRGB(190, 175, 215) },
 		terreno = {
-			Grass = Color3.fromRGB(58, 84, 54),
-			LeafyGrass = Color3.fromRGB(50, 74, 52),
-			Rock = Color3.fromRGB(72, 78, 66),
-			Snow = Color3.fromRGB(160, 180, 160),
-			Ground = Color3.fromRGB(62, 56, 46),
+			Grass = Color3.fromRGB(78, 112, 70),
+			LeafyGrass = Color3.fromRGB(66, 100, 66),
+			Rock = Color3.fromRGB(96, 102, 116),
+			Snow = Color3.fromRGB(200, 214, 230),
+			Ground = Color3.fromRGB(84, 74, 60),
 		},
 	},
 	crepusculo = {
-		ClockTime = 17.9,
-		Brightness = 2.2,
-		Ambient = Color3.fromRGB(125, 75, 75),
-		OutdoorAmbient = Color3.fromRGB(175, 105, 95),
+		ClockTime = 17.4,
+		Brightness = 2.6,
+		Ambient = Color3.fromRGB(128, 100, 98),
+		OutdoorAmbient = Color3.fromRGB(172, 132, 118),
 		atm = {
-			Density = 0.38,
-			Color = Color3.fromRGB(255, 150, 115),
-			Decay = Color3.fromRGB(130, 45, 70),
-			Haze = 1.6,
-			Glare = 0.6,
+			Density = 0.3,
+			Color = Color3.fromRGB(255, 196, 150),
+			Decay = Color3.fromRGB(160, 96, 120),
+			Haze = 1.2,
+			Glare = 0.35,
 		},
-		cor = { Saturation = 0.3, Contrast = 0.1, Brightness = 0, TintColor = Color3.fromRGB(255, 228, 215) },
-		bloom = { Intensity = 0.8, Size = 26, Threshold = 1.1 },
-		chao = { Color3.fromRGB(120, 95, 90), Enum.Material.Slate },
-		fundo = Color3.fromRGB(70, 45, 45),
+		cor = { Saturation = 0.25, Contrast = 0.08, Brightness = 0.02, TintColor = Color3.fromRGB(255, 240, 228) },
+		bloom = { Intensity = 0.7, Size = 26, Threshold = 1.15 },
+		chao = { Color3.fromRGB(176, 140, 96), Enum.Material.Ground },
+		fundo = Color3.fromRGB(110, 80, 55),
+		nuvens = { Cover = 0.55, Density = 0.6, Color = Color3.fromRGB(255, 196, 170) },
 		terreno = {
-			Grass = Color3.fromRGB(122, 86, 62),
-			LeafyGrass = Color3.fromRGB(112, 72, 52),
-			Rock = Color3.fromRGB(112, 72, 62),
-			Snow = Color3.fromRGB(255, 205, 185),
-			Ground = Color3.fromRGB(92, 62, 50),
+			Grass = Color3.fromRGB(176, 136, 72),
+			LeafyGrass = Color3.fromRGB(160, 112, 60),
+			Rock = Color3.fromRGB(128, 104, 112),
+			Snow = Color3.fromRGB(255, 222, 205),
+			Ground = Color3.fromRGB(128, 92, 66),
 		},
 	},
 	chefe = {
@@ -156,6 +159,7 @@ local LUZES = {
 		bloom = { Intensity = 1.1, Size = 30, Threshold = 0.95 },
 		chao = { Color3.fromRGB(55, 45, 70), Enum.Material.Basalt },
 		fundo = Color3.fromRGB(25, 20, 35),
+		nuvens = { Cover = 0.75, Density = 0.8, Color = Color3.fromRGB(90, 60, 130) },
 		terreno = {
 			Grass = Color3.fromRGB(56, 46, 72),
 			LeafyGrass = Color3.fromRGB(50, 40, 66),
@@ -190,6 +194,12 @@ local function aplicarLuz(tema, baseplate)
 		TweenService:Create(baseplate, info, { Color = c.fundo }):Play()
 	end
 	local terreno = workspace.Terrain
+	local nuvens = terreno:FindFirstChildOfClass("Clouds")
+	if not nuvens then
+		nuvens = Instance.new("Clouds")
+		nuvens.Parent = terreno
+	end
+	TweenService:Create(nuvens, info, c.nuvens):Play()
 	for material, cor in pairs(c.terreno) do
 		terreno:SetMaterialColor(Enum.Material[material], cor)
 	end
@@ -216,7 +226,7 @@ local function gerarMontanhas()
 		)
 	end
 	-- montanhas de rocha (dois anéis para dar profundidade) com neve no topo
-	for anel, cfg in ipairs({ { 30, 82, 24, 34, 0 }, { 26, 104, 32, 44, 22 } }) do
+	for anel, cfg in ipairs({ { 30, 84, 16, 24, -4 }, { 26, 118, 26, 36, 6 } }) do
 		local n, r0, rmin, rmax, sobe = cfg[1], cfg[2], cfg[3], cfg[4], cfg[5]
 		for i = 1, n do
 			local a = (i / n) * math.pi * 2 + (anel == 2 and math.pi / n or 0) + aleatorio:NextNumber(-0.06, 0.06)
