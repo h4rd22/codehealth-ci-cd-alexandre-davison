@@ -145,9 +145,9 @@ local LUZES = {
 	},
 	chefe = {
 		ClockTime = 0.4,
-		Brightness = 1.2,
-		Ambient = Color3.fromRGB(80, 60, 115),
-		OutdoorAmbient = Color3.fromRGB(95, 70, 135),
+		Brightness = 1.8,
+		Ambient = Color3.fromRGB(112, 86, 152),
+		OutdoorAmbient = Color3.fromRGB(128, 98, 172),
 		atm = {
 			Density = 0.5,
 			Color = Color3.fromRGB(100, 70, 150),
@@ -155,8 +155,8 @@ local LUZES = {
 			Haze = 2.5,
 			Glare = 0,
 		},
-		cor = { Saturation = 0.25, Contrast = 0.2, Brightness = 0.02, TintColor = Color3.fromRGB(228, 212, 255) },
-		bloom = { Intensity = 1.1, Size = 30, Threshold = 0.95 },
+		cor = { Saturation = 0.25, Contrast = 0.15, Brightness = 0.05, TintColor = Color3.fromRGB(232, 218, 255) },
+		bloom = { Intensity = 0.65, Size = 28, Threshold = 1.2 },
 		chao = { Color3.fromRGB(55, 45, 70), Enum.Material.Basalt },
 		fundo = Color3.fromRGB(25, 20, 35),
 		nuvens = { Cover = 0.75, Density = 0.8, Color = Color3.fromRGB(90, 60, 130) },

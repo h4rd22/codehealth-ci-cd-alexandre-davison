@@ -2229,7 +2229,7 @@ local listaDrops = novo("Frame", caixaDrops, {
 })
 novo("UIListLayout", listaDrops, {
 	FillDirection = Enum.FillDirection.Horizontal,
-	Padding = UDim.new(0, 4),
+	Padding = UDim.new(0, 3),
 	SortOrder = Enum.SortOrder.LayoutOrder,
 	VerticalAlignment = Enum.VerticalAlignment.Center,
 })
@@ -2242,7 +2242,7 @@ do
 			AutomaticSize = Enum.AutomaticSize.X,
 			Size = UDim2.fromOffset(0, 20),
 			Text = " " .. texto .. " ",
-			TextSize = 11,
+			TextSize = 10,
 			TextColor3 = cor,
 			BackgroundTransparency = 0.2,
 			BackgroundColor3 = Color3.fromRGB(14, 10, 18),
@@ -2254,11 +2254,11 @@ do
 	chip("💰 " .. d.Ouro, COR.ouro)
 	for _, par in ipairs(d.Equipamento) do
 		local r = raridade(par[1])
-		chip(r.nome .. " " .. math.floor(par[2] * 100 + 0.5) .. "%", r.cor)
+		chip(r.nome .. " " .. math.floor(par[2] * 100 + 0.5) .. "%", r.corBorda or r.cor)
 	end
 	for _, esp in ipairs(d.Especiais) do
 		local r = raridade(esp.raridade)
-		chip(esp.icone .. " " .. esp.nome .. " " .. (esp.chance * 100) .. "%", r.cor)
+		chip(esp.icone .. " " .. esp.nome .. " " .. (esp.chance * 100) .. "%", r.corBorda or r.cor)
 	end
 end
 
@@ -2700,11 +2700,11 @@ local function chipsDrops(pai)
 	chip("💰 " .. d.Ouro, COR.ouro)
 	for _, par in ipairs(d.Equipamento) do
 		local r = raridade(par[1])
-		chip(r.nome .. " " .. math.floor(par[2] * 100 + 0.5) .. "%", r.cor)
+		chip(r.nome .. " " .. math.floor(par[2] * 100 + 0.5) .. "%", r.corBorda or r.cor)
 	end
 	for _, esp in ipairs(d.Especiais) do
 		local r = raridade(esp.raridade)
-		chip(esp.icone .. " " .. esp.nome .. " " .. (esp.chance * 100) .. "%", r.cor)
+		chip(esp.icone .. " " .. esp.nome .. " " .. (esp.chance * 100) .. "%", r.corBorda or r.cor)
 	end
 	return lista
 end
