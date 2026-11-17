@@ -672,6 +672,9 @@ evAviso.OnClientEvent:Connect(function(tipo, a, b)
 		if root then
 			explosao(root.Position, cor, 40)
 		end
+	elseif tipo == "horda" then
+		mostrarFaixa("⚔ HORDA À FRENTE! ⚔", Color3.fromRGB(255, 90, 70), 1.4)
+		tremer(0.5, 0.25)
 	elseif tipo == "classeErrada" then
 		notificar("✖ " .. a .. " é só para " .. b .. " (use na síntese)", Color3.fromRGB(255, 110, 110))
 	elseif tipo == "avatarRepetido" then
@@ -800,6 +803,8 @@ task.spawn(function()
 						hum:MoveTo(root.Position)
 						root.CFrame = CFrame.lookAt(root.Position, plano)
 					end
+				elseif Config.Mapa and Config.Mapa.Modo == "linear" then
+					hum:MoveTo(root.Position + Vector3.new(0, 0, -8)) -- sem inimigos: segue pela estrada
 				end
 			elseif estavaLigado then
 				hum:MoveTo(root.Position) -- acabou de desligar: para de andar

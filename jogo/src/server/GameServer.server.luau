@@ -495,10 +495,12 @@ end
 ------------------------------------------------------------------------
 local causarDano, enviarVida, vidaMaxDe -- definidas na parte "Vida do herói"
 
-local function criarMonstro(player, indiceFase)
+local function criarMonstro(player, indiceFase, posicao)
 	local f = Config.Fases[indiceFase]
 	local base
-	if f.chefe then
+	if posicao then
+		base = Vector3.new(posicao.X, topoArena, posicao.Z)
+	elseif f.chefe then
 		base = Vector3.new(0, topoArena, -11)
 	else
 		-- tenta um lugar longe dos outros inimigos, para não cercarem o herói todos juntos
@@ -520,6 +522,9 @@ local function criarMonstro(player, indiceFase)
 	end
 	-- olha para o centro da arena, onde o herói começa
 	local cf = CFrame.lookAt(base, Vector3.new(0, topoArena, 0))
+	if Cenario.linear then
+		cf = CFrame.lookAt(base, base + Vector3.new(0, 0, 10)) -- olha para trás, de onde o herói vem
+	end
 	local m, corpo, altura = Modelos.criar(f.modelo, cf)
 	m.Name = f.monstro
 	m:SetAttribute("Dono", player.UserId)
@@ -617,6 +622,9 @@ local function criarMonstro(player, indiceFase)
 			Chefe.iniciar(m, {
 				player = player,
 				chao = topoArena,
+				centro = Cenario.linear and Vector3.new(0, topoArena, corpo.Position.Z + 8)
+					or Vector3.new(0, topoArena, 0),
+				raioTeleporte = Cenario.linear and (Config.Mapa.Largura / 2 - 3) or nil,
 				dano = Config.DanoInimigo(f.nivel),
 				vivo = function()
 					local st = estado[player]
@@ -695,6 +703,48 @@ local function completarMonstros(player)
 		return
 	end
 	local f = Config.Fases[st.fase]
+	if Cenario.linear then
+		if #monstrosDe(player) > 0 then
+			return -- a horda atual ainda está de pé
+		end
+		local char = player.Character
+		local root = char and char:FindFirstChild("HumanoidRootPart")
+		local zHeroi = root and root.Position.Z or Cenario.inicio().Z
+		local mapa = Config.Mapa
+		local zHorda = math.max(zHeroi - mapa.DistanciaHorda, Cenario.fimZ + 16)
+		if f.chefe then
+			criarMonstro(player, st.fase, Vector3.new(0, 0, zHeroi - 22))
+			return
+		end
+		if st.kills > 0 and not st.morto then
+			-- horda vencida: respiro e um pouco de vida de volta
+			st.vida = math.min(vidaMaxDe(st), st.vida + vidaMaxDe(st) * mapa.CuraHorda)
+			enviarVida(player)
+		end
+		local faltam = math.max(1, metaDaFase(st.fase) - st.kills)
+		local qtd = math.min(mapa.HordaTamanho, faltam)
+		local usados = {}
+		for _ = 1, qtd do
+			local pos
+			for _ = 1, 15 do
+				pos = Vector3.new((math.random() * 2 - 1) * (mapa.Largura / 2 - 3), 0, zHorda - math.random() * 12)
+				local livre = true
+				for _, u in ipairs(usados) do
+					if (u - pos).Magnitude < 4 then
+						livre = false
+						break
+					end
+				end
+				if livre then
+					break
+				end
+			end
+			table.insert(usados, pos)
+			criarMonstro(player, st.fase, pos)
+		end
+		evAviso:FireClient(player, "horda", qtd)
+		return
+	end
 	local vivos = f.chefe and 1 or Config.MonstrosVivos
 	for _ = 1, vivos - #monstrosDe(player) do
 		criarMonstro(player, st.fase)
@@ -709,12 +759,12 @@ local function aplicarFase(player)
 	local f = Config.Fases[st.fase]
 	Cenario.aplicar(f.tema, baseplate)
 	limparMonstros(player)
-	completarMonstros(player)
 	local char = player.Character
 	local root = char and char:FindFirstChild("HumanoidRootPart")
 	if root then
-		root.CFrame = CFrame.new(0, topoArena + 3, 4)
+		root.CFrame = Cenario.linear and CFrame.new(Cenario.inicio()) or CFrame.new(0, topoArena + 3, 4)
 	end
+	completarMonstros(player)
 	if f.chefe then
 		evAviso:FireClient(player, "chefe", f.monstro)
 	end
@@ -1063,6 +1113,59 @@ causarDano = function(player, dano, pos)
 	return true
 end
 
+-- Inimigos que veem o herói correm até ele (no mapa linear eles vêm em hordas)
+local function loopPerseguir(player)
+	local mapa = Config.Mapa
+	local passo = 0.05
+	while player.Parent and estado[player] do
+		local st = estado[player]
+		local char = player.Character
+		local raizHeroi = char and char:FindFirstChild("HumanoidRootPart")
+		if raizHeroi and not st.morto then
+			local alvo = raizHeroi.Position
+			local monstros = monstrosDe(player)
+			for _, m in ipairs(monstros) do
+				local raiz = m.PrimaryPart
+				if raiz and not m:GetAttribute("Chefe") and (m:GetAttribute("Vida") or 0) > 0 then
+					local plano = Vector3.new(alvo.X, raiz.Position.Y, alvo.Z)
+					local dif = plano - raiz.Position
+					local d = dif.Magnitude
+					local perto = Config.Inimigo.AtaqueAlcance - 1
+					local correndo = false
+					if d > 0.1 and (d <= mapa.Aggro or m:GetAttribute("Viu")) then
+						m:SetAttribute("Viu", true) -- depois de ver o herói, não para mais de seguir
+						local novaPos = raiz.Position
+						if d > perto then
+							novaPos += dif.Unit * math.min(d - perto, mapa.VelocidadeInimigo * passo)
+							correndo = true
+						end
+						-- empurra um pouco para longe dos outros, para não ficarem todos no mesmo lugar
+						for _, outro in ipairs(monstros) do
+							local ro = outro.PrimaryPart
+							if outro ~= m and ro then
+								local sep = (novaPos - ro.Position) * Vector3.new(1, 0, 1)
+								if sep.Magnitude > 0.01 and sep.Magnitude < 3 then
+									novaPos += sep.Unit * (3 - sep.Magnitude) * 0.25
+								end
+							end
+						end
+						local deslocamento = novaPos - raiz.Position
+						m:PivotTo(m:GetPivot() + deslocamento)
+						local olhar = Vector3.new(alvo.X, raiz.Position.Y, alvo.Z)
+						if (olhar - raiz.Position).Magnitude > 0.5 then
+							local cf = m:GetPivot()
+							local giro = CFrame.lookAt(raiz.Position, olhar)
+							m:PivotTo(giro * raiz.CFrame:ToObjectSpace(cf))
+						end
+					end
+					Modelos.andar(m, correndo)
+				end
+			end
+		end
+		task.wait(passo)
+	end
+end
+
 local function loopInimigos(player)
 	while player.Parent and estado[player] do
 		local st = estado[player]
@@ -1083,6 +1186,9 @@ local function loopInimigos(player)
 						)
 						Modelos.atacar(m)
 						local dano = (m:GetAttribute("Dano") or 1) * (chefe and Config.Inimigo.DanoChefeGolpe or 1)
+						if Cenario.linear and not chefe then
+							dano *= Config.Mapa.DanoHorda
+						end
 						causarDano(player, dano * (0.85 + math.random() * 0.3), raizHeroi.Position)
 					end
 					if chefe and workspace:GetServerTimeNow() > (m:GetAttribute("Fim") or math.huge) then
@@ -1670,7 +1776,7 @@ Players.PlayerAdded:Connect(function(player)
 		if stc then
 			local raizNova = char:FindFirstChild("HumanoidRootPart")
 			if raizNova then
-				raizNova.CFrame = CFrame.new(0, topoArena + 3, 4)
+				raizNova.CFrame = Cenario.linear and CFrame.new(Cenario.inicio()) or CFrame.new(0, topoArena + 3, 4)
 			end
 		end
 	end)
@@ -1690,6 +1796,7 @@ Players.PlayerAdded:Connect(function(player)
 	aplicarFase(player)
 	task.spawn(loopCombate, player)
 	task.spawn(loopInimigos, player)
+	task.spawn(loopPerseguir, player)
 end)
 
 Players.PlayerRemoving:Connect(function(player)

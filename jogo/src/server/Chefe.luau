@@ -87,7 +87,8 @@ function Chefe.iniciar(m, ctx)
 		local pivo0 = m:GetPivot()
 		local base = pivo0.Position
 		local rot0 = pivo0.Rotation
-		local frente0 = (Vector3.new(0, base.Y, 0) - base) * Vector3.new(1, 0, 1)
+		local centroLuta = ctx.centro or Vector3.new(0, base.Y, 0)
+		local frente0 = (Vector3.new(centroLuta.X, base.Y, centroLuta.Z) - base) * Vector3.new(1, 0, 1)
 		if frente0.Magnitude < 0.1 then
 			frente0 = Vector3.new(0, 0, 1)
 		end
@@ -279,8 +280,9 @@ function Chefe.iniciar(m, ctx)
 			TweenService:Create(fumaca, TweenInfo.new(0.5), { Size = Vector3.new(12, 12, 12), Transparency = 1 }):Play()
 			Debris:AddItem(fumaca, 0.55)
 			local a = math.random() * math.pi * 2
-			local r = 8 + math.random() * 6
-			base = Vector3.new(math.cos(a) * r, base.Y, math.sin(a) * r)
+			local rMax = ctx.raioTeleporte or 14
+			local r = math.min(8, rMax * 0.6) + math.random() * (rMax - math.min(8, rMax * 0.6))
+			base = Vector3.new(centroLuta.X + math.cos(a) * r, base.Y, centroLuta.Z + math.sin(a) * r)
 		end
 
 		local ordem = { "repulsao", "esferas", "pregos" }

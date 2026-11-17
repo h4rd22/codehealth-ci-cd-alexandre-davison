@@ -3,6 +3,7 @@
 
 local Lighting = game:GetService("Lighting")
 local TweenService = game:GetService("TweenService")
+local Config = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Config"))
 
 local Cenario = {}
 
@@ -743,9 +744,329 @@ local function crepusculo3D(p)
 end
 
 ------------------------------------------------------------------------
+-- Mapa linear (estilo TBH): estrada reta para frente (-Z), montanhas dos dois lados
+------------------------------------------------------------------------
+local linear = Config.Mapa and Config.Mapa.Modo == "linear"
+local trilho -- faixa de pedra no meio da estrada
+local INICIO_Z = 12 -- ponta de trás da estrada
+
+-- Coloca um modelo de arte numa posição, virado para um ponto
+local function colocarEm(pai, nome, pos, olharPara, escala, giroExtra)
+	local original = arte(nome)
+	if not original then
+		return nil
+	end
+	local m = original:Clone()
+	for _, d in ipairs(m:GetDescendants()) do
+		if d:IsA("BasePart") then
+			d.Anchored = true
+			d.CanCollide = false
+			d.CanQuery = false
+			d.CanTouch = false
+		elseif d:IsA("Script") or d:IsA("LocalScript") then
+			d:Destroy()
+		end
+	end
+	if escala and escala ~= 1 then
+		m:ScaleTo(m:GetScale() * escala)
+	end
+	local alvo = Vector3.new(olharPara.X, pos.Y, olharPara.Z)
+	if (alvo - pos).Magnitude < 0.1 then
+		alvo = pos + Vector3.new(0, 0, 1)
+	end
+	m:PivotTo(CFrame.lookAt(pos, alvo) * CFrame.Angles(0, math.rad(giroExtra or 0), 0))
+	local caixa, tam = m:GetBoundingBox()
+	m:PivotTo(m:GetPivot() + Vector3.new(0, pos.Y - (caixa.Position.Y - tam.Y / 2), 0))
+	m.Parent = pai
+	return m
+end
+
+-- Portal torii por cima da estrada, do tamanho certo para a largura
+local function toriiSobreEstrada(pai, z)
+	local largura = Config.Mapa.Largura
+	local m = colocarEm(pai, "torii", Vector3.new(0, alturaChao, z), Vector3.new(0, alturaChao, z + 10), 1)
+	if m then
+		local _, tam = m:GetBoundingBox()
+		local maior = math.max(tam.X, tam.Z)
+		if maior > 0 then
+			m:ScaleTo(m:GetScale() * (largura + 8) / maior)
+			local caixa, t2 = m:GetBoundingBox()
+			m:PivotTo(m:GetPivot() + Vector3.new(0, alturaChao - (caixa.Position.Y - t2.Y / 2), 0))
+		end
+		return
+	end
+	-- sem arte: torii feito de peças
+	local vermelho = Color3.fromRGB(200, 40, 40)
+	for _, lado in ipairs({ -1, 1 }) do
+		peca(
+			pai,
+			Vector3.new(1.4, 14, 1.4),
+			CFrame.new(lado * (largura / 2 + 1.5), alturaChao + 7, z),
+			vermelho,
+			Enum.Material.Wood
+		)
+	end
+	peca(pai, Vector3.new(largura + 8, 1.4, 1.8), CFrame.new(0, alturaChao + 14.5, z), vermelho, Enum.Material.Wood)
+	peca(
+		pai,
+		Vector3.new(largura + 4, 0.9, 1.2),
+		CFrame.new(0, alturaChao + 12, z),
+		Color3.fromRGB(40, 30, 30),
+		Enum.Material.Wood
+	)
+end
+
+-- Poste com lanterna brilhando
+local function lanterna(pai, pos, cor)
+	peca(
+		pai,
+		Vector3.new(0.35, 5, 0.35),
+		CFrame.new(pos + Vector3.new(0, 2.5, 0)),
+		Color3.fromRGB(60, 40, 30),
+		Enum.Material.Wood
+	)
+	return peca(
+		pai,
+		Vector3.new(1.1, 1.4, 1.1),
+		CFrame.new(pos + Vector3.new(0, 5.3, 0)),
+		cor,
+		Enum.Material.Neon,
+		Enum.PartType.Ball
+	)
+end
+
+local function gerarVale()
+	local terreno = workspace.Terrain
+	terreno:Clear()
+	local L, W = Config.Mapa.Comprimento, Config.Mapa.Largura
+	local zMeio = (INICIO_Z - L) / 2
+	-- chão de grama em volta e buraco embaixo da estrada (sem grama alta cobrindo os pés)
+	terreno:FillBlock(CFrame.new(0, alturaChao - 2, zMeio), Vector3.new(W + 220, 4, L + 220), Enum.Material.Grass)
+	terreno:FillBlock(CFrame.new(0, alturaChao - 2, zMeio), Vector3.new(W + 1, 6, L + 16), Enum.Material.Air)
+	local aleatorio = Random.new(11)
+	-- morrinhos de grama na beira da estrada
+	for z = INICIO_Z + 20, -L - 20, -13 do
+		for _, lado in ipairs({ -1, 1 }) do
+			local tam = aleatorio:NextNumber(9, 14)
+			terreno:FillBall(
+				Vector3.new(lado * (W / 2 + 14 + aleatorio:NextNumber(0, 6)), alturaChao - tam * 0.45, z),
+				tam,
+				Enum.Material.LeafyGrass
+			)
+		end
+	end
+	-- duas fileiras de montanhas de cada lado, com neve no topo
+	for _, fila in ipairs({ { 48, 18, 26, 20, -4 }, { 82, 28, 40, 26, 6 } }) do
+		local dist, rmin, rmax, passo, sobe = fila[1], fila[2], fila[3], fila[4], fila[5]
+		for z = INICIO_Z + 60, -L - 60, -passo do
+			for _, lado in ipairs({ -1, 1 }) do
+				local tam = aleatorio:NextNumber(rmin, rmax)
+				local centro = Vector3.new(
+					lado * (dist + aleatorio:NextNumber(-6, 6)),
+					alturaChao + sobe + tam * 0.25,
+					z + aleatorio:NextNumber(-5, 5)
+				)
+				terreno:FillBall(centro, tam, Enum.Material.Rock)
+				if tam > rmin + (rmax - rmin) * 0.45 then
+					terreno:FillBall(centro + Vector3.new(0, tam * 0.78, 0), tam * 0.38, Enum.Material.Snow)
+				end
+			end
+		end
+	end
+	-- montanhas fechando atrás do começo e depois do fim
+	for _, zFim in ipairs({ INICIO_Z + 55, -L - 45 }) do
+		for x = -90, 90, 22 do
+			local tam = aleatorio:NextNumber(26, 38)
+			local centro = Vector3.new(x, alturaChao + tam * 0.25, zFim + aleatorio:NextNumber(-6, 6))
+			terreno:FillBall(centro, tam, Enum.Material.Rock)
+			terreno:FillBall(centro + Vector3.new(0, tam * 0.78, 0), tam * 0.38, Enum.Material.Snow)
+		end
+	end
+end
+
+-- Decoração dos dois lados da estrada, por tema
+local ENFEITES = {
+	vila = { arvores = { "cerejeira", "bambu" }, casas = true, lanterna = Color3.fromRGB(255, 170, 90), torii = 96 },
+	pantano = {
+		arvores = { "bambu" },
+		casas = false,
+		lanterna = Color3.fromRGB(170, 90, 255),
+		torii = 0,
+		pedras = true,
+	},
+	crepusculo = { arvores = { "cerejeira" }, casas = true, lanterna = Color3.fromRGB(255, 70, 60), torii = 72 },
+	chefe = { arvores = {}, casas = false, lanterna = Color3.fromRGB(190, 90, 255), torii = 0, pilares = true },
+}
+
+local function decorLinear(p, tema)
+	local cfg = ENFEITES[tema] or ENFEITES.vila
+	local L, W = Config.Mapa.Comprimento, Config.Mapa.Largura
+	local aleatorio = Random.new(#tema * 31)
+	local i = 0
+	for z = INICIO_Z - 4, -L, -12 do
+		i += 1
+		for _, lado in ipairs({ -1, 1 }) do
+			-- lanterna na beira a cada 24 studs (luz de verdade só numa de cada duas, para não pesar)
+			if i % 2 == 0 then
+				local l = lanterna(p, Vector3.new(lado * (W / 2 + 1.2), alturaChao, z), cfg.lanterna)
+				if i % 4 == 0 then
+					luz(l, cfg.lanterna, 16, 1.8)
+				end
+			end
+			-- árvores e bambus
+			if #cfg.arvores > 0 and (i + (lado == 1 and 1 or 0)) % 2 == 0 then
+				local nome = cfg.arvores[aleatorio:NextInteger(1, #cfg.arvores)]
+				local escala = nome == "cerejeira" and aleatorio:NextNumber(0.26, 0.33)
+					or aleatorio:NextNumber(0.22, 0.28)
+				colocarEm(
+					p,
+					nome,
+					Vector3.new(
+						lado * (W / 2 + aleatorio:NextNumber(5, 9)),
+						alturaChao,
+						z + aleatorio:NextNumber(-3, 3)
+					),
+					Vector3.new(0, alturaChao, z),
+					escala,
+					aleatorio:NextInteger(0, 359)
+				)
+			end
+			-- casas mais para trás, viradas para a estrada
+			if cfg.casas and i % 4 == (lado == 1 and 0 or 2) then
+				colocarEm(
+					p,
+					(i % 8 < 4) and "casaFeudal" or "casaJaponesa",
+					Vector3.new(lado * (W / 2 + 22), alturaChao, z),
+					Vector3.new(0, alturaChao, z),
+					0.5
+				)
+			end
+			-- pedras no pântano
+			if cfg.pedras and i % 3 == 0 then
+				local tam = aleatorio:NextNumber(2, 4.5)
+				peca(
+					p,
+					Vector3.new(tam, tam * 0.8, tam),
+					CFrame.new(lado * (W / 2 + aleatorio:NextNumber(3, 10)), alturaChao + tam * 0.3, z),
+					Color3.fromRGB(70, 75, 85),
+					Enum.Material.Slate,
+					Enum.PartType.Ball
+				)
+			end
+			-- pilares de cristal roxo no caminho do chefe
+			if cfg.pilares and i % 2 == 1 then
+				local altura = aleatorio:NextNumber(8, 15)
+				local pil = peca(
+					p,
+					Vector3.new(2, altura, 2),
+					CFrame.new(lado * (W / 2 + 4), alturaChao + altura / 2, z)
+						* CFrame.Angles(0, math.rad(45), math.rad(lado * 6)),
+					Color3.fromRGB(150, 70, 230),
+					Enum.Material.Neon
+				)
+				pil.Transparency = 0.15
+				if i % 4 == 1 then
+					luz(pil, Color3.fromRGB(170, 90, 255), 18, 2)
+				end
+			end
+		end
+		if cfg.torii > 0 and (INICIO_Z - 4 - z) % cfg.torii == 0 then
+			toriiSobreEstrada(p, z - 6)
+		end
+	end
+	-- portal brilhando no fim da estrada
+	local portal =
+		peca(p, Vector3.new(W, 16, 1), CFrame.new(0, alturaChao + 8, -L + 2), cfg.lanterna, Enum.Material.Neon)
+	portal.Transparency = 0.55
+	luz(portal, cfg.lanterna, 30, 3)
+end
+
+local function iniciarLinear(baseplate)
+	if baseplate then
+		baseplate.Transparency = 1
+		baseplate.CanCollide = false
+		alturaChao = baseplate.Position.Y + baseplate.Size.Y / 2
+	end
+	local L, W = Config.Mapa.Comprimento, Config.Mapa.Largura
+	gerarVale()
+	local velho = workspace:FindFirstChild("Arena")
+	if velho then
+		velho:Destroy()
+	end
+	local arena = Instance.new("Model")
+	arena.Name = "Arena"
+	arena.Parent = workspace
+	local zMeio = (INICIO_Z - L) / 2
+	local comprimento = L + INICIO_Z + 4
+	chao = peca(
+		arena,
+		Vector3.new(W, 4, comprimento),
+		CFrame.new(0, alturaChao - 1, zMeio),
+		Color3.fromRGB(110, 175, 80),
+		Enum.Material.Grass
+	)
+	chao.Name = "Chao"
+	chao.CanCollide = true
+	chao.CanQuery = true
+	trilho = peca(
+		arena,
+		Vector3.new(7, 0.2, comprimento),
+		CFrame.new(0, alturaChao + 1.05, zMeio),
+		Color3.fromRGB(170, 150, 120),
+		Enum.Material.Cobblestone
+	)
+	trilho.Name = "Trilho"
+	-- beiradas de pedra
+	for _, lado in ipairs({ -1, 1 }) do
+		peca(
+			arena,
+			Vector3.new(0.8, 0.6, comprimento),
+			CFrame.new(lado * (W / 2 - 0.4), alturaChao + 1.2, zMeio),
+			Color3.fromRGB(120, 110, 100),
+			Enum.Material.Slate
+		)
+	end
+	pastaDecor = Instance.new("Folder")
+	pastaDecor.Name = "Decoracao"
+	pastaDecor.Parent = arena
+	-- paredes invisíveis dos lados, atrás e no fim
+	local paredes = Instance.new("Folder")
+	paredes.Name = "ParedeInvisivel"
+	paredes.Parent = arena
+	local function parede(tam, cf)
+		local p = Instance.new("Part")
+		p.Anchored = true
+		p.Transparency = 1
+		p.CanCollide = true
+		p.CanQuery = false
+		p.CanTouch = false
+		p.CastShadow = false
+		p.Size = tam
+		p.CFrame = cf
+		p.Parent = paredes
+	end
+	for _, lado in ipairs({ -1, 1 }) do
+		parede(Vector3.new(1, 60, L + 40), CFrame.new(lado * (W / 2 + 0.5), alturaChao + 30, zMeio))
+	end
+	parede(Vector3.new(W + 4, 60, 1), CFrame.new(0, alturaChao + 30, INICIO_Z + 1))
+	parede(Vector3.new(W + 4, 60, 1), CFrame.new(0, alturaChao + 30, -L))
+	return alturaChao + 1
+end
+
+-- Onde o herói começa no mapa linear (olhando para frente, -Z)
+function Cenario.inicio()
+	return Vector3.new(0, alturaChao + 3, INICIO_Z - 6)
+end
+Cenario.linear = linear
+Cenario.fimZ = -(Config.Mapa and Config.Mapa.Comprimento or 400)
+
+------------------------------------------------------------------------
 -- API
 ------------------------------------------------------------------------
 function Cenario.iniciar(baseplate)
+	if linear then
+		return iniciarLinear(baseplate)
+	end
 	if baseplate then
 		baseplate.Size = Vector3.new(160, baseplate.Size.Y, 160)
 		baseplate.Material = Enum.Material.Grass
@@ -802,7 +1123,18 @@ function Cenario.aplicar(tema, baseplate)
 	end
 	temaAtual = tema
 	pastaDecor:ClearAllChildren()
-	if tema == "vila" and temArte() then
+	if linear then
+		decorLinear(pastaDecor, tema)
+		if trilho then
+			local cores = {
+				vila = Color3.fromRGB(175, 150, 115),
+				pantano = Color3.fromRGB(90, 95, 80),
+				crepusculo = Color3.fromRGB(150, 110, 100),
+				chefe = Color3.fromRGB(70, 55, 90),
+			}
+			TweenService:Create(trilho, TweenInfo.new(1.2), { Color = cores[tema] or cores.vila }):Play()
+		end
+	elseif tema == "vila" and temArte() then
 		vila3D(pastaDecor)
 	elseif tema == "crepusculo" and temArte() then
 		crepusculo3D(pastaDecor)

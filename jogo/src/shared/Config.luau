@@ -6,6 +6,19 @@ local Config = {}
 -- 70 inimigos por fase (como no conceito). Balanceado por simulação: Ato 1 ~4h15 de farm.
 Config.MonstrosPorFase = 70
 -- Quantos monstros ficam vivos no mapa ao mesmo tempo.
+-- Mapa: "linear" = estrada reta, o herói anda para frente e enfrenta hordas no caminho (estilo TBH).
+-- "arena" = mapa redondo antigo.
+Config.Mapa = {
+	Modo = "linear",
+	Comprimento = 420, -- tamanho da estrada (studs)
+	Largura = 20, -- largura da estrada
+	HordaTamanho = 7, -- inimigos por horda (10 hordas = 70 inimigos)
+	DistanciaHorda = 34, -- a próxima horda aparece esta distância à frente do herói
+	Aggro = 26, -- os inimigos veem o herói desta distância e correm para atacar
+	VelocidadeInimigo = 11, -- velocidade dos inimigos correndo
+	DanoHorda = 0.6, -- na horda todos batem juntos: cada um bate 60% do normal
+	CuraHorda = 0.25, -- vencer uma horda recupera 25% da vida
+}
 Config.MonstrosVivos = 5
 -- Mapa pequeno: cada fase é uma arena redonda e compacta.
 Config.RaioArena = 24 -- raio do chão da arena

@@ -551,6 +551,45 @@ local ANIM_ATAQUE = {
 }
 local faixasAtaque = setmetatable({}, { __mode = "k" })
 
+-- Corrida dos inimigos (mapa linear: eles correm até o herói)
+local ANIM_CORRER = {
+	[Enum.HumanoidRigType.R6] = "rbxassetid://180426354",
+	[Enum.HumanoidRigType.R15] = "rbxassetid://507767714",
+}
+local faixasCorrer = setmetatable({}, { __mode = "k" })
+
+function Modelos.andar(m, correndo)
+	if (m:GetAttribute("Correndo") == true) == correndo then
+		return
+	end
+	m:SetAttribute("Correndo", correndo)
+	local hum = m:FindFirstChildWhichIsA("Humanoid", true)
+	local animador = hum and hum:FindFirstChildOfClass("Animator")
+	if not animador then
+		return
+	end
+	local faixa = faixasCorrer[m]
+	if not faixa then
+		local anim = Instance.new("Animation")
+		anim.AnimationId = ANIM_CORRER[hum.RigType] or ANIM_CORRER[Enum.HumanoidRigType.R6]
+		local ok, f = pcall(function()
+			return animador:LoadAnimation(anim)
+		end)
+		if not ok or not f then
+			return
+		end
+		faixa = f
+		faixa.Looped = true
+		faixa.Priority = Enum.AnimationPriority.Movement
+		faixasCorrer[m] = faixa
+	end
+	if correndo then
+		faixa:Play(0.15, 1, 1.25)
+	else
+		faixa:Stop(0.2)
+	end
+end
+
 function Modelos.atacar(m)
 	local hum = m:FindFirstChildWhichIsA("Humanoid", true)
 	local animador = hum and hum:FindFirstChildOfClass("Animator")
