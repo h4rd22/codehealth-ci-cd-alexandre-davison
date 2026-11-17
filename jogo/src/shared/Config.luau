@@ -17,6 +17,7 @@ Config.Heroi = {
 	Variacao = 0.25, -- o dano varia 25% para mais ou para menos
 	ChanceCritico = 0.10, -- 10% de chance de crítico (o elmo aumenta)
 	MultCritico = 2.5, -- crítico causa 2,5x o dano
+	CriticoMaximo = 0.75, -- a chance de crítico nunca passa de 75%
 	Alcance = 8, -- distância para conseguir bater
 	AlcanceChefe = 12, -- o chefe é grande: dá para bater nele de mais longe
 	Intervalo = 0.5, -- segundos entre golpes
@@ -207,6 +208,7 @@ Config.Conjuntos = {
 		chance = 0.30, -- 30% dos drops dessas fases são peças do conjunto
 		pecas = {
 			arma = "Kunai da Vila",
+			armaClasse = { guerreiro = "Espada da Vila", cacador = "Arco da Vila", mago = "Cajado da Vila" },
 			elmo = "Bandana da Vila",
 			armadura = "Colete da Vila",
 			botas = "Sandálias da Vila",
@@ -224,6 +226,7 @@ Config.Conjuntos = {
 		chance = 0.30,
 		pecas = {
 			arma = "Lâmina da Katsuki",
+			armaClasse = { guerreiro = "Lâmina da Katsuki", cacador = "Arco da Katsuki", mago = "Cajado da Katsuki" },
 			elmo = "Chapéu da Katsuki",
 			armadura = "Manto da Katsuki",
 			botas = "Sandálias da Katsuki",
@@ -242,6 +245,169 @@ function Config.ConjuntoPorId(id)
 		end
 	end
 end
+
+-- Classes (estilo Task Bar Hero): escolhidas no menu inicial.
+-- Arma, elmo e armadura são exclusivos de cada classe; botas e olho servem para todas.
+-- Na síntese a classe não importa: junta qualquer item da mesma raridade e categoria.
+Config.Classes = {
+	{
+		id = "guerreiro",
+		nome = "Guerreiro",
+		icone = "⚔️",
+		cor = Color3.fromRGB(225, 70, 55),
+		estilo = "Corpo a corpo",
+		descricao = "Aguenta muita pancada e bate firme de perto. Bom para quem está começando.",
+		dano = 1.0, -- multiplica o dano
+		vida = 1.35, -- multiplica a vida
+		critico = 0, -- soma na chance de crítico
+		alcance = 8, -- distância do golpe
+		intervalo = 0.55, -- segundos entre golpes
+		regeneracao = 0.06, -- recupera 6% da vida por segundo fora de combate
+		notas = { vida = 5, dano = 3, alcance = 1, velocidade = 3 }, -- estrelas no menu
+	},
+	{
+		id = "cacador",
+		nome = "Caçador",
+		icone = "🏹",
+		cor = Color3.fromRGB(90, 200, 90),
+		estilo = "À distância",
+		descricao = "Flechas rápidas de longe e muitos críticos, mas tem pouca vida.",
+		dano = 0.8,
+		vida = 0.85,
+		critico = 0.08,
+		alcance = 22,
+		intervalo = 0.4,
+		projetil = true,
+		notas = { vida = 2, dano = 3, alcance = 5, velocidade = 5 },
+	},
+	{
+		id = "mago",
+		nome = "Mago",
+		icone = "🔮",
+		cor = Color3.fromRGB(150, 90, 240),
+		estilo = "Magia em área",
+		descricao = "Magias fortes que explodem e acertam vários inimigos juntos. Frágil e mais lento.",
+		dano = 1.15,
+		vida = 0.8,
+		critico = 0,
+		alcance = 16,
+		intervalo = 0.8,
+		projetil = true,
+		area = 7, -- raio da explosão em volta do alvo
+		danoArea = 0.6, -- os outros inimigos na explosão levam 60% do dano
+		notas = { vida = 1, dano = 5, alcance = 4, velocidade = 2 },
+	},
+}
+function Config.ClassePorId(id)
+	for _, c in ipairs(Config.Classes) do
+		if c.id == id then
+			return c
+		end
+	end
+	return nil
+end
+Config.SlotsDeClasse = { arma = true, elmo = true, armadura = true }
+Config.ChanceClassePropria = 0.6 -- 60% dos drops são da sua classe; o resto é de outra (serve para síntese)
+
+-- Nome dos itens exclusivos de cada classe (do tier 1 ao 8)
+Config.NomesClasse = {
+	guerreiro = {
+		arma = {
+			"Espada Enferrujada",
+			"Espada de Aço",
+			"Katana Afiada",
+			"Lâmina das Sombras",
+			"Espada do Trovão",
+			"Lâmina do Dragão",
+			"Espada dos Seis Caminhos",
+			"Lâmina do Vazio",
+		},
+		elmo = {
+			"Bandana de Pano",
+			"Elmo de Ferro",
+			"Elmo ANBU",
+			"Elmo do Crepúsculo",
+			"Elmo do Trovão",
+			"Elmo do Dragão",
+			"Elmo dos Seis Caminhos",
+			"Elmo do Vazio",
+		},
+		armadura = {
+			"Colete de Treino",
+			"Peitoral de Ferro",
+			"Armadura ANBU",
+			"Armadura do Crepúsculo",
+			"Armadura do Trovão",
+			"Armadura do Dragão",
+			"Armadura dos Seis Caminhos",
+			"Armadura do Vazio",
+		},
+	},
+	cacador = {
+		arma = {
+			"Arco de Bambu",
+			"Arco Curto",
+			"Arco Longo",
+			"Arco das Sombras",
+			"Arco do Vento",
+			"Arco do Dragão",
+			"Arco dos Seis Caminhos",
+			"Arco do Vazio",
+		},
+		elmo = {
+			"Capuz de Pano",
+			"Capuz de Couro",
+			"Máscara do Caçador",
+			"Capuz do Crepúsculo",
+			"Capuz do Vento",
+			"Máscara do Dragão",
+			"Capuz dos Seis Caminhos",
+			"Máscara do Vazio",
+		},
+		armadura = {
+			"Gibão de Pano",
+			"Colete de Couro",
+			"Couraça do Caçador",
+			"Manto do Crepúsculo",
+			"Manto do Vento",
+			"Couraça do Dragão",
+			"Manto dos Seis Caminhos",
+			"Couraça do Vazio",
+		},
+	},
+	mago = {
+		arma = {
+			"Cajado de Bambu",
+			"Cajado de Carvalho",
+			"Cajado de Chakra",
+			"Cetro das Sombras",
+			"Cajado do Trovão",
+			"Cetro do Dragão",
+			"Cajado dos Seis Caminhos",
+			"Cetro do Vazio",
+		},
+		elmo = {
+			"Chapéu de Aprendiz",
+			"Chapéu de Seda",
+			"Tiara de Chakra",
+			"Chapéu do Crepúsculo",
+			"Coroa do Sábio",
+			"Tiara do Dragão",
+			"Coroa dos Seis Caminhos",
+			"Coroa do Vazio",
+		},
+		armadura = {
+			"Túnica de Aprendiz",
+			"Túnica de Seda",
+			"Manto de Chakra",
+			"Manto do Crepúsculo",
+			"Manto do Sábio",
+			"Manto do Dragão",
+			"Manto dos Seis Caminhos",
+			"Manto do Vazio",
+		},
+	},
+}
 
 -- Avatares: chance mínima de dropar a "skin" do inimigo da fase. Troca o corpo do herói e dá buff.
 Config.Avatares = {

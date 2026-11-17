@@ -141,7 +141,7 @@ local function barra(pai, props, cor)
 		Rotation = 90,
 		Color = ColorSequence.new(Color3.new(1, 1, 1), Color3.fromRGB(160, 160, 160)),
 	})
-	local txt = rotulo(fundo, { Size = UDim2.fromScale(1, 1), TextSize = 12, ZIndex = 3 })
+	local txt = rotulo(fundo, { Size = UDim2.fromScale(1, 1), Text = "", TextSize = 12, ZIndex = 3 })
 	return fundo, cheio, txt
 end
 local function bolinha(pai)
@@ -181,6 +181,8 @@ local function textoValor(atributo, v)
 		return string.format("+%d de velocidade", v)
 	elseif atributo == "danoMult" then
 		return string.format("+%.0f%% de dano", v * 100)
+	elseif atributo == "vida" then
+		return string.format("+%d de vida", v)
 	else
 		return string.format("+%d de dano", v)
 	end
@@ -226,7 +228,29 @@ cartaoItem = function(pai, item, props)
 		BackgroundTransparency = 1,
 		ZIndex = 2,
 	})
-	ItemArte.mostrar(vp, s.id, ri, r.cor, item.conjunto)
+	ItemArte.mostrar(vp, s.id, ri, r.cor, item.conjunto, item.classe)
+	-- ícone da classe (itens de arma, elmo e armadura são de uma classe só)
+	local classeItem = item.classe and Config.ClassePorId(item.classe)
+	if classeItem then
+		local minhaClasse = player:GetAttribute("Classe")
+		rotulo(b, {
+			Position = UDim2.new(0, item.conjunto and 14 or 2, 1, -16),
+			Size = UDim2.fromOffset(15, 15),
+			Text = classeItem.icone,
+			TextSize = 11,
+			ZIndex = 4,
+		})
+		if minhaClasse and item.classe ~= minhaClasse then
+			-- item de outra classe: fica avermelhado (não dá para vestir, mas serve na síntese)
+			local veu = novo("Frame", b, {
+				Size = UDim2.fromScale(1, 1),
+				BackgroundColor3 = Color3.fromRGB(120, 10, 20),
+				BackgroundTransparency = 0.55,
+				ZIndex = 3,
+			})
+			canto(veu, 10)
+		end
+	end
 	-- selo do conjunto (canto de baixo à esquerda)
 	local conj = item.conjunto and Config.ConjuntoPorId(item.conjunto)
 	if conj then
@@ -352,8 +376,8 @@ task.spawn(function()
 end)
 local nivelBola = novo("Frame", cartao, {
 	AnchorPoint = Vector2.new(0.5, 0.5),
-	Position = UDim2.fromOffset(62, 66),
-	Size = UDim2.fromOffset(28, 28),
+	Position = UDim2.fromOffset(56, 66),
+	Size = UDim2.fromOffset(26, 26),
 	BackgroundColor3 = COR.faixa,
 	ZIndex = 3,
 })
@@ -382,14 +406,15 @@ local _, xpCheio, xpTxt =
 	barra(cartao, { Position = UDim2.fromOffset(74, 49), Size = UDim2.new(1, -84, 0, 12) }, COR.xp)
 xpTxt.TextSize = 10
 local lblPoder = rotulo(cartao, {
-	Position = UDim2.fromOffset(74, 64),
+	Position = UDim2.fromOffset(76, 64),
 	Size = UDim2.new(1, -84, 0, 14),
 	Text = "",
-	TextSize = 11,
+	TextScaled = true,
 	Font = FONTE_TEXTO,
 	TextColor3 = COR.fraco,
 	TextXAlignment = Enum.TextXAlignment.Left,
 })
+novo("UITextSizeConstraint", lblPoder, { MaxTextSize = 11, MinTextSize = 8 })
 
 local caixaOuro = caixa(gui, { Position = UDim2.fromOffset(14, 154), Size = UDim2.fromOffset(150, 38) })
 canto(caixaOuro, 19)
@@ -1024,8 +1049,19 @@ local function desenharDetalhe()
 		.. textoItem(it)
 		.. comparar
 		.. linhaConj
+	local classeIt = it.classe and Config.ClassePorId(it.classe)
+	local outraClasse = classeIt and it.classe ~= estado.classe
+	if classeIt then
+		detStat.Text ..= string.format(
+			'\n<font color="#%s">%s Só %s</font>%s',
+			classeIt.cor:ToHex(),
+			classeIt.icone,
+			classeIt.nome,
+			outraClasse and ' <font color="#ff6b6b">(outra classe: serve só para síntese)</font>' or ""
+		)
+	end
 	local v = vestido(it.id)
-	btnEquipar.Visible = true
+	btnEquipar.Visible = not outraClasse
 	btnEquipar.Text = v and "Tirar" or "Vestir"
 	btnEquipar.BackgroundColor3 = v and COR.cinza or COR.verde
 	btnVender.Visible = not v
@@ -1034,7 +1070,7 @@ end
 
 -- "Assinatura" dos itens: muda só quando entra/sai/veste/seleciona item (não a cada inimigo morto)
 local function assinaturaItens(extra)
-	local partes = { extra or "" }
+	local partes = { extra or "", tostring(player:GetAttribute("Classe")) }
 	for _, it in ipairs(estado.inventario) do
 		table.insert(partes, it.id)
 	end
@@ -1067,7 +1103,7 @@ local function desenharMochila()
 				BackgroundTransparency = 1,
 			})
 			vp:SetAttribute("Item", it.id)
-			ItemArte.mostrar(vp, it.slot, ri3, r3.cor, it.conjunto)
+			ItemArte.mostrar(vp, it.slot, ri3, r3.cor, it.conjunto, it.classe)
 		end
 		if it then
 			local r = raridade(it.raridade)
@@ -1748,6 +1784,10 @@ for i, tr in ipairs(Config.Treino) do
 		TextSize = 15,
 		TextXAlignment = Enum.TextXAlignment.Right,
 	})
+	novo("UIGradient", c, {
+		Rotation = 90,
+		Color = ColorSequence.new(Color3.fromRGB(255, 240, 220), Color3.fromRGB(150, 130, 115)),
+	})
 	local efeito = rotulo(c, {
 		Position = UDim2.fromOffset(74, 32),
 		Size = UDim2.new(1, -84, 0, 32),
@@ -1759,6 +1799,31 @@ for i, tr in ipairs(Config.Treino) do
 		TextXAlignment = Enum.TextXAlignment.Left,
 		TextYAlignment = Enum.TextYAlignment.Top,
 	})
+	-- faixa do meio: total ganho em destaque + barra de progresso dos níveis
+	local faixaTotal = novo("Frame", c, {
+		Position = UDim2.fromOffset(10, 72),
+		Size = UDim2.new(1, -20, 1, -126),
+		BackgroundColor3 = Color3.fromRGB(24, 17, 14),
+		BackgroundTransparency = 0.25,
+	})
+	canto(faixaTotal, 10)
+	contorno(faixaTotal, Color3.fromRGB(90, 62, 38), 1.5)
+	local total = rotulo(faixaTotal, {
+		Position = UDim2.fromOffset(0, 2),
+		Size = UDim2.new(1, 0, 1, -22),
+		Text = "",
+		TextScaled = true,
+		TextColor3 = Color3.fromRGB(255, 214, 110),
+		TextStrokeTransparency = 0.1,
+	})
+	novo("UITextSizeConstraint", total, { MaxTextSize = 24, MinTextSize = 12 })
+	novo("UIPadding", total, { PaddingTop = UDim.new(0, 4) })
+	local _, progCheio, progTxt = barra(faixaTotal, {
+		AnchorPoint = Vector2.new(0.5, 1),
+		Position = UDim2.new(0.5, 0, 1, -6),
+		Size = UDim2.new(1, -16, 0, 12),
+	}, Color3.fromRGB(255, 170, 60))
+	progTxt.TextSize = 10
 	local b = botao(c, {
 		Name = "Treinar_" .. tr.id,
 		AnchorPoint = Vector2.new(0.5, 1),
@@ -1771,7 +1836,8 @@ for i, tr in ipairs(Config.Treino) do
 	b.Activated:Connect(function()
 		evTreinar:FireServer(tr.id)
 	end)
-	linhasTreino[tr.id] = { nv = nv, efeito = efeito, botao = b, tr = tr }
+	linhasTreino[tr.id] =
+		{ nv = nv, efeito = efeito, botao = b, tr = tr, total = total, prog = progCheio, progTxt = progTxt }
 end
 
 local function desenharTreino()
@@ -1792,7 +1858,10 @@ local function desenharTreino()
 		else
 			total = string.format("+%d de dano", math.floor(n * tr.valor + 0.5))
 		end
-		l.efeito.Text = tr.texto:gsub("%%d", tostring(tr.valor)) .. "\nTotal agora: " .. total
+		l.efeito.Text = (tr.texto:gsub("%%d", tostring(tr.valor)))
+		l.total.Text = total
+		l.prog.Size = UDim2.fromScale(math.clamp(n / math.max(tr.max, 1), 0, 1), 1)
+		l.progTxt.Text = n .. " / " .. tr.max
 		local custo = Config.CustoTreino(tr, n)
 		local pode = n < tr.max and estado.ouro >= custo
 		l.botao.Text = n >= tr.max and "MÁXIMO" or ("Treinar  💰 " .. custo)
@@ -1805,17 +1874,122 @@ end
 -- Abas Habilidades e Ovos (em breve)
 ------------------------------------------------------------------------
 local function emBreve(pagina, icone, titulo, texto, qtd)
-	local g = novo("Frame", pagina, { Size = UDim2.new(1, 0, 0, 90), BackgroundTransparency = 1 })
+	local centro = novo("Frame", pagina, {
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.fromScale(0.5, 0.5),
+		Size = UDim2.fromOffset(520, 330),
+		BackgroundTransparency = 1,
+	})
+	-- raios dourados girando atrás do emblema
+	local raios = novo("Frame", centro, {
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.fromOffset(260, 72),
+		Size = UDim2.fromOffset(230, 230),
+		BackgroundTransparency = 1,
+	})
+	for i = 1, 8 do
+		local r = novo("Frame", raios, {
+			AnchorPoint = Vector2.new(0.5, 0.5),
+			Position = UDim2.fromScale(0.5, 0.5),
+			Size = UDim2.new(0, 22, 1, 0),
+			Rotation = i * 22.5,
+			BackgroundColor3 = Color3.fromRGB(255, 200, 90),
+			BackgroundTransparency = 0.82,
+			BorderSizePixel = 0,
+		})
+		novo("UIGradient", r, {
+			Rotation = 90,
+			Transparency = NumberSequence.new({
+				NumberSequenceKeypoint.new(0, 1),
+				NumberSequenceKeypoint.new(0.5, 0),
+				NumberSequenceKeypoint.new(1, 1),
+			}),
+		})
+	end
+	TweenService:Create(raios, TweenInfo.new(18, Enum.EasingStyle.Linear, Enum.EasingDirection.In, -1), {
+		Rotation = 360,
+	}):Play()
+	-- brilho pulsando
+	local brilho = novo("Frame", centro, {
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.fromOffset(260, 72),
+		Size = UDim2.fromOffset(150, 150),
+		BackgroundColor3 = Color3.fromRGB(255, 190, 80),
+		BackgroundTransparency = 0.8,
+	})
+	canto(brilho, 75)
+	TweenService:Create(
+		brilho,
+		TweenInfo.new(1.4, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
+		{ Size = UDim2.fromOffset(170, 170), BackgroundTransparency = 0.9 }
+	):Play()
+	-- emblema
+	local emblema = novo("Frame", centro, {
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.fromOffset(260, 72),
+		Size = UDim2.fromOffset(112, 112),
+		BackgroundColor3 = COR.madeira,
+		ZIndex = 2,
+	})
+	canto(emblema, 56)
+	contorno(emblema, COR.dourado, 4)
+	novo("UIGradient", emblema, {
+		Rotation = 90,
+		Color = ColorSequence.new(Color3.fromRGB(255, 225, 190), Color3.fromRGB(120, 90, 70)),
+	})
+	rotulo(emblema, { Size = UDim2.fromScale(1, 1), Text = icone, TextSize = 58, ZIndex = 3 })
+	-- fita "EM BREVE"
+	local fita = rotulo(centro, {
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.fromOffset(260, 128),
+		Size = UDim2.fromOffset(130, 26),
+		Text = "EM BREVE",
+		TextSize = 16,
+		TextColor3 = Color3.fromRGB(255, 236, 170),
+		BackgroundTransparency = 0,
+		BackgroundColor3 = COR.faixa,
+		Rotation = -4,
+		ZIndex = 4,
+	})
+	canto(fita, 6)
+	contorno(fita, COR.dourado, 2)
+	rotulo(centro, {
+		Position = UDim2.fromOffset(0, 156),
+		Size = UDim2.new(1, 0, 0, 28),
+		Text = titulo,
+		TextSize = 24,
+		Font = FONTE,
+		TextColor3 = Color3.fromRGB(255, 220, 130),
+	})
+	rotulo(centro, {
+		Position = UDim2.fromOffset(20, 186),
+		Size = UDim2.new(1, -40, 0, 36),
+		Text = texto,
+		TextSize = 14,
+		Font = FONTE_TEXTO,
+		TextColor3 = COR.fraco,
+		TextWrapped = true,
+	})
+	local g = novo("Frame", centro, {
+		Position = UDim2.fromOffset(0, 236),
+		Size = UDim2.new(1, 0, 0, 84),
+		BackgroundTransparency = 1,
+	})
 	novo("UIListLayout", g, {
 		FillDirection = Enum.FillDirection.Horizontal,
 		HorizontalAlignment = Enum.HorizontalAlignment.Center,
-		Padding = UDim.new(0, 10),
+		VerticalAlignment = Enum.VerticalAlignment.Center,
+		Padding = UDim.new(0, 12),
 	})
-	for _ = 1, qtd do
-		local c = novo("Frame", g, { Size = UDim2.fromOffset(78, 78), BackgroundColor3 = COR.painel2 })
+	for i = 1, qtd do
+		local c = novo("Frame", g, { Size = UDim2.fromOffset(74, 74), BackgroundColor3 = COR.painel2, LayoutOrder = i })
 		canto(c, 14)
 		contorno(c, COR.borda, 2)
-		rotulo(c, { Size = UDim2.fromScale(1, 1), Text = icone, TextSize = 32, TextTransparency = 0.5 })
+		novo("UIGradient", c, {
+			Rotation = 90,
+			Color = ColorSequence.new(Color3.fromRGB(255, 235, 215), Color3.fromRGB(120, 100, 90)),
+		})
+		rotulo(c, { Size = UDim2.fromScale(1, 1), Text = icone, TextSize = 30, TextTransparency = 0.55 })
 		rotulo(c, {
 			AnchorPoint = Vector2.new(1, 1),
 			Position = UDim2.new(1, -4, 1, -2),
@@ -1824,22 +1998,6 @@ local function emBreve(pagina, icone, titulo, texto, qtd)
 			TextSize = 14,
 		})
 	end
-	rotulo(pagina, {
-		Position = UDim2.fromOffset(0, 104),
-		Size = UDim2.new(1, 0, 0, 26),
-		Text = titulo,
-		TextSize = 20,
-		Font = FONTE,
-	})
-	rotulo(pagina, {
-		Position = UDim2.fromOffset(0, 132),
-		Size = UDim2.new(1, 0, 0, 40),
-		Text = texto,
-		TextSize = 13,
-		Font = FONTE_TEXTO,
-		TextColor3 = COR.fraco,
-		TextWrapped = true,
-	})
 end
 emBreve(
 	pgHab,
@@ -2413,7 +2571,13 @@ desenhar = function()
 			{ Size = UDim2.fromScale(math.clamp(estado.xp / estado.xpProx, 0, 1), 1) }
 		)
 		:Play()
-	lblPoder.Text = string.format("Dano %d · Crítico %.0f%%", estado.stats.dano, estado.stats.critico * 100)
+	local minhaClasse = Config.ClassePorId(estado.classe)
+	lblPoder.Text = string.format(
+		"%sDano %d · Crítico %.0f%%",
+		minhaClasse and (minhaClasse.icone .. " " .. minhaClasse.nome .. " · ") or "",
+		estado.stats.dano,
+		estado.stats.critico * 100
+	)
 	lblOuro.Text = tostring(estado.ouro)
 
 	local f = Config.Fases[estado.faseIdx]
@@ -2477,10 +2641,12 @@ local barraChefe = caixa(gui, {
 	Name = "BarraChefe",
 	AnchorPoint = Vector2.new(0.5, 0),
 	Position = UDim2.new(0.5, 0, 0, 148),
-	Size = UDim2.new(0.6, 0, 0, 74),
+	Size = UDim2.fromScale(0.6, 0),
+	AutomaticSize = Enum.AutomaticSize.Y,
 	Visible = false,
 })
-novo("UISizeConstraint", barraChefe, { MaxSize = Vector2.new(480, 74) })
+novo("UISizeConstraint", barraChefe, { MaxSize = Vector2.new(520, 140) })
+novo("UIPadding", barraChefe, { PaddingBottom = UDim.new(0, 8) })
 canto(barraChefe, 12)
 contorno(barraChefe, Color3.fromRGB(190, 90, 255), 2.5)
 local lblChefe = rotulo(barraChefe, {
@@ -2495,12 +2661,20 @@ local _, chefeCheio, chefeTxt = barra(barraChefe, {
 	Position = UDim2.fromOffset(12, 23),
 	Size = UDim2.new(1, -24, 0, 16),
 }, Color3.fromRGB(190, 90, 255))
+-- vida do chefe em degradê roxo → rosa (mais chamativo)
+chefeCheio:FindFirstChildOfClass("UIGradient").Color = ColorSequence.new({
+	ColorSequenceKeypoint.new(0, Color3.fromRGB(150, 70, 255)),
+	ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 80, 190)),
+})
+chefeCheio:FindFirstChildOfClass("UIGradient").Rotation = 0
+chefeCheio.BackgroundColor3 = Color3.new(1, 1, 1)
 
 -- Drops do chefe embaixo da barra de vida
 local function chipsDrops(pai)
-	local lista = novo("Frame", pai, { BackgroundTransparency = 1 })
+	local lista = novo("Frame", pai, { BackgroundTransparency = 1, AutomaticSize = Enum.AutomaticSize.Y })
 	novo("UIListLayout", lista, {
 		FillDirection = Enum.FillDirection.Horizontal,
+		Wraps = true, -- se não couber numa linha, quebra para a de baixo (nada cortado)
 		Padding = UDim.new(0, 4),
 		SortOrder = Enum.SortOrder.LayoutOrder,
 		VerticalAlignment = Enum.VerticalAlignment.Center,

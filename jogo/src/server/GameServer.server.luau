@@ -32,6 +32,7 @@ local evAutoVenda = remote("AutoVenda") -- até qual raridade vender sozinho
 local evAvatar = remote("Avatar") -- usar um avatar (número da fase) ou 0 para o visual normal
 local evEsconderEquip = remote("EsconderEquip") -- esconder os equipamentos no corpo
 local evTreinar = remote("Treinar") -- sobe um atributo do treinamento
+local evClasse = remote("Classe") -- menu inicial: escolher Guerreiro, Caçador ou Mago
 local evEquipar = remote("Equipar")
 local evDesequipar = remote("Desequipar")
 local evVender = remote("Vender")
@@ -162,6 +163,18 @@ local function calcularStats(st)
 			s.critico += buff.critico or 0
 		end
 	end
+	local classe = Config.ClassePorId(st.classe)
+	if classe then
+		danoPct = (1 + danoPct) * classe.dano - 1
+		vidaPct = (1 + vidaPct) * classe.vida - 1
+		s.critico += classe.critico
+		s.alcance = classe.alcance
+		s.intervalo = classe.intervalo
+	else
+		s.alcance = h.Alcance
+		s.intervalo = h.Intervalo
+	end
+	s.critico = math.min(s.critico, Config.Heroi.CriticoMaximo)
 	s.dano *= 1 + danoPct
 	s.vidaMax = math.floor(s.vidaMax * (1 + vidaPct) + 0.5)
 	s.dano = math.floor(s.dano + 0.5)
@@ -184,6 +197,9 @@ local function enviarEstado(player)
 	table.sort(lista, function(a, b)
 		return a.id > b.id
 	end)
+	local stats = calcularStats(st)
+	player:SetAttribute("Alcance", stats.alcance) -- o auto-farm da tela usa para saber até onde andar
+	player:SetAttribute("Classe", st.classe)
 	evEstado:FireClient(player, {
 		nivel = st.nivel,
 		xp = st.xp,
@@ -195,7 +211,7 @@ local function enviarEstado(player)
 		meta = metaDaFase(st.fase),
 		inventario = lista,
 		equipado = st.equipado,
-		stats = calcularStats(st),
+		stats = stats,
 		autoFarm = st.autoFarm,
 		configForja = st.configForja,
 		repetir = st.repetir,
@@ -204,6 +220,7 @@ local function enviarEstado(player)
 		avatares = st.avatares,
 		avatarAtivo = st.avatarAtivo,
 		esconderEquip = st.esconderEquip,
+		classe = st.classe,
 	})
 end
 
@@ -264,7 +281,7 @@ local function vestir(player)
 		if item and slotId ~= "olho" then
 			local rar, ri = raridadePorId(item.raridade)
 			if not st.esconderEquip then
-				ItemArte.vestir(char, pastaEq, slotId, ri, rar.corBorda or rar.cor, item.conjunto)
+				ItemArte.vestir(char, pastaEq, slotId, ri, rar.corBorda or rar.cor, item.conjunto, item.classe)
 			end
 			if ri > maiorRi then
 				maiorRi, corMaior = ri, rar.cor
@@ -363,11 +380,42 @@ local function nivelDoDrop(nivelInimigo, nivelHeroi)
 	return math.max(1, math.floor(base + 0.5) + math.random(-c.Variacao, c.Variacao))
 end
 
-local function criarItem(st, raridadeIdx, nivel, slotId, nomeEspecial, valorFixo, conjuntoId)
+-- Classe de um item novo: 60% da sua classe, o resto de outra (que ainda serve para a síntese)
+local function sortearClasse(st)
+	if st.classe and math.random() < Config.ChanceClassePropria then
+		return st.classe
+	end
+	return Config.Classes[math.random(#Config.Classes)].id
+end
+
+-- Nome do item pela classe, tier e conjunto
+local function nomeDoItem(slotId, raridadeIdx, classe, conjuntoId)
+	local c = conjuntoId and Config.ConjuntoPorId(conjuntoId)
+	if c then
+		if slotId == "arma" and classe and c.pecas.armaClasse then
+			return c.pecas.armaClasse[classe]
+		end
+		return c.pecas[slotId]
+	end
+	local porClasse = classe and Config.NomesClasse[classe]
+	if porClasse and porClasse[slotId] then
+		return porClasse[slotId][raridadeIdx]
+	end
+	return Config.NomesItens[slotId] and Config.NomesItens[slotId][raridadeIdx]
+end
+
+-- classe: texto = daquela classe; false = serve para todas; nil = sorteia (só arma, elmo e armadura)
+local function criarItem(st, raridadeIdx, nivel, slotId, nomeEspecial, valorFixo, conjuntoId, classe)
 	local rar = Config.Raridades[raridadeIdx]
 	local slot = slotId and slotPorId(slotId) or slotsComuns[math.random(#slotsComuns)]
 	local cresc = 1 + Config.ItemNivel.CrescimentoPorNivel * (nivel - 1)
 	local bruto = slot.valor * rar.mult * cresc * (0.85 + math.random() * 0.3)
+	if slot.atributo == "critico" or slot.atributo == "velocidade" then
+		-- crítico e velocidade crescem bem menos (senão um elmo raro dava +100% de crítico)
+		local multSuave = 1 + (rar.mult - 1) * 0.25
+		local crescSuave = 1 + 0.03 * (nivel - 1)
+		bruto = slot.valor * multSuave * crescSuave * (0.85 + math.random() * 0.3)
+	end
 	if slot.especial or valorFixo then
 		bruto = valorFixo or slot.valor -- o olho tem valor fixo
 	end
@@ -378,12 +426,18 @@ local function criarItem(st, raridadeIdx, nivel, slotId, nomeEspecial, valorFixo
 		valor = math.floor(bruto * 1000 + 0.5) / 1000
 	end
 	st.proximoId += 1
+	local classeItem
+	if Config.SlotsDeClasse[slot.id] and not slot.especial and classe ~= false then
+		classeItem = classe or sortearClasse(st)
+	end
 	local item = {
 		id = st.proximoId,
 		slot = slot.id,
 		raridade = rar.id,
-		nome = nomeEspecial
-			or (Config.NomesItens[slot.id] and Config.NomesItens[slot.id][raridadeIdx])
+		classe = classeItem,
+		nome = (conjuntoId and nomeDoItem(slot.id, raridadeIdx, classeItem, conjuntoId))
+			or nomeEspecial
+			or nomeDoItem(slot.id, raridadeIdx, classeItem)
 			or (slot.base .. " " .. rar.material),
 		valor = valor,
 		nivel = nivel,
@@ -711,7 +765,7 @@ local function abrirBau(player, pos)
 		for k, esp in ipairs(drops.Especiais) do
 			if math.random() < esp.chance then
 				local _, rie = raridadePorId(esp.raridade)
-				local item = criarItem(st, rie, nivel, esp.slot, esp.nome, esp.valor)
+				local item = criarItem(st, rie, nivel, esp.slot, esp.nome, esp.valor, nil, false)
 				guardarItem(player, item, pos + Vector3.new(0, 3 + k * 2, 0), "bau")
 				for _, outro in ipairs(Players:GetPlayers()) do
 					evAviso:FireClient(outro, "lendario", player.DisplayName, esp.nome)
@@ -863,35 +917,9 @@ local function piscar(m)
 	end)
 end
 
-local function golpe(player, root)
-	local alvo, menor = nil, math.huge
-	for _, m in ipairs(monstrosDe(player)) do
-		if m.PrimaryPart then
-			local d = ((m.PrimaryPart.Position - root.Position) * Vector3.new(1, 0, 1)).Magnitude
-			local alcance = m:GetAttribute("Chefe") and Config.Heroi.AlcanceChefe or Config.Heroi.Alcance
-			if d <= alcance and d < menor then
-				alvo, menor = m, d
-			end
-		end
-	end
-	if not alvo then
-		return
-	end
-
-	local st = estado[player]
-	if st.morto then
-		return
-	end
-	local stats = calcularStats(st)
-	local h = Config.Heroi
-	local dano = stats.dano * (1 + (math.random() * 2 - 1) * h.Variacao)
-	local critico = math.random() < stats.critico
-	if critico then
-		dano *= h.MultCritico
-	end
-	dano = math.max(1, math.floor(dano + 0.5))
-
-	local vida = math.max(0, alvo:GetAttribute("Vida") - dano)
+-- Tira vida de um inimigo, mostra o número e confere se morreu
+local function ferirInimigo(player, alvo, dano, critico)
+	local vida = math.max(0, (alvo:GetAttribute("Vida") or 0) - dano)
 	alvo:SetAttribute("Vida", vida)
 	local barra = alvo:FindFirstChild("Barra")
 	if barra then
@@ -908,6 +936,59 @@ local function golpe(player, root)
 	end
 end
 
+local function golpe(player, root)
+	local st = estado[player]
+	if not st or st.morto then
+		return
+	end
+	local stats = calcularStats(st)
+	local alvo, menor = nil, math.huge
+	for _, m in ipairs(monstrosDe(player)) do
+		if m.PrimaryPart and (m:GetAttribute("Vida") or 0) > 0 then
+			local d = ((m.PrimaryPart.Position - root.Position) * Vector3.new(1, 0, 1)).Magnitude
+			local alcance = m:GetAttribute("Chefe") and math.max(stats.alcance, Config.Heroi.AlcanceChefe)
+				or stats.alcance
+			if d <= alcance and d < menor then
+				alvo, menor = m, d
+			end
+		end
+	end
+	if not alvo then
+		return
+	end
+
+	local h = Config.Heroi
+	local dano = stats.dano * (1 + (math.random() * 2 - 1) * h.Variacao)
+	local critico = math.random() < stats.critico
+	if critico then
+		dano *= h.MultCritico
+	end
+	dano = math.max(1, math.floor(dano + 0.5))
+
+	local classe = Config.ClassePorId(st.classe)
+	local posAlvo = alvo.PrimaryPart.Position
+	if classe and classe.projetil then
+		-- flecha ou magia voando até o alvo (o efeito é desenhado na tela do jogador)
+		evDano:FireClient(player, "projetil", root.Position, posAlvo, classe.id, critico)
+	end
+	ferirInimigo(player, alvo, dano, critico)
+
+	-- magia do mago explode e acerta quem estiver perto do alvo
+	if classe and classe.area then
+		local danoArea = math.max(1, math.floor(dano * classe.danoArea + 0.5))
+		for _, outro in ipairs(monstrosDe(player)) do
+			if
+				outro ~= alvo
+				and outro.PrimaryPart
+				and (outro:GetAttribute("Vida") or 0) > 0
+				and (outro.PrimaryPart.Position - posAlvo).Magnitude <= classe.area
+			then
+				ferirInimigo(player, outro, danoArea, false)
+			end
+		end
+	end
+end
+
 local function loopCombate(player)
 	while player.Parent and estado[player] do
 		local char = player.Character
@@ -916,7 +997,8 @@ local function loopCombate(player)
 		if hum and root and hum.Health > 0 then
 			golpe(player, root)
 		end
-		task.wait(Config.Heroi.Intervalo)
+		local classe = Config.ClassePorId(estado[player] and estado[player].classe)
+		task.wait(classe and classe.intervalo or Config.Heroi.Intervalo)
 	end
 end
 
@@ -1011,7 +1093,9 @@ local function loopInimigos(player)
 			-- regenera quando fica um tempo sem apanhar
 			local vm = vidaMaxDe(st)
 			if st.vida < vm and agora - (st.ultimoDano or 0) > 2 then
-				st.vida = math.min(vm, st.vida + vm * Config.Heroi.Regeneracao * 0.25)
+				local classeRegen = Config.ClassePorId(st.classe)
+				local regen = classeRegen and classeRegen.regeneracao or Config.Heroi.Regeneracao
+				st.vida = math.min(vm, st.vida + vm * regen * 0.25)
 				enviarVida(player)
 			end
 		end
@@ -1172,6 +1256,17 @@ evEsconderEquip.OnServerEvent:Connect(function(player, esconder)
 	end
 end)
 
+evClasse.OnServerEvent:Connect(function(player, classeId)
+	local st = estado[player]
+	if not st or st.classe or type(classeId) ~= "string" or not Config.ClassePorId(classeId) then
+		return -- a classe só é escolhida uma vez
+	end
+	st.classe = classeId
+	st.vida = vidaMaxDe(st)
+	enviarEstado(player)
+	enviarVida(player)
+end)
+
 evAutoVenda.OnServerEvent:Connect(function(player, opcao)
 	local st = estado[player]
 	if st and table.find(Config.AutoVendaOpcoes, opcao) then
@@ -1227,6 +1322,11 @@ evEquipar.OnServerEvent:Connect(function(player, itemId)
 	local st = estado[player]
 	local item = st and st.itens[itemId]
 	if not item then
+		return
+	end
+	if item.classe and item.classe ~= st.classe then
+		local c = Config.ClassePorId(item.classe)
+		evAviso:FireClient(player, "classeErrada", item.nome, c and c.nome or item.classe)
 		return
 	end
 	st.equipado[item.slot] = item.id
@@ -1299,8 +1399,16 @@ local function forjarItens(player, st, itens)
 			mesmoConjunto = nil
 		end
 	end
-	local nomeConj = mesmoConjunto and Config.ConjuntoPorId(mesmoConjunto).pecas[itens[1].slot]
-	local novo = criarItem(st, ri + 1, nivel, itens[1].slot, nomeConj, nil, mesmoConjunto) -- mesma categoria
+	local mesmaClasse = itens[1].classe
+	for _, it in ipairs(itens) do
+		if it.classe ~= mesmaClasse then
+			mesmaClasse = st.classe
+		end
+	end
+	if mesmaClasse == nil then
+		mesmaClasse = Config.SlotsDeClasse[itens[1].slot] and st.classe or false
+	end
+	local novo = criarItem(st, ri + 1, nivel, itens[1].slot, nil, nil, mesmoConjunto, mesmaClasse) -- mesma categoria
 	guardarItem(player, novo, nil, "forja")
 	return novo
 end
@@ -1482,10 +1590,13 @@ if RunService:IsStudio() then
 			-- a = qual conjunto (1 ou 2), b = raridade
 			local c = Config.Conjuntos[a or 1]
 			for _, s in ipairs(slotsComuns) do
-				local item = criarItem(st, b or 4, 12, s.id, c.pecas[s.id], nil, c.id)
+				local item = criarItem(st, b or 4, 12, s.id, nil, nil, c.id, st.classe or "guerreiro")
 				st.itens[item.id] = item
 				st.equipado[s.id] = item.id
 			end
+			vestir(player)
+		elseif acao == "classe" then
+			st.classe = Config.ClassePorId(a) and a or "guerreiro"
 			vestir(player)
 		elseif acao == "avatar" then
 			if not table.find(st.avatares, a or 1) then
@@ -1495,7 +1606,11 @@ if RunService:IsStudio() then
 			for _, s in ipairs(Config.Slots) do
 				local melhor
 				for _, it in pairs(st.itens) do
-					if it.slot == s.id and (not melhor or it.valor > melhor.valor) then
+					if
+						it.slot == s.id
+						and (not it.classe or it.classe == st.classe)
+						and (not melhor or it.valor > melhor.valor)
+					then
 						melhor = it
 					end
 				end
@@ -1563,6 +1678,14 @@ Players.PlayerAdded:Connect(function(player)
 		player.CharacterAdded:Wait()
 	end
 	task.wait(0.3)
+	enviarEstado(player)
+	-- espera o jogador escolher a classe no menu inicial
+	while player.Parent and estado[player] and not estado[player].classe do
+		task.wait(0.2)
+	end
+	if not (player.Parent and estado[player]) then
+		return
+	end
 	vestir(player)
 	aplicarFase(player)
 	task.spawn(loopCombate, player)

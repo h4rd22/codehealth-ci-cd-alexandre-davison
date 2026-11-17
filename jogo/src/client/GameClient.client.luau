@@ -85,42 +85,72 @@ local ordem = 0
 
 local function notificar(texto, cor)
 	ordem -= 1
-	local f = Instance.new("TextLabel")
+	-- cartão de madeira escura com faixa na cor (raridade) e brilho, entra deslizando
+	local f = Instance.new("Frame")
 	f.LayoutOrder = ordem
-	f.Size = UDim2.fromOffset(240, 30)
-	f.BackgroundColor3 = Color3.fromRGB(22, 20, 34)
-	f.BackgroundTransparency = 0.1
-	f.Font = Enum.Font.GothamBold
-	f.TextSize = 13
-	f.TextColor3 = cor
-	f.TextTruncate = Enum.TextTruncate.AtEnd
-	f.Text = "  " .. texto
-	f.TextXAlignment = Enum.TextXAlignment.Left
+	f.Size = UDim2.fromOffset(240, 32)
+	f.BackgroundTransparency = 1
 	f.Parent = pilha
+	local card = Instance.new("Frame")
+	card.Size = UDim2.fromScale(1, 1)
+	card.Position = UDim2.fromOffset(260, 0)
+	card.BackgroundColor3 = Color3.fromRGB(34, 26, 22)
+	card.BorderSizePixel = 0
+	card.Parent = f
 	local c = Instance.new("UICorner")
 	c.CornerRadius = UDim.new(0, 8)
-	c.Parent = f
+	c.Parent = card
+	local g = Instance.new("UIGradient")
+	g.Color = ColorSequence.new(cor:Lerp(Color3.fromRGB(34, 26, 22), 0.55), Color3.fromRGB(34, 26, 22))
+	g.Transparency = NumberSequence.new(0.05, 0.12)
+	g.Parent = card
 	local s = Instance.new("UIStroke")
-	s.Color = cor
+	s.Color = cor:Lerp(Color3.new(1, 1, 1), 0.15)
 	s.Thickness = 1.5
 	s.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-	s.Parent = f
+	s.Parent = card
+	local tira = Instance.new("Frame")
+	tira.Size = UDim2.new(0, 5, 1, -8)
+	tira.Position = UDim2.fromOffset(4, 4)
+	tira.BackgroundColor3 = cor
+	tira.BorderSizePixel = 0
+	tira.Parent = card
+	local tc = Instance.new("UICorner")
+	tc.CornerRadius = UDim.new(0, 3)
+	tc.Parent = tira
+	local t = Instance.new("TextLabel")
+	t.BackgroundTransparency = 1
+	t.Position = UDim2.fromOffset(14, 0)
+	t.Size = UDim2.new(1, -20, 1, 0)
+	t.Font = Enum.Font.FredokaOne
+	t.TextSize = 14
+	t.TextColor3 = cor:Lerp(Color3.new(1, 1, 1), 0.25)
+	t.TextStrokeTransparency = 0.3
+	t.TextStrokeColor3 = Color3.fromRGB(16, 10, 8)
+	t.TextTruncate = Enum.TextTruncate.AtEnd
+	t.TextXAlignment = Enum.TextXAlignment.Left
+	t.Text = texto
+	t.Parent = card
+	TweenService:Create(card, TweenInfo.new(0.3, Enum.EasingStyle.Back), { Position = UDim2.fromOffset(0, 0) }):Play()
 	local fila = {}
 	for _, x in ipairs(pilha:GetChildren()) do
-		if x:IsA("TextLabel") then
+		if x:IsA("Frame") then
 			table.insert(fila, x)
 		end
 	end
 	if #fila > 6 then
-		table.sort(fila, function(a, b)
-			return a.LayoutOrder > b.LayoutOrder
+		table.sort(fila, function(x, y)
+			return x.LayoutOrder > y.LayoutOrder
 		end)
 		fila[1]:Destroy()
 	end
 	task.delay(3.5, function()
 		if f.Parent then
-			TweenService:Create(f, TweenInfo.new(0.4), { BackgroundTransparency = 1, TextTransparency = 1 }):Play()
-			TweenService:Create(s, TweenInfo.new(0.4), { Transparency = 1 }):Play()
+			local sai = TweenInfo.new(0.4)
+			TweenService:Create(card, sai, { BackgroundTransparency = 1, Position = UDim2.fromOffset(60, 0) }):Play()
+			TweenService:Create(t, sai, { TextTransparency = 1, TextStrokeTransparency = 1 }):Play()
+			TweenService:Create(tira, sai, { BackgroundTransparency = 1 }):Play()
+			TweenService:Create(s, sai, { Transparency = 1 }):Play()
 			Debris:AddItem(f, 0.45)
 		end
 	end)
@@ -217,7 +247,7 @@ local function itemPulando(pos, item, cor, ri)
 	vp.BackgroundTransparency = 1
 	vp.Size = UDim2.fromOffset(tamanho, tamanho)
 	vp.Parent = bb
-	ItemArte.mostrar(vp, item.slot, ri, cor)
+	ItemArte.mostrar(vp, item.slot, ri, cor, item.conjunto, item.classe)
 	local nome = Instance.new("TextLabel")
 	nome.Position = UDim2.fromOffset(-40, tamanho)
 	nome.Size = UDim2.new(1, 80, 0, 20)
@@ -456,6 +486,8 @@ evAviso.OnClientEvent:Connect(function(tipo, a, b)
 		if root then
 			explosao(root.Position, cor, 40)
 		end
+	elseif tipo == "classeErrada" then
+		notificar("✖ " .. a .. " é só para " .. b .. " (use na síntese)", Color3.fromRGB(255, 110, 110))
 	elseif tipo == "avatarRepetido" then
 		notificar("🎭 Avatar repetido (" .. a .. ") virou +" .. b .. " ouro", Color3.fromRGB(255, 205, 70))
 	elseif tipo == "bauEstagio" then
@@ -573,7 +605,9 @@ task.spawn(function()
 				if alvo then
 					local pos = alvo.PrimaryPart.Position
 					local plano = Vector3.new(pos.X, root.Position.Y, pos.Z)
-					local alc = alvo:GetAttribute("Chefe") and Config.Heroi.AlcanceChefe or alcance
+					local alcClasse = player:GetAttribute("Alcance") or alcance -- muda com a classe
+					local alc = alvo:GetAttribute("Chefe") and math.max(alcClasse, Config.Heroi.AlcanceChefe)
+						or alcClasse
 					if (plano - root.Position).Magnitude > alc - 2.5 then
 						hum:MoveTo(plano)
 					else
