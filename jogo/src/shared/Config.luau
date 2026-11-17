@@ -3,8 +3,8 @@
 
 local Config = {}
 
--- No jogo final serão 70 monstros por fase. Por enquanto 20 (balanceado para ser difícil).
-Config.MonstrosPorFase = 20
+-- 70 inimigos por fase (como no conceito). Balanceado por simulação: Ato 1 ~4h15 de farm.
+Config.MonstrosPorFase = 70
 -- Quantos monstros ficam vivos no mapa ao mesmo tempo.
 Config.MonstrosVivos = 5
 -- Mapa pequeno: cada fase é uma arena redonda e compacta.
@@ -79,9 +79,9 @@ Config.Fases = {
 -- Inimigos: vida e dano crescem com o nível (fórmula provisória, ver Quadro de Avisos)
 Config.Inimigo = {
 	VidaBase = 30, -- vida no nível 1
-	VidaCrescimento = 1.24, -- cada nível multiplica a vida por isto (jogo difícil!)
+	VidaCrescimento = 1.22, -- cada nível multiplica a vida por isto (jogo difícil!)
 	DanoBase = 2, -- dano de cada golpe no nível 1
-	DanoPorNivel = 1.2, -- dano extra a cada nível do inimigo
+	DanoPorNivel = 1.1, -- dano extra a cada nível do inimigo
 	MultChefe = 14, -- o chefe tem 14x a vida de um inimigo do mesmo nível
 	AtaqueIntervalo = 1.6, -- segundos entre os golpes de cada inimigo
 	AtaqueAlcance = 5.5, -- distância para o inimigo conseguir bater no herói
@@ -197,20 +197,106 @@ Config.NomesItens = {
 }
 
 -- Drops do chefe Pen (aparecem embaixo da barra de vida dele e no portal)
+-- Conjuntos (sets) do Ato 1: peças especiais com bônus ao vestir 2 e 4 do mesmo conjunto
+Config.Conjuntos = {
+	{
+		id = "vila",
+		nome = "Conjunto da Vila Oculta",
+		cor = Color3.fromRGB(110, 210, 90),
+		fases = { 1, 5 }, -- cai nas fases 1-1 a 1-5
+		chance = 0.30, -- 30% dos drops dessas fases são peças do conjunto
+		pecas = {
+			arma = "Kunai da Vila",
+			elmo = "Bandana da Vila",
+			armadura = "Colete da Vila",
+			botas = "Sandálias da Vila",
+		},
+		bonus = {
+			[2] = { danoPct = 0.10, texto = "2 peças: +10% de dano" },
+			[4] = { vidaPct = 0.20, critico = 0.05, texto = "4 peças: +20% de vida e +5% de crítico" },
+		},
+	},
+	{
+		id = "katsuki",
+		nome = "Conjunto da Katsuki",
+		cor = Color3.fromRGB(225, 55, 65),
+		fases = { 6, 10 },
+		chance = 0.30,
+		pecas = {
+			arma = "Lâmina da Katsuki",
+			elmo = "Chapéu da Katsuki",
+			armadura = "Manto da Katsuki",
+			botas = "Sandálias da Katsuki",
+		},
+		bonus = {
+			[2] = { critico = 0.08, texto = "2 peças: +8% de crítico" },
+			[4] = { danoPct = 0.30, vidaPct = 0.15, texto = "4 peças: +30% de dano e +15% de vida" },
+		},
+	},
+}
+
+function Config.ConjuntoPorId(id)
+	for _, c in ipairs(Config.Conjuntos) do
+		if c.id == id then
+			return c
+		end
+	end
+end
+
+-- Avatares: chance mínima de dropar a "skin" do inimigo da fase. Troca o corpo do herói e dá buff.
+Config.Avatares = {
+	ChanceNormal = 0.0015, -- 0,15% por inimigo derrotado
+	ChanceChefe = 0.01, -- 1% por vitória contra o Pen
+	OuroRepetido = 50, -- se já tiver o avatar, vira ouro (x nível da fase)
+	-- raridade do avatar de cada fase (1-1 até 1-10)
+	Raridade = { "comum", "comum", "comum", "incomum", "incomum", "raro", "raro", "epico", "lendario", "secreto" },
+	-- buff do avatar em uso, pela raridade
+	Buff = {
+		comum = { danoPct = 0.02, texto = "+2% de dano" },
+		incomum = { danoPct = 0.04, vidaPct = 0.02, texto = "+4% dano +2% vida" },
+		raro = { danoPct = 0.06, vidaPct = 0.05, texto = "+6% dano +5% vida" },
+		epico = { danoPct = 0.10, vidaPct = 0.08, critico = 0.02, texto = "+10% dano +8% vida +2% crít." },
+		lendario = {
+			danoPct = 0.15,
+			vidaPct = 0.12,
+			critico = 0.04,
+			texto = "+15% dano +12% vida +4% crít.",
+		},
+		secreto = {
+			danoPct = 0.30,
+			vidaPct = 0.25,
+			critico = 0.08,
+			texto = "+30% dano +25% vida +8% crít.",
+		},
+	},
+	-- modelo de roupa usado para trocar o corpo (o Pen grandão é de malha; usa a roupa do Caminho do Pen)
+	Roupa = { pen = "caminhoPen" },
+}
+
+-- Baú de estágio (estilo TBH): toda fase vencida dá um baú
+Config.BauEstagio = {
+	OuroMult = 6, -- ouro = ouro do inimigo da fase x 6
+	ChanceItem = 0.25, -- 25% de chance de vir um equipamento
+}
+
+-- Venda automática: itens dessas raridades (e abaixo) viram ouro na hora (fora de conjuntos)
+Config.AutoVendaOpcoes = { "nada", "comum", "incomum", "raro" }
+
 Config.DropsChefe = {
 	Ouro = 150,
 	-- sempre cai 1 equipamento, sorteado por estas chances
-	Equipamento = { { "epico", 0.70 }, { "lendario", 0.25 }, { "mitico", 0.05 } },
+	Equipamento = { { "epico", 0.75 }, { "lendario", 0.22 }, { "mitico", 0.03 } },
 	-- itens especiais com chance própria
 	Especiais = {
-		{ nome = "Lâmina de Chakra Negro", slot = "arma", raridade = "mitico", chance = 0.08, icone = "🗡️" },
-		{ nome = "Rinnegan", slot = "olho", raridade = "imortal", chance = 0.03, icone = "👁️", valor = 0.8 },
+		{ nome = "Lâmina de Chakra Negro", slot = "arma", raridade = "mitico", chance = 0.04, icone = "🗡️" },
+		-- Secreto (preto): por enquanto só o Rinnegan, só do Pen e bem raro
+		{ nome = "Rinnegan", slot = "olho", raridade = "secreto", chance = 0.01, icone = "👁️", valor = 1.0 },
 	},
 }
 ------------------------------------------------------------------------
 -- Loot
 ------------------------------------------------------------------------
-Config.ChanceDrop = 0.05 -- 5% dos monstros dropam um equipamento (item é raro!)
+Config.ChanceDrop = 0.03 -- 3% dos monstros dropam um equipamento (item é raro!)
 
 -- Nível do item que cai: mistura o nível do inimigo com o do herói, com variação.
 -- Fórmula provisória, ver Quadro de Avisos.
@@ -226,7 +312,7 @@ Config.Raridades = {
 	{
 		id = "comum",
 		nome = "Comum",
-		peso = 50,
+		peso = 62,
 		mult = 1.0,
 		cor = Color3.fromRGB(170, 170, 175),
 		material = "de Madeira",
@@ -234,7 +320,7 @@ Config.Raridades = {
 	{
 		id = "incomum",
 		nome = "Incomum",
-		peso = 30,
+		peso = 26,
 		mult = 1.6,
 		cor = Color3.fromRGB(90, 200, 100),
 		material = "de Ferro",
@@ -242,7 +328,7 @@ Config.Raridades = {
 	{
 		id = "raro",
 		nome = "Raro",
-		peso = 14,
+		peso = 9,
 		mult = 2.5,
 		cor = Color3.fromRGB(70, 150, 255),
 		material = "de Cristal",
@@ -250,7 +336,7 @@ Config.Raridades = {
 	{
 		id = "epico",
 		nome = "Épico",
-		peso = 5,
+		peso = 2.5,
 		mult = 4.0,
 		cor = Color3.fromRGB(175, 90, 255),
 		material = "das Estrelas",
@@ -258,7 +344,7 @@ Config.Raridades = {
 	{
 		id = "lendario",
 		nome = "Lendário",
-		peso = 1,
+		peso = 0.5,
 		mult = 7.0,
 		cor = Color3.fromRGB(255, 160, 40),
 		material = "do Abismo",
@@ -274,7 +360,7 @@ Config.Raridades = {
 	{
 		id = "imortal",
 		nome = "Imortal",
-		peso = 0, -- só da forja (3 Míticos) ou drop muito raro do chefe
+		peso = 0, -- só da forja (3 Míticos). Chance de cair: a decidir (Quadro de Avisos)
 		mult = 20.0,
 		cor = Color3.fromRGB(255, 235, 110),
 		material = "Imortal",
@@ -283,7 +369,7 @@ Config.Raridades = {
 	{
 		id = "secreto",
 		nome = "Secreto",
-		peso = 0, -- ainda não cai em lugar nenhum (decidir onde: ver Quadro de Avisos)
+		peso = 0, -- por enquanto só o Rinnegan do chefe Pen
 		mult = 35.0,
 		cor = Color3.fromRGB(20, 18, 24), -- item preto
 		corBorda = Color3.fromRGB(235, 235, 255),

@@ -1,7 +1,7 @@
 ﻿# Atalho "Jogar Teste": abre o jogo de teste no Roblox Studio,
 # mas NÃO abre de novo se ele já estiver aberto (dois Studios com o mesmo jogo dão conflito).
 param(
-  [string]$Arquivo = 'D:\Claude\JogoTeste.rbxl',
+  [string]$Arquivo = 'D:\Claude\jogo-roblox\jogo\lugar\JogoAnime.rbxl',
   [switch]$SoVerificar   # usado nos testes: só diz o que faria, sem abrir nada
 )
 

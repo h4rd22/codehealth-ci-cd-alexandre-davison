@@ -350,20 +350,291 @@ end
 
 local DESENHO = { arma = arma, elmo = elmo, armadura = armadura, botas = botas, olho = olho }
 
+-- Detalhes dos conjuntos (sets) por cima do desenho normal
+local DETALHE_CONJUNTO = {}
+
+-- Conjunto da Vila Oculta: emblema de folha verde
+function DETALHE_CONJUNTO.vila(m, slot)
+	local verde = Color3.fromRGB(110, 215, 90)
+	local function folha(cf, escala)
+		cunha(m, Vector3.new(0.06, 0.45, 0.3) * escala, cf, verde, Enum.Material.Neon)
+		cunha(m, Vector3.new(0.06, 0.45, 0.3) * escala, cf * CFrame.Angles(0, math.pi, 0), verde, Enum.Material.Neon)
+	end
+	if slot == "elmo" then
+		folha(CFrame.new(0, 0.05, -0.82) * CFrame.Angles(0, math.pi / 2, 0), 1.2)
+	elseif slot == "armadura" then
+		folha(CFrame.new(-0.6, 0.6, -0.68) * CFrame.Angles(0, math.pi / 2, 0), 1.5)
+		peca(m, Vector3.new(2.52, 0.12, 1.32), CFrame.new(0, -0.55, 0), verde, Enum.Material.Neon)
+	elseif slot == "arma" then
+		peca(
+			m,
+			Vector3.new(0.5, 0.5, 0.5),
+			CFrame.Angles(0, 0, math.rad(-45)) * CFrame.new(0, -2.35, 0),
+			verde,
+			Enum.Material.Neon,
+			Enum.PartType.Ball
+		)
+	elseif slot == "botas" then
+		for _, lado in ipairs({ -1, 1 }) do
+			peca(m, Vector3.new(0.92, 0.1, 0.92), CFrame.new(0.75 * lado, -0.15, 0.15), verde, Enum.Material.Neon)
+		end
+	end
+end
+
+-- Conjunto da Katsuki: preto com nuvens vermelhas e chapéu de palha
+function DETALHE_CONJUNTO.katsuki(m, slot)
+	local vermelho = Color3.fromRGB(225, 40, 50)
+	local function nuvem(cf, escala)
+		for _, o in ipairs({ { 0, 0, 0.5 }, { 0.22, 0.05, 0.38 }, { -0.22, 0.03, 0.4 }, { 0.1, 0.16, 0.34 } }) do
+			peca(
+				m,
+				Vector3.new(0.08, o[3], o[3]) * escala,
+				cf * CFrame.new(0, o[2] * escala, o[1] * escala),
+				vermelho,
+				Enum.Material.Neon,
+				Enum.PartType.Cylinder
+			)
+		end
+	end
+	if slot == "armadura" then
+		for _, p in ipairs(m:GetChildren()) do
+			if p:IsA("BasePart") and p.Material ~= Enum.Material.Neon then
+				p.Color = Color3.fromRGB(24, 22, 30)
+			end
+		end
+		nuvem(CFrame.new(0.5, 0.2, -0.7) * CFrame.Angles(0, math.pi / 2, 0), 1.6)
+		nuvem(CFrame.new(-0.6, -0.8, -0.7) * CFrame.Angles(0, math.pi / 2, 0), 1.3)
+		nuvem(CFrame.new(1.3, 0.9, -0.4) * CFrame.Angles(0, math.pi / 2, 0), 1)
+	elseif slot == "elmo" then
+		for _, p in ipairs(m:GetChildren()) do
+			p:Destroy()
+		end
+		-- chapéu de palha cônico (cilindros cada vez menores)
+		local palha = Color3.fromRGB(196, 160, 96)
+		for i = 0, 5 do
+			local r = 3.2 - i * 0.5
+			peca(
+				m,
+				Vector3.new(0.28, r, r),
+				CFrame.new(0, i * 0.24, 0) * CFrame.Angles(0, 0, math.rad(90)),
+				palha:Lerp(Color3.fromRGB(150, 110, 60), i / 8),
+				Enum.Material.Fabric,
+				Enum.PartType.Cylinder
+			)
+		end
+		for i = 1, 6 do
+			local a = (i / 6) * math.pi * 2
+			peca(
+				m,
+				Vector3.new(0.06, 0.9, 0.06),
+				CFrame.new(math.cos(a) * 1.35, -0.45, math.sin(a) * 1.35),
+				Color3.fromRGB(235, 235, 240),
+				Enum.Material.Fabric
+			)
+		end
+		peca(m, Vector3.new(0.3, 0.3, 0.3), CFrame.new(0, 1.45, 0), vermelho, Enum.Material.Neon, Enum.PartType.Ball)
+	elseif slot == "arma" then
+		for _, p in ipairs(m:GetChildren()) do
+			if p:IsA("BasePart") and p.Material ~= Enum.Material.Fabric then
+				p.Color = p.Color:Lerp(Color3.fromRGB(30, 26, 34), 0.6)
+			end
+		end
+		peca(
+			m,
+			Vector3.new(0.05, 2.6, 0.08),
+			CFrame.Angles(0, 0, math.rad(-45)) * CFrame.new(0.07, 0.7, 0),
+			vermelho,
+			Enum.Material.Neon
+		)
+	elseif slot == "botas" then
+		for _, lado in ipairs({ -1, 1 }) do
+			peca(m, Vector3.new(0.92, 0.1, 0.92), CFrame.new(0.75 * lado, -0.15, 0.15), vermelho, Enum.Material.Neon)
+		end
+	end
+end
+
 -- Cria o modelo 3D do item. ri = índice da raridade (1 = Comum ... 8 = Secreto)
-function ItemArte.criar(slot, ri, cor)
+function ItemArte.criar(slot, ri, cor, conjunto)
 	local m = Instance.new("Model")
 	m.Name = "Item3D"
 	local f = DESENHO[slot]
 	if f then
 		f(m, ri, cor)
 	end
+	if conjunto and DETALHE_CONJUNTO[conjunto] then
+		DETALHE_CONJUNTO[conjunto](m, slot)
+	end
+	m.WorldPivot = CFrame.new()
 	return m
 end
 
+------------------------------------------------------------------------
+-- Equipamento no corpo do herói
+------------------------------------------------------------------------
+local function soldar(m, base)
+	for _, p in ipairs(m:GetDescendants()) do
+		if p:IsA("BasePart") then
+			p.Anchored = false
+			p.CanCollide = false
+			p.CanQuery = false
+			p.CanTouch = false
+			p.Massless = true
+			p.CastShadow = true
+			local w = Instance.new("WeldConstraint")
+			w.Part0 = base
+			w.Part1 = p
+			w.Parent = p
+		end
+	end
+end
+
+local function pecaCorpo(char, r15, r6)
+	return char:FindFirstChild(r15) or char:FindFirstChild(r6)
+end
+
+-- Veste o item no personagem (cria o modelo 3D e solda nas partes do corpo)
+function ItemArte.vestir(char, pasta, slot, ri, cor, conjunto)
+	if slot == "arma" then
+		local mao = pecaCorpo(char, "RightHand", "Right Arm")
+		if not mao then
+			return
+		end
+		local m = ItemArte.criar(slot, ri, cor, conjunto)
+		local s = ri <= 2 and 0.55 or 0.62
+		m:ScaleTo(s)
+		local alturaCabo = (ri <= 2 and 1.1 or 1.75) * s
+		local pegada = mao.Name == "Right Arm" and mao.CFrame * CFrame.new(0, -0.95, 0)
+			or mao.CFrame * CFrame.new(0, -0.15, 0)
+		m:PivotTo(
+			pegada
+				* CFrame.Angles(math.rad(-90), 0, 0)
+				* CFrame.new(0, alturaCabo, 0)
+				* CFrame.Angles(0, 0, math.rad(45))
+		)
+		soldar(m, mao)
+		m.Parent = pasta
+	elseif slot == "elmo" then
+		local cabeca = char:FindFirstChild("Head")
+		if not cabeca then
+			return
+		end
+		local m = ItemArte.criar(slot, ri, cor, conjunto)
+		local escala, desloc
+		if conjunto == "katsuki" then
+			escala, desloc = 0.55, CFrame.new(0, 0.55, 0)
+		elseif ri <= 2 then
+			escala, desloc = 0.5, CFrame.new(0, 0.18, 0)
+		elseif ri == 3 then
+			escala, desloc = 0.46, CFrame.new(0, 0, -0.32)
+		else
+			escala, desloc = 0.55, CFrame.new(0, 0.15, 0)
+		end
+		m:ScaleTo(escala)
+		m:PivotTo(cabeca.CFrame * desloc)
+		soldar(m, cabeca)
+		m.Parent = pasta
+	elseif slot == "armadura" then
+		local tronco = pecaCorpo(char, "UpperTorso", "Torso")
+		if not tronco then
+			return
+		end
+		local m = ItemArte.criar(slot, ri, cor, conjunto)
+		local r15 = tronco.Name == "UpperTorso"
+		m:ScaleTo(r15 and 0.72 or 0.82)
+		m:PivotTo(tronco.CFrame * CFrame.new(0, r15 and -0.15 or -0.05, 0))
+		soldar(m, tronco)
+		m.Parent = pasta
+	elseif slot == "botas" then
+		for _, lado in ipairs({ -1, 1 }) do
+			local perna = lado < 0 and pecaCorpo(char, "LeftFoot", "Left Leg")
+				or pecaCorpo(char, "RightFoot", "Right Leg")
+			if perna then
+				local m = ItemArte.criar(slot, ri, cor, conjunto)
+				-- deixa só a bota deste lado
+				for _, p in ipairs(m:GetChildren()) do
+					if p:IsA("BasePart") and math.sign(p.Position.X) ~= lado then
+						p:Destroy()
+					end
+				end
+				local r15 = perna.Name:find("Foot") ~= nil
+				local s = r15 and 0.6 or 0.72
+				m:ScaleTo(s)
+				local fundo = r15 and -perna.Size.Y / 2 or -1
+				m:PivotTo(perna.CFrame * CFrame.new(-lado * 0.75 * s, fundo + 0.975 * s, -0.1 * s))
+				soldar(m, perna)
+				m.Parent = pasta
+			end
+		end
+	end
+end
+
+-- Tira a aura antiga (antes de vestir de novo)
+function ItemArte.limparAura(char)
+	for _, d in ipairs(char:GetDescendants()) do
+		if (d:IsA("Attachment") and d.Name == "AuraRara") or (d:IsA("PointLight") and d:GetAttribute("AuraRara")) then
+			d:Destroy()
+		end
+	end
+end
+
+-- Aura no corpo para quem veste item Mítico ou melhor
+function ItemArte.aura(char, pasta, ri, cor)
+	local tronco = pecaCorpo(char, "UpperTorso", "Torso")
+	if not tronco or ri < 6 then
+		return
+	end
+	local ancora = Instance.new("Attachment")
+	ancora.Name = "AuraRara"
+	ancora.Parent = tronco
+	local secreto = ri >= 8
+	local fx = Instance.new("ParticleEmitter")
+	fx.Color = ColorSequence.new(
+		secreto and Color3.fromRGB(20, 18, 26) or cor,
+		secreto and Color3.fromRGB(120, 110, 140) or cor:Lerp(Color3.new(1, 1, 1), 0.5)
+	)
+	fx.LightEmission = secreto and 0 or 1
+	fx.Size =
+		NumberSequence.new({ NumberSequenceKeypoint.new(0, ri >= 7 and 0.9 or 0.6), NumberSequenceKeypoint.new(1, 0) })
+	fx.Transparency = NumberSequence.new(secreto and 0.2 or 0.3, 1)
+	fx.Lifetime = NumberRange.new(0.6, 1.1)
+	fx.Rate = ri >= 7 and 28 or 16
+	fx.Speed = NumberRange.new(1.5, 3.5)
+	fx.SpreadAngle = Vector2.new(180, 180)
+	fx.Acceleration = Vector3.new(0, 5, 0)
+	fx.Parent = ancora
+	if secreto then
+		-- faíscas brancas no meio da fumaça preta
+		local faisca = Instance.new("ParticleEmitter")
+		faisca.Color = ColorSequence.new(Color3.new(1, 1, 1))
+		faisca.LightEmission = 1
+		faisca.Size = NumberSequence.new(0.18, 0)
+		faisca.Lifetime = NumberRange.new(0.3, 0.6)
+		faisca.Rate = 20
+		faisca.Speed = NumberRange.new(4, 7)
+		faisca.SpreadAngle = Vector2.new(180, 180)
+		faisca.Parent = ancora
+	end
+	local luz = Instance.new("PointLight")
+	luz.Color = secreto and Color3.fromRGB(200, 190, 255) or cor
+	luz.Range = ri >= 7 and 14 or 10
+	luz.Brightness = 2
+	luz.Parent = tronco
+	luz:SetAttribute("AuraRara", true)
+	if ri >= 7 then
+		local h = Instance.new("Highlight")
+		h.Name = "AuraContorno"
+		h.FillTransparency = 1
+		h.OutlineColor = secreto and Color3.fromRGB(235, 235, 255) or cor
+		h.OutlineTransparency = 0.15
+		h.Parent = pasta
+	end
+	-- guarda tudo na pasta do equipamento para limpar junto
+	ancora:SetAttribute("Pasta", pasta.Name)
+end
+
 -- Coloca o item num ViewportFrame com câmera enquadrando tudo
-function ItemArte.mostrar(vp, slot, ri, cor)
-	local m = ItemArte.criar(slot, ri, cor)
+function ItemArte.mostrar(vp, slot, ri, cor, conjunto)
+	local m = ItemArte.criar(slot, ri, cor, conjunto)
 	m.Parent = vp
 	local cam = Instance.new("Camera")
 	cam.FieldOfView = 30

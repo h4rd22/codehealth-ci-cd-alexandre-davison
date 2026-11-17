@@ -400,6 +400,10 @@ end)
 evLoot.OnClientEvent:Connect(function(tipo, pos, item, ouro)
 	local r, ri = raridade(item.raridade)
 	local corTexto = r.corBorda or r.cor -- itens pretos (Secreto) usam a borda clara
+	if tipo == "vendido" then
+		notificar("💰 Vendido: " .. item.nome .. " (+" .. ouro .. ")", Color3.fromRGB(200, 185, 150))
+		return
+	end
 	if tipo == "cheio" then
 		notificar("Mochila cheia: " .. item.nome .. " virou " .. ouro .. " ouro", Color3.fromRGB(255, 205, 70))
 		return
@@ -441,6 +445,66 @@ evAviso.OnClientEvent:Connect(function(tipo, a, b)
 		mostrarFaixa(string.upper(a) .. " COMPLETO!", Color3.fromRGB(255, 225, 120), 3)
 	elseif tipo == "lendario" then
 		mostrarFaixa(a .. " achou um item LENDÁRIO: " .. b .. "!", Color3.fromRGB(255, 160, 40), 3.5)
+	elseif tipo == "avatar" then
+		local r = raridade(b)
+		local cor = r.corBorda or r.cor
+		mostrarFaixa("🎭 AVATAR OBTIDO! " .. a .. " (" .. r.nome .. ")", cor, 3.5)
+		notificar("🎭 Novo avatar: " .. a .. " — veja no menu Avatar", cor)
+		tremer(1.4, 0.6)
+		local char = player.Character
+		local root = char and char:FindFirstChild("HumanoidRootPart")
+		if root then
+			explosao(root.Position, cor, 40)
+		end
+	elseif tipo == "avatarRepetido" then
+		notificar("🎭 Avatar repetido (" .. a .. ") virou +" .. b .. " ouro", Color3.fromRGB(255, 205, 70))
+	elseif tipo == "bauEstagio" then
+		notificar(
+			"📦 Baú de tesouro de estágio " .. b .. " obtido! +" .. a .. " ouro",
+			Color3.fromRGB(255, 210, 90)
+		)
+		mostrarFaixa("📦 BAÚ DE ESTÁGIO! +" .. a .. " OURO", Color3.fromRGB(255, 210, 90), 1.6)
+	elseif tipo == "equipouRaro" then
+		local r = raridade(b)
+		local cor = r.corBorda or r.cor
+		mostrarFaixa(string.upper(r.nome) .. " EQUIPADO!\n" .. a, cor, 2.4)
+		tremer(1, 0.4)
+		local char = player.Character
+		local root = char and char:FindFirstChild("HumanoidRootPart")
+		if root then
+			-- coluna de luz + anel no chão
+			local pilar = Instance.new("Part")
+			pilar.Anchored = true
+			pilar.CanCollide = false
+			pilar.CanQuery = false
+			pilar.Material = Enum.Material.Neon
+			pilar.Color = cor
+			pilar.Shape = Enum.PartType.Cylinder
+			pilar.Size = Vector3.new(60, 6, 6)
+			pilar.CFrame = CFrame.new(root.Position + Vector3.new(0, 27, 0)) * CFrame.Angles(0, 0, math.rad(90))
+			pilar.Transparency = 0.2
+			pilar.Parent = workspace
+			TweenService:Create(pilar, TweenInfo.new(1.2), { Size = Vector3.new(60, 0.3, 0.3), Transparency = 1 })
+				:Play()
+			Debris:AddItem(pilar, 1.3)
+			local anel = Instance.new("Part")
+			anel.Anchored = true
+			anel.CanCollide = false
+			anel.CanQuery = false
+			anel.Material = Enum.Material.Neon
+			anel.Color = cor
+			anel.Shape = Enum.PartType.Cylinder
+			anel.Size = Vector3.new(0.2, 2, 2)
+			anel.CFrame = CFrame.new(root.Position - Vector3.new(0, 2.8, 0)) * CFrame.Angles(0, 0, math.rad(90))
+			anel.Transparency = 0.1
+			anel.Parent = workspace
+			TweenService:Create(anel, TweenInfo.new(0.8, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+				Size = Vector3.new(0.2, 26, 26),
+				Transparency = 1,
+			}):Play()
+			Debris:AddItem(anel, 0.9)
+			explosao(root.Position, cor, 30)
+		end
 	elseif tipo == "repetir" then
 		notificar("🔁 Fase " .. a .. " de novo (repetindo)", Color3.fromRGB(150, 230, 160))
 	elseif tipo == "habilidade" then

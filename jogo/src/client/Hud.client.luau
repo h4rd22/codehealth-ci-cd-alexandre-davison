@@ -19,6 +19,8 @@ local evVender, evForjar, evIrFase = R("Vender"), R("Forjar"), R("IrFase")
 local evForjarAuto, evAlquimia, evConfigForja = R("ForjarAuto"), R("Alquimia"), R("ConfigForja")
 local evVida = R("Vida")
 local evRepetir, evTreinar = R("Repetir"), R("Treinar")
+local evAutoVenda = R("AutoVenda")
+local evAvatar, evEsconderEquip = R("Avatar"), R("EsconderEquip")
 
 local player = Players.LocalPlayer
 pcall(function()
@@ -224,12 +226,51 @@ cartaoItem = function(pai, item, props)
 		BackgroundTransparency = 1,
 		ZIndex = 2,
 	})
-	ItemArte.mostrar(vp, s.id, ri, r.cor)
+	ItemArte.mostrar(vp, s.id, ri, r.cor, item.conjunto)
+	-- selo do conjunto (canto de baixo à esquerda)
+	local conj = item.conjunto and Config.ConjuntoPorId(item.conjunto)
+	if conj then
+		local selo = novo("Frame", b, {
+			Position = UDim2.new(0, 3, 1, -13),
+			Size = UDim2.fromOffset(10, 10),
+			BackgroundColor3 = conj.cor,
+			Rotation = 45,
+			ZIndex = 4,
+		})
+		contorno(selo, Color3.new(1, 1, 1), 1)
+	end
+	-- brilho passando pelo cartão nos tiers Mítico ou acima
+	if ri >= 6 then
+		local sheen = novo("Frame", b, {
+			Size = UDim2.fromScale(1, 1),
+			BackgroundColor3 = Color3.new(1, 1, 1),
+			BackgroundTransparency = 0,
+			ZIndex = 5,
+		})
+		canto(sheen, 10)
+		local g = novo("UIGradient", sheen, {
+			Rotation = 25,
+			Transparency = NumberSequence.new({
+				NumberSequenceKeypoint.new(0, 1),
+				NumberSequenceKeypoint.new(0.42, 1),
+				NumberSequenceKeypoint.new(0.5, 0.45),
+				NumberSequenceKeypoint.new(0.58, 1),
+				NumberSequenceKeypoint.new(1, 1),
+			}),
+			Offset = Vector2.new(-1, 0),
+		})
+		TweenService:Create(
+			g,
+			TweenInfo.new(ri >= 8 and 1.1 or 1.6, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, false, 0.6),
+			{ Offset = Vector2.new(1, 0) }
+		):Play()
+	end
 	rotulo(b, {
-		AnchorPoint = Vector2.new(0.5, 1),
-		Position = UDim2.new(0.5, 0, 1, -1),
-		Size = UDim2.new(1, -4, 0, 12),
-		Text = "Nv " .. (item.nivel or 1),
+		AnchorPoint = Vector2.new(1, 1),
+		Position = UDim2.new(1, -3, 1, -1),
+		Size = UDim2.fromOffset(40, 12),
+		TextXAlignment = Enum.TextXAlignment.Right,
+		Text = "Lv." .. (item.nivel or 1),
 		TextSize = 11,
 		Font = FONTE,
 		TextStrokeTransparency = 0.2,
@@ -537,6 +578,7 @@ botaoMenu(2, "forja", "🔨", "Forja", Color3.fromRGB(215, 110, 45))
 botaoMenu(3, "habilidades", "✨", "Habilid.", Color3.fromRGB(140, 80, 220))
 botaoMenu(4, "ovos", "🥚", "Ovos", Color3.fromRGB(60, 170, 120))
 botaoMenu(5, "treino", "🏋️", "Treino", Color3.fromRGB(200, 60, 60))
+botaoMenu(6, "avatar", "🎭", "Avatar", Color3.fromRGB(230, 160, 40))
 
 ------------------------------------------------------------------------
 -- Botão de auto-farm
@@ -674,7 +716,7 @@ local function criarAba(ordem, id, texto)
 	local b = botao(abas, {
 		Name = "Aba_" .. id,
 		LayoutOrder = ordem,
-		Size = UDim2.new(0.2, -5, 1, 0),
+		Size = UDim2.new(0.166, -5, 1, 0),
 		Text = texto,
 		TextSize = 13,
 		TextScaled = false,
@@ -689,6 +731,7 @@ local pgForja = criarAba(2, "forja", "🔨 Forja")
 local pgHab = criarAba(3, "habilidades", "✨ Habilid.")
 local pgOvos = criarAba(4, "ovos", "🥚 Ovos")
 local pgTreino = criarAba(5, "treino", "🏋️ Treino")
+local pgAvatar = criarAba(6, "avatar", "🎭 Avatar")
 
 local desenhar -- definida mais abaixo
 local function mostrarAba(id)
@@ -797,8 +840,25 @@ local colInv = novo(
 	pgMochila,
 	{ Position = UDim2.new(0.36, 6, 0, 0), Size = UDim2.new(0.64, -6, 1, 0), BackgroundTransparency = 1 }
 )
+local NOMES_AUTOVENDA = { nada = "Desligada", comum = "até Comum", incomum = "até Incomum", raro = "até Raro" }
+local btnAutoVenda = botao(colInv, {
+	Name = "AutoVenda",
+	AnchorPoint = Vector2.new(1, 0),
+	Position = UDim2.new(1, 0, 0, -2),
+	Size = UDim2.fromOffset(170, 22),
+	Text = "💰 Venda automática: Desligada",
+	TextSize = 11,
+})
+btnAutoVenda.Activated:Connect(function()
+	if not estado then
+		return
+	end
+	local ops = Config.AutoVendaOpcoes
+	local i = table.find(ops, estado.autoVenda or "nada") or 1
+	evAutoVenda:FireServer(ops[i % #ops + 1])
+end)
 local lblInv = rotulo(colInv, {
-	Size = UDim2.new(1, 0, 0, 20),
+	Size = UDim2.new(1, -176, 0, 20),
 	Text = "Mochila 0/" .. Config.LimiteInventario,
 	TextXAlignment = Enum.TextXAlignment.Left,
 	TextSize = 14,
@@ -940,7 +1000,30 @@ local function desenharDetalhe()
 			dif >= 0 and "melhor" or "pior"
 		)
 	end
-	detStat.Text = r.nome .. " · " .. textoItem(it) .. comparar
+	local linhaConj = ""
+	local conj = it.conjunto and Config.ConjuntoPorId(it.conjunto)
+	if conj then
+		local vestidas = 0
+		for _, eid in pairs(estado.equipado) do
+			local e = itemPorId(eid)
+			if e and e.conjunto == conj.id then
+				vestidas += 1
+			end
+		end
+		linhaConj = string.format('\n<font color="#%s"><b>%s (%d/4)</b></font>', conj.cor:ToHex(), conj.nome, vestidas)
+		for _, n in ipairs({ 2, 4 }) do
+			local cor = vestidas >= n and "#7CFC8A" or "#9a8f80"
+			linhaConj ..= string.format(' <font color="%s">%s</font>', cor, conj.bonus[n].texto)
+		end
+	end
+	detStat.Text = "T"
+		.. select(2, raridade(it.raridade))
+		.. " "
+		.. r.nome
+		.. " · "
+		.. textoItem(it)
+		.. comparar
+		.. linhaConj
 	local v = vestido(it.id)
 	btnEquipar.Visible = true
 	btnEquipar.Text = v and "Tirar" or "Vestir"
@@ -948,6 +1031,22 @@ local function desenharDetalhe()
 	btnVender.Visible = not v
 	btnVender.Text = "Vender (+" .. (Config.ValorVenda[it.raridade] or 1) .. " ouro)"
 end
+
+-- "Assinatura" dos itens: muda só quando entra/sai/veste/seleciona item (não a cada inimigo morto)
+local function assinaturaItens(extra)
+	local partes = { extra or "" }
+	for _, it in ipairs(estado.inventario) do
+		table.insert(partes, it.id)
+	end
+	for slot, id in pairs(estado.equipado) do
+		table.insert(partes, slot .. "=" .. id)
+	end
+	table.sort(partes, function(a, b)
+		return tostring(a) < tostring(b)
+	end)
+	return table.concat(partes, ",")
+end
+local ultimaGradeMochila, ultimaGradeForja
 
 local function desenharMochila()
 	for _, s in ipairs(Config.Slots) do
@@ -968,7 +1067,7 @@ local function desenharMochila()
 				BackgroundTransparency = 1,
 			})
 			vp:SetAttribute("Item", it.id)
-			ItemArte.mostrar(vp, it.slot, ri3, r3.cor)
+			ItemArte.mostrar(vp, it.slot, ri3, r3.cor, it.conjunto)
 		end
 		if it then
 			local r = raridade(it.raridade)
@@ -993,6 +1092,14 @@ local function desenharMochila()
 	)
 
 	lblInv.Text = string.format("Mochila %d/%d", #estado.inventario, Config.LimiteInventario)
+	btnAutoVenda.Text = "💰 Venda automática: " .. (NOMES_AUTOVENDA[estado.autoVenda or "nada"] or "Desligada")
+	btnAutoVenda.BackgroundColor3 = (estado.autoVenda or "nada") ~= "nada" and COR.verde or COR.madeira
+	local assinatura = assinaturaItens("sel" .. tostring(selecionado))
+	if assinatura == ultimaGradeMochila then
+		desenharDetalhe()
+		return
+	end
+	ultimaGradeMochila = assinatura
 	for _, c in ipairs(grade:GetChildren()) do
 		if c:IsA("GuiButton") then
 			c:Destroy()
@@ -1516,9 +1623,16 @@ desenharForja = function()
 	btnCombinar.AutoButtonColor = pronto
 
 	-- mochila (só itens livres)
-	for _, c in ipairs(gradeForja:GetChildren()) do
-		if c:IsA("GuiButton") then
-			c:Destroy()
+	local assinaturaF = assinaturaItens(
+		forjaModo .. "|" .. filtroIdx .. "|" .. tostring(nivelFixo) .. "|" .. table.concat(slotsForja, ";")
+	)
+	local mudouForja = assinaturaF ~= ultimaGradeForja
+	ultimaGradeForja = assinaturaF
+	if mudouForja then
+		for _, c in ipairs(gradeForja:GetChildren()) do
+			if c:IsA("GuiButton") then
+				c:Destroy()
+			end
 		end
 	end
 	local lista = {}
@@ -1537,7 +1651,7 @@ desenharForja = function()
 	end)
 	lblMochilaForja.Text = #lista == 0 and "Nenhum item livre com esse filtro"
 		or "Toque nos itens para colocar na forja"
-	for i, it in ipairs(lista) do
+	for i, it in ipairs(mudouForja and lista or {}) do
 		local b = cartaoItem(gradeForja, it, { Name = "ItemForja_" .. i, LayoutOrder = i })
 		if not aceita(it) then
 			local veu = novo("Frame", b, {
@@ -1778,7 +1892,14 @@ local function retratoInimigo(vp, nomeModelo)
 		local raiz = m:FindFirstChild("HumanoidRootPart", true)
 			or m.PrimaryPart
 			or m:FindFirstChildWhichIsA("BasePart", true)
-		local cabeca = m:FindFirstChild("Head", true) or raiz
+		-- acha a PEÇA "Head" (alguns modelos têm uma pasta com esse nome)
+		local cabeca = raiz
+		for _, d in ipairs(m:GetDescendants()) do
+			if d:IsA("BasePart") and d.Name == "Head" then
+				cabeca = d
+				break
+			end
+		end
 		-- enquadra rosto e ombros
 		local alvo = cabeca.Position - Vector3.new(0, cabeca.Size.Y * 0.35, 0)
 		local frente = raiz.CFrame.LookVector
@@ -2014,6 +2135,7 @@ local function montarCartoes(mundo)
 		if f then
 			task.spawn(retratoInimigo, vp, f.modelo)
 		end
+		vp:SetAttribute("Retrato", true)
 		local faixa = novo("Frame", b, {
 			Position = UDim2.new(0, 0, 1, -30),
 			Size = UDim2.new(1, 0, 0, 30),
@@ -2072,7 +2194,8 @@ local function montarCartoes(mundo)
 				fecharJanelas()
 			end
 		end)
-		cartoesFase[n] = { idx = idx, borda = borda, sub = sub, estado = estadoTxt, veu = veu, chefe = f and f.chefe }
+		cartoesFase[n] =
+			{ idx = idx, borda = borda, sub = sub, estado = estadoTxt, veu = veu, chefe = f and f.chefe, vp = vp }
 	end
 end
 local mundoMontado
@@ -2096,6 +2219,9 @@ local function desenharPortal()
 		local atual = c.idx and estado and c.idx == estado.faseIdx
 		local liberada = c.idx and estado and c.idx <= estado.faseMax
 		c.veu.Visible = not liberada
+		-- fase bloqueada mostra só a sombra do inimigo
+		c.vp.ImageColor3 = liberada and Color3.new(1, 1, 1) or Color3.new(0, 0, 0)
+		c.vp.ImageTransparency = liberada and 0 or 0.15
 		c.estado.Text = atual and "▶ VOCÊ ESTÁ AQUI" or (liberada and "toque para ir" or "")
 		c.estado.TextColor3 = atual and Color3.fromRGB(120, 255, 140) or COR.fraco
 		if atual then
@@ -2109,6 +2235,166 @@ local function desenharPortal()
 end
 
 ------------------------------------------------------------------------
+------------------------------------------------------------------------
+-- Aba Avatar: skins dos inimigos (chance mínima de drop), trocam o corpo e dão buff
+------------------------------------------------------------------------
+local topoAvatar = novo("Frame", pgAvatar, { Size = UDim2.new(1, 0, 0, 30), BackgroundTransparency = 1 })
+rotulo(topoAvatar, {
+	Size = UDim2.new(1, -330, 1, 0),
+	Text = "Derrote inimigos: chance mínima de ganhar o avatar deles!",
+	TextSize = 12,
+	Font = FONTE_TEXTO,
+	TextColor3 = COR.fraco,
+	TextXAlignment = Enum.TextXAlignment.Left,
+	TextWrapped = true,
+})
+local btnMeuVisual = botao(topoAvatar, {
+	Name = "MeuVisual",
+	AnchorPoint = Vector2.new(1, 0),
+	Position = UDim2.new(1, -168, 0, 0),
+	Size = UDim2.fromOffset(150, 28),
+	Text = "🙂 Usar meu visual",
+	TextSize = 12,
+})
+btnMeuVisual.Activated:Connect(function()
+	evAvatar:FireServer(0)
+end)
+local btnEsconder = botao(topoAvatar, {
+	Name = "EsconderEquip",
+	AnchorPoint = Vector2.new(1, 0),
+	Position = UDim2.fromScale(1, 0),
+	Size = UDim2.fromOffset(162, 28),
+	Text = "👁 Equipamentos: visíveis",
+	TextSize = 12,
+})
+btnEsconder.Activated:Connect(function()
+	if estado then
+		evEsconderEquip:FireServer(not estado.esconderEquip)
+	end
+end)
+
+local gradeAvatar = novo("Frame", pgAvatar, {
+	Position = UDim2.fromOffset(0, 36),
+	Size = UDim2.new(1, 0, 1, -36),
+	BackgroundTransparency = 1,
+})
+novo("UIGridLayout", gradeAvatar, {
+	CellSize = UDim2.new(0.2, -6, 0.5, -4),
+	CellPadding = UDim2.fromOffset(6, 6),
+	SortOrder = Enum.SortOrder.LayoutOrder,
+})
+
+local cartoesAvatar = {}
+for idx, f in ipairs(Config.Fases) do
+	local rarId = Config.Avatares.Raridade[idx]
+	local r = raridade(rarId)
+	local b = novo("ImageButton", gradeAvatar, {
+		Name = "Avatar_" .. idx,
+		LayoutOrder = idx,
+		BackgroundColor3 = Color3.new(1, 1, 1),
+		AutoButtonColor = true,
+		Image = "",
+	})
+	canto(b, 10)
+	novo("UIGradient", b, {
+		Rotation = 90,
+		Color = ColorSequence.new(r.cor:Lerp(Color3.new(1, 1, 1), 0.1), r.cor:Lerp(Color3.new(0, 0, 0), 0.7)),
+	})
+	local borda = contorno(b, r.corBorda or r.cor, 2)
+	local vp = novo("ViewportFrame", b, {
+		Size = UDim2.new(1, 0, 1, -44),
+		BackgroundTransparency = 1,
+		Ambient = Color3.fromRGB(190, 180, 170),
+		LightColor = Color3.fromRGB(255, 240, 220),
+		ZIndex = 2,
+	})
+	task.spawn(retratoInimigo, vp, f.modelo)
+	rotulo(b, {
+		Position = UDim2.fromOffset(4, 2),
+		Size = UDim2.new(1, -8, 0, 14),
+		Text = "T" .. select(2, raridade(rarId)) .. " " .. r.nome,
+		TextSize = 11,
+		TextColor3 = r.corBorda or Color3.new(1, 1, 1),
+		TextXAlignment = Enum.TextXAlignment.Left,
+		ZIndex = 3,
+	})
+	local faixa = novo("Frame", b, {
+		Position = UDim2.new(0, 0, 1, -46),
+		Size = UDim2.new(1, 0, 0, 46),
+		BackgroundColor3 = Color3.new(0, 0, 0),
+		BackgroundTransparency = 0.3,
+		ZIndex = 3,
+	})
+	canto(faixa, 10)
+	rotulo(faixa, {
+		Position = UDim2.fromOffset(4, 1),
+		Size = UDim2.new(1, -8, 0, 15),
+		Text = f.monstro,
+		TextSize = 11,
+		TextTruncate = Enum.TextTruncate.AtEnd,
+		ZIndex = 4,
+	})
+	local info = rotulo(faixa, {
+		Position = UDim2.fromOffset(4, 16),
+		Size = UDim2.new(1, -8, 0, 28),
+		Text = "",
+		TextSize = 10,
+		Font = FONTE_TEXTO,
+		TextColor3 = COR.fraco,
+		TextWrapped = true,
+		ZIndex = 4,
+	})
+	local veu = novo("Frame", b, {
+		Size = UDim2.fromScale(1, 1),
+		BackgroundTransparency = 1,
+		ZIndex = 5,
+		Visible = false,
+	})
+	rotulo(
+		veu,
+		{ Position = UDim2.fromScale(0, 0.15), Size = UDim2.new(1, 0, 0, 30), Text = "🔒", TextSize = 24, ZIndex = 6 }
+	)
+	b.Activated:Connect(function()
+		if estado and table.find(estado.avatares or {}, idx) then
+			evAvatar:FireServer(idx)
+		end
+	end)
+	cartoesAvatar[idx] = { vp = vp, info = info, veu = veu, borda = borda, r = r, rarId = rarId }
+end
+
+local function desenharAvatares()
+	if not estado then
+		return
+	end
+	btnEsconder.Text = estado.esconderEquip and "🙈 Equipamentos: escondidos" or "👁 Equipamentos: visíveis"
+	btnEsconder.BackgroundColor3 = estado.esconderEquip and COR.cinza or COR.madeira
+	local chanceN = string.format("%.2f%%", Config.Avatares.ChanceNormal * 100)
+	local chanceC = string.format("%.0f%%", Config.Avatares.ChanceChefe * 100)
+	for idx, c in pairs(cartoesAvatar) do
+		local tem = table.find(estado.avatares or {}, idx) ~= nil
+		local usando = estado.avatarAtivo == idx
+		c.veu.Visible = not tem
+		c.vp.ImageColor3 = tem and Color3.new(1, 1, 1) or Color3.new(0, 0, 0)
+		local buff = Config.Avatares.Buff[c.rarId]
+		if usando then
+			c.info.Text = "▶ USANDO\n" .. buff.texto
+			c.info.TextColor3 = Color3.fromRGB(120, 255, 140)
+			c.borda.Color = Color3.fromRGB(120, 255, 140)
+			c.borda.Thickness = 3
+		elseif tem then
+			c.info.Text = "Toque para usar\n" .. buff.texto
+			c.info.TextColor3 = COR.texto
+			c.borda.Color = c.r.corBorda or c.r.cor
+			c.borda.Thickness = 2
+		else
+			c.info.Text = "Chance: " .. (Config.Fases[idx].chefe and chanceC or chanceN) .. "\n" .. buff.texto
+			c.info.TextColor3 = COR.fraco
+			c.borda.Color = COR.borda
+			c.borda.Thickness = 2
+		end
+	end
+end
+
 ------------------------------------------------------------------------
 -- Atualizar tudo quando chega o estado novo do servidor
 ------------------------------------------------------------------------
@@ -2151,6 +2437,8 @@ desenhar = function()
 			desenharMochila()
 		elseif abaAtual == "treino" then
 			desenharTreino()
+		elseif abaAtual == "avatar" then
+			desenharAvatares()
 		elseif abaAtual == "forja" then
 			desenharForja()
 		end

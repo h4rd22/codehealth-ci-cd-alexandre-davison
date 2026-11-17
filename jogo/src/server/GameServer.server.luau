@@ -28,6 +28,9 @@ local evAviso = remote("Aviso") -- faixas: fase nova, nível novo, lendário
 local evLoot = remote("Loot") -- item caiu / forja
 local evAutoFarm = remote("AutoFarm")
 local evRepetir = remote("Repetir") -- liga/desliga repetir a mesma fase
+local evAutoVenda = remote("AutoVenda") -- até qual raridade vender sozinho
+local evAvatar = remote("Avatar") -- usar um avatar (número da fase) ou 0 para o visual normal
+local evEsconderEquip = remote("EsconderEquip") -- esconder os equipamentos no corpo
 local evTreinar = remote("Treinar") -- sobe um atributo do treinamento
 local evEquipar = remote("Equipar")
 local evDesequipar = remote("Desequipar")
@@ -45,6 +48,7 @@ local evVida = remote("Vida") -- servidor -> tela: vida do herói
 local Cenario = require(script.Parent:WaitForChild("Cenario"))
 local Modelos = require(script.Parent:WaitForChild("Modelos"))
 local Chefe = require(script.Parent:WaitForChild("Chefe"))
+local ItemArte = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("ItemArte"))
 
 local baseplate = workspace:FindFirstChild("Baseplate")
 local spawn = workspace:FindFirstChildOfClass("SpawnLocation")
@@ -129,6 +133,37 @@ local function calcularStats(st)
 			s.ouro += n * tr.valor
 		end
 	end
+	-- bônus de conjunto (2 e 4 peças do mesmo conjunto)
+	local contagem = {}
+	for _, itemId in pairs(st.equipado) do
+		local it = st.itens[itemId]
+		if it and it.conjunto then
+			contagem[it.conjunto] = (contagem[it.conjunto] or 0) + 1
+		end
+	end
+	local danoPct, vidaPct = 0, 0
+	for id, n in pairs(contagem) do
+		local c = Config.ConjuntoPorId(id)
+		if c then
+			for pecas, b in pairs(c.bonus) do
+				if n >= pecas then
+					danoPct += b.danoPct or 0
+					vidaPct += b.vidaPct or 0
+					s.critico += b.critico or 0
+				end
+			end
+		end
+	end
+	if st.avatarAtivo then
+		local buff = Config.Avatares.Buff[Config.Avatares.Raridade[st.avatarAtivo]]
+		if buff then
+			danoPct += buff.danoPct or 0
+			vidaPct += buff.vidaPct or 0
+			s.critico += buff.critico or 0
+		end
+	end
+	s.dano *= 1 + danoPct
+	s.vidaMax = math.floor(s.vidaMax * (1 + vidaPct) + 0.5)
 	s.dano = math.floor(s.dano + 0.5)
 	if s.danoMult then
 		s.dano = math.floor(s.dano * s.danoMult + 0.5)
@@ -165,16 +200,16 @@ local function enviarEstado(player)
 		configForja = st.configForja,
 		repetir = st.repetir,
 		treino = st.treino,
+		autoVenda = st.autoVenda,
+		avatares = st.avatares,
+		avatarAtivo = st.avatarAtivo,
+		esconderEquip = st.esconderEquip,
 	})
 end
 
 ------------------------------------------------------------------------
 -- Equipamento visível no personagem
 ------------------------------------------------------------------------
-local function pecaDoCorpo(char, r15, r6)
-	return char:FindFirstChild(r15) or char:FindFirstChild(r6)
-end
-
 local function grudar(pastaEq, base, tamanho, offset, cor, material, brilho)
 	local p = Instance.new("Part")
 	p.Size = tamanho
@@ -222,102 +257,29 @@ local function vestir(player)
 	pastaEq.Name = "Equipamento"
 	pastaEq.Parent = char
 
+	-- Cada item vestido aparece em 3D no corpo (o mesmo desenho da mochila)
+	local maiorRi, corMaior = 0, nil
 	for slotId, itemId in pairs(st.equipado) do
 		local item = st.itens[itemId]
-		if item then
+		if item and slotId ~= "olho" then
 			local rar, ri = raridadePorId(item.raridade)
-			local cor = rar.cor
-			local brilho = ri >= 4
-			if slotId == "arma" then
-				local mao = pecaDoCorpo(char, "RightHand", "Right Arm")
-				if mao then
-					local desce = mao.Name == "Right Arm" and -1 or -0.2
-					grudar(
-						pastaEq,
-						mao,
-						Vector3.new(0.35, 0.35, 1.2),
-						CFrame.new(0, desce, -0.3),
-						Color3.fromRGB(90, 60, 40),
-						Enum.Material.Wood,
-						false
-					)
-					grudar(
-						pastaEq,
-						mao,
-						Vector3.new(1.4, 0.25, 0.3),
-						CFrame.new(0, desce, -0.95),
-						Color3.fromRGB(70, 70, 80),
-						Enum.Material.Metal,
-						false
-					)
-					grudar(
-						pastaEq,
-						mao,
-						Vector3.new(0.3, 0.15, 3.4),
-						CFrame.new(0, desce, -2.7),
-						cor,
-						ri >= 3 and Enum.Material.Neon or Enum.Material.Metal,
-						brilho
-					)
-				end
-			elseif slotId == "elmo" then
-				local cabeca = char:FindFirstChild("Head")
-				if cabeca then
-					local s = cabeca.Size
-					grudar(
-						pastaEq,
-						cabeca,
-						Vector3.new(s.X * 1.15, s.Y * 0.55, s.Z * 1.15),
-						CFrame.new(0, s.Y * 0.32, 0),
-						cor,
-						Enum.Material.Metal,
-						brilho
-					)
-				end
-			elseif slotId == "armadura" then
-				local tronco = pecaDoCorpo(char, "UpperTorso", "Torso")
-				if tronco then
-					local s = tronco.Size
-					grudar(
-						pastaEq,
-						tronco,
-						Vector3.new(s.X * 1.1, s.Y * 0.9, s.Z * 1.25),
-						CFrame.new(0, s.Y * 0.04, 0),
-						cor,
-						Enum.Material.Metal,
-						brilho
-					)
-				end
-			elseif slotId == "botas" then
-				for _, nomes in ipairs({ { "LeftFoot", "Left Leg" }, { "RightFoot", "Right Leg" } }) do
-					local pe = pecaDoCorpo(char, nomes[1], nomes[2])
-					if pe then
-						local s = pe.Size
-						if pe.Name:find("Foot") then
-							grudar(
-								pastaEq,
-								pe,
-								s * Vector3.new(1.2, 1.4, 1.15),
-								CFrame.new(0, s.Y * 0.15, 0),
-								cor,
-								Enum.Material.Metal,
-								brilho
-							)
-						else
-							grudar(
-								pastaEq,
-								pe,
-								Vector3.new(s.X * 1.15, s.Y * 0.35, s.Z * 1.15),
-								CFrame.new(0, -s.Y * 0.33, 0),
-								cor,
-								Enum.Material.Metal,
-								brilho
-							)
-						end
-					end
-				end
+			if not st.esconderEquip then
+				ItemArte.vestir(char, pastaEq, slotId, ri, rar.corBorda or rar.cor, item.conjunto)
+			end
+			if ri > maiorRi then
+				maiorRi, corMaior = ri, rar.cor
+			end
+		elseif item and slotId == "olho" then
+			local rar, ri = raridadePorId(item.raridade)
+			if ri > maiorRi then
+				maiorRi, corMaior = ri, rar.cor
 			end
 		end
+	end
+	-- aura no corpo para Mítico ou melhor
+	ItemArte.limparAura(char)
+	if corMaior and not st.esconderEquip then
+		ItemArte.aura(char, pastaEq, maiorRi, corMaior)
 	end
 
 	-- Olho do Além-Ciclo: olhos roxos brilhando e uma aura na cabeça
@@ -401,7 +363,7 @@ local function nivelDoDrop(nivelInimigo, nivelHeroi)
 	return math.max(1, math.floor(base + 0.5) + math.random(-c.Variacao, c.Variacao))
 end
 
-local function criarItem(st, raridadeIdx, nivel, slotId, nomeEspecial, valorFixo)
+local function criarItem(st, raridadeIdx, nivel, slotId, nomeEspecial, valorFixo, conjuntoId)
 	local rar = Config.Raridades[raridadeIdx]
 	local slot = slotId and slotPorId(slotId) or slotsComuns[math.random(#slotsComuns)]
 	local cresc = 1 + Config.ItemNivel.CrescimentoPorNivel * (nivel - 1)
@@ -425,6 +387,7 @@ local function criarItem(st, raridadeIdx, nivel, slotId, nomeEspecial, valorFixo
 			or (slot.base .. " " .. rar.material),
 		valor = valor,
 		nivel = nivel,
+		conjunto = conjuntoId,
 	}
 	return item
 end
@@ -445,6 +408,15 @@ local function guardarItem(player, item, pos, origem)
 		local ouro = Config.ValorVenda[item.raridade] or 1
 		st.ouro += ouro
 		evLoot:FireClient(player, "cheio", pos, item, ouro)
+		return
+	end
+	-- venda automática (itens fracos viram ouro na hora; peças de conjunto nunca)
+	local _, riAuto = raridadePorId(st.autoVenda or "nada")
+	local _, riItem0 = raridadePorId(item.raridade)
+	if riAuto and riItem0 and riItem0 <= riAuto and not item.conjunto and origem ~= "forja" then
+		local ouro = Config.ValorVenda[item.raridade] or 1
+		st.ouro += ouro
+		evLoot:FireClient(player, "vendido", pos, item, ouro)
 		return
 	end
 	st.itens[item.id] = item
@@ -512,7 +484,7 @@ local function criarMonstro(player, indiceFase)
 	-- Plaquinha estilo anime: selo de nível, nome com contorno e barra de vida em degradê
 	local bb = Instance.new("BillboardGui")
 	bb.Name = "Barra"
-	bb.Size = UDim2.fromOffset(f.chefe and 200 or 150, 40)
+	bb.Size = UDim2.fromOffset(f.chefe and 220 or 200, 40)
 	bb.StudsOffsetWorldSpace = Vector3.new(0, (base.Y + altura) - corpo.Position.Y + 1.4, 0)
 	bb.AlwaysOnTop = true
 	bb.MaxDistance = 90
@@ -785,15 +757,68 @@ local function monstroMorreu(player, m)
 		m:Destroy()
 	end)
 
+	-- chance mínima de dropar o avatar do inimigo desta fase
+	if math.random() < (f.chefe and Config.Avatares.ChanceChefe or Config.Avatares.ChanceNormal) then
+		if table.find(st.avatares, faseIdx) then
+			local ouroAv = Config.Avatares.OuroRepetido * f.nivel
+			st.ouro += ouroAv
+			evAviso:FireClient(player, "avatarRepetido", f.monstro, ouroAv)
+		else
+			table.insert(st.avatares, faseIdx)
+			evAviso:FireClient(player, "avatar", f.monstro, Config.Avatares.Raridade[faseIdx])
+			for _, outro in ipairs(Players:GetPlayers()) do
+				if outro ~= player then
+					evAviso:FireClient(outro, "lendario", player.DisplayName, "Avatar: " .. f.monstro)
+				end
+			end
+		end
+	end
+
 	if f.chefe then
 		abrirBau(player, pos)
 	elseif math.random() < Config.ChanceDrop then
-		guardarItem(player, criarItem(st, sortearRaridade(), nivelDoDrop(f.nivel, st.nivel)), pos)
+		local conjuntoId, slotConjunto
+		for _, c in ipairs(Config.Conjuntos) do
+			if faseIdx >= c.fases[1] and faseIdx <= c.fases[2] and math.random() < c.chance then
+				conjuntoId = c.id
+				slotConjunto = slotsComuns[math.random(#slotsComuns)].id
+				break
+			end
+		end
+		local nomeConjunto = conjuntoId and Config.ConjuntoPorId(conjuntoId).pecas[slotConjunto]
+		guardarItem(
+			player,
+			criarItem(
+				st,
+				sortearRaridade(),
+				nivelDoDrop(f.nivel, st.nivel),
+				slotConjunto,
+				nomeConjunto,
+				nil,
+				conjuntoId
+			),
+			pos
+		)
 	end
 
 	st.kills += 1
 	if st.kills >= metaDaFase(st.fase) then
 		st.kills = 0
+		if not f.chefe then
+			-- Baú de tesouro de estágio (estilo TBH)
+			local ouroBau = math.floor(f.ouro * Config.BauEstagio.OuroMult * calcularStats(st).ouro + 0.5)
+			st.ouro += ouroBau
+			evAviso:FireClient(player, "bauEstagio", ouroBau, f.nome)
+			if math.random() < Config.BauEstagio.ChanceItem then
+				local raiz0 = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+				guardarItem(
+					player,
+					criarItem(st, math.min(sortearRaridade() + 1, 5), nivelDoDrop(f.nivel, st.nivel)),
+					raiz0 and raiz0.Position or pos,
+					"bau"
+				)
+			end
+		end
 		if st.repetir then
 			-- repete a mesma fase, mas já libera a próxima no portal
 			st.faseMax = math.max(st.faseMax, math.min(st.fase + 1, #Config.Fases))
@@ -999,6 +1024,162 @@ end
 ------------------------------------------------------------------------
 evPedirEstado.OnServerEvent:Connect(enviarEstado)
 
+-- Partes do corpo (R6 e R15). O valor é o nome equivalente no outro tipo de boneco.
+local CORPO_R6_R15 = {
+	Head = "Head",
+	HumanoidRootPart = "HumanoidRootPart",
+	Torso = "UpperTorso",
+	["Left Arm"] = "LeftUpperArm",
+	["Right Arm"] = "RightUpperArm",
+	["Left Leg"] = "LeftUpperLeg",
+	["Right Leg"] = "RightUpperLeg",
+	UpperTorso = "Torso",
+	LowerTorso = "Torso",
+	LeftUpperArm = "Left Arm",
+	LeftLowerArm = "Left Arm",
+	LeftHand = "Left Arm",
+	RightUpperArm = "Right Arm",
+	RightLowerArm = "Right Arm",
+	RightHand = "Right Arm",
+	LeftUpperLeg = "Left Leg",
+	LeftLowerLeg = "Left Leg",
+	LeftFoot = "Left Leg",
+	RightUpperLeg = "Right Leg",
+	RightLowerLeg = "Right Leg",
+	RightFoot = "Right Leg",
+}
+
+-- Troca o corpo do herói pelo do avatar: roupa, cores, acessórios e rosto do inimigo
+local function aplicarAvatar(player)
+	local st = estado[player]
+	local char = player.Character
+	local hum = char and char:FindFirstChildOfClass("Humanoid")
+	if not st or not st.avatarAtivo or not hum then
+		return
+	end
+	local f = Config.Fases[st.avatarAtivo]
+	local nomeModelo = Config.Avatares.Roupa[f.modelo] or f.modelo
+	local arte = ReplicatedStorage:FindFirstChild("Arte")
+	local modelo = arte and arte.Inimigos:FindFirstChild(nomeModelo)
+	if not modelo then
+		return
+	end
+	-- tira o visual atual
+	for _, d in ipairs(char:GetChildren()) do
+		if d:IsA("Accessory") or d:IsA("Shirt") or d:IsA("Pants") or d:IsA("ShirtGraphic") or d:IsA("BodyColors") then
+			d:Destroy()
+		end
+	end
+	-- coloca o do avatar: roupas e cores
+	for _, d in ipairs(modelo:GetDescendants()) do
+		if d:IsA("Shirt") or d:IsA("Pants") or d:IsA("BodyColors") then
+			d:Clone().Parent = char
+		end
+	end
+	-- cabelo, capa, chapéu... cada modelo da loja guarda isso de um jeito, então copia toda peça
+	-- que não é parte do corpo e cola no membro mais perto, na mesma posição relativa
+	local pecas = Instance.new("Folder")
+	pecas.Name = "AvatarPecas"
+	pecas.Parent = char
+	local membrosModelo = {}
+	for _, d in ipairs(modelo:GetDescendants()) do
+		if d:IsA("BasePart") and CORPO_R6_R15[d.Name] and not membrosModelo[d.Name] then
+			membrosModelo[d.Name] = d
+		end
+	end
+	for _, d in ipairs(modelo:GetDescendants()) do
+		if d:IsA("BasePart") and not CORPO_R6_R15[d.Name] and d.Transparency < 0.95 then
+			local maisPerto, dist = nil, math.huge
+			for _, mb in pairs(membrosModelo) do
+				local dd = (mb.Position - d.Position).Magnitude
+				if dd < dist then
+					maisPerto, dist = mb, dd
+				end
+			end
+			local alvo = maisPerto
+				and (char:FindFirstChild(maisPerto.Name) or char:FindFirstChild(CORPO_R6_R15[maisPerto.Name]))
+			if alvo and alvo:IsA("BasePart") and dist < 6 then
+				local copia = d:Clone()
+				for _, w in ipairs(copia:GetDescendants()) do
+					if not (w:IsA("DataModelMesh") or w:IsA("Decal") or w:IsA("SurfaceAppearance")) then
+						w:Destroy()
+					end
+				end
+				copia.Anchored = false
+				copia.CanCollide = false
+				copia.CanQuery = false
+				copia.CanTouch = false
+				copia.Massless = true
+				copia.CFrame = alvo.CFrame * maisPerto.CFrame:ToObjectSpace(d.CFrame)
+				local solda = Instance.new("WeldConstraint")
+				solda.Part0 = alvo
+				solda.Part1 = copia
+				solda.Parent = copia
+				copia.Parent = pecas
+			end
+		end
+	end
+	-- rosto
+	local cabecaModelo
+	for _, d in ipairs(modelo:GetDescendants()) do
+		if d:IsA("BasePart") and d.Name == "Head" then
+			cabecaModelo = d
+			break
+		end
+	end
+	local rostoModelo = cabecaModelo and cabecaModelo:FindFirstChildOfClass("Decal")
+	local cabeca = char:FindFirstChild("Head")
+	if rostoModelo and cabeca then
+		local rosto = cabeca:FindFirstChildOfClass("Decal")
+		if rosto then
+			rosto.Texture = rostoModelo.Texture
+		else
+			rostoModelo:Clone().Parent = cabeca
+		end
+	end
+end
+
+evAvatar.OnServerEvent:Connect(function(player, faseIdx)
+	local st = estado[player]
+	if not st or type(faseIdx) ~= "number" then
+		return
+	end
+	if faseIdx == 0 then
+		if st.avatarAtivo then
+			st.avatarAtivo = nil
+			player:LoadCharacter() -- volta o visual original do jogador
+		end
+	elseif table.find(st.avatares, faseIdx) and st.avatarAtivo ~= faseIdx then
+		local tinha = st.avatarAtivo
+		st.avatarAtivo = faseIdx
+		if tinha then
+			player:LoadCharacter() -- limpa o avatar anterior; o novo entra quando o corpo nascer
+		else
+			aplicarAvatar(player)
+			vestir(player)
+		end
+	end
+	enviarEstado(player)
+	enviarVida(player)
+end)
+
+evEsconderEquip.OnServerEvent:Connect(function(player, esconder)
+	local st = estado[player]
+	if st then
+		st.esconderEquip = esconder == true
+		vestir(player)
+		enviarEstado(player)
+	end
+end)
+
+evAutoVenda.OnServerEvent:Connect(function(player, opcao)
+	local st = estado[player]
+	if st and table.find(Config.AutoVendaOpcoes, opcao) then
+		st.autoVenda = opcao
+		enviarEstado(player)
+	end
+end)
+
 evRepetir.OnServerEvent:Connect(function(player, ligado)
 	local st = estado[player]
 	if st then
@@ -1051,6 +1232,10 @@ evEquipar.OnServerEvent:Connect(function(player, itemId)
 	st.equipado[item.slot] = item.id
 	vestir(player)
 	enviarEstado(player)
+	local _, riEq = raridadePorId(item.raridade)
+	if riEq and riEq >= 5 then
+		evAviso:FireClient(player, "equipouRaro", item.nome, item.raridade)
+	end
 end)
 
 evDesequipar.OnServerEvent:Connect(function(player, slotId)
@@ -1108,7 +1293,14 @@ local function forjarItens(player, st, itens)
 		st.itens[it.id] = nil
 	end
 	st.ouro -= custo
-	local novo = criarItem(st, ri + 1, nivel, itens[1].slot) -- mesma categoria
+	local mesmoConjunto = itens[1].conjunto
+	for _, it in ipairs(itens) do
+		if it.conjunto ~= mesmoConjunto then
+			mesmoConjunto = nil
+		end
+	end
+	local nomeConj = mesmoConjunto and Config.ConjuntoPorId(mesmoConjunto).pecas[itens[1].slot]
+	local novo = criarItem(st, ri + 1, nivel, itens[1].slot, nomeConj, nil, mesmoConjunto) -- mesma categoria
 	guardarItem(player, novo, nil, "forja")
 	return novo
 end
@@ -1286,6 +1478,19 @@ if RunService:IsStudio() then
 			local raizHeroi = char and char:FindFirstChild("HumanoidRootPart")
 			local pos = raizHeroi and (raizHeroi.Position + raizHeroi.CFrame.LookVector * 6) or Vector3.new(0, 5, 0)
 			guardarItem(player, criarItem(st, b or sortearRaridade(), 10), pos)
+		elseif acao == "conjunto" then
+			-- a = qual conjunto (1 ou 2), b = raridade
+			local c = Config.Conjuntos[a or 1]
+			for _, s in ipairs(slotsComuns) do
+				local item = criarItem(st, b or 4, 12, s.id, c.pecas[s.id], nil, c.id)
+				st.itens[item.id] = item
+				st.equipado[s.id] = item.id
+			end
+			vestir(player)
+		elseif acao == "avatar" then
+			if not table.find(st.avatares, a or 1) then
+				table.insert(st.avatares, a or 1)
+			end
 		elseif acao == "vestirMelhor" then
 			for _, s in ipairs(Config.Slots) do
 				local melhor
@@ -1303,8 +1508,11 @@ if RunService:IsStudio() then
 			st.ouro += a or 1000
 		elseif acao == "nivel" then
 			st.nivel = a or 10
+		elseif acao == "liberar" then
+			st.faseMax = #Config.Fases
 		elseif acao == "fase" then
 			st.fase = a or 1
+			st.faseMax = math.max(st.faseMax, st.fase)
 			st.kills = 0
 			aplicarFase(player)
 		end
@@ -1323,8 +1531,7 @@ Players.PlayerAdded:Connect(function(player)
 		xp = 0,
 		ouro = 0,
 		fase = 1,
-		-- No Studio todas as fases ficam liberadas para testar; no jogo publicado começa só a 1-1
-		faseMax = RunService:IsStudio() and #Config.Fases or 1,
+		faseMax = 1, -- vencer uma fase libera a próxima (a ferramenta de teste pode liberar no Studio)
 		kills = 0,
 		itens = {},
 		equipado = {},
@@ -1332,13 +1539,25 @@ Players.PlayerAdded:Connect(function(player)
 		autoFarm = true,
 		vida = Config.Heroi.Vida,
 		repetir = false,
+		autoVenda = "nada",
+		avatares = {}, -- lista com o número das fases cujo avatar já foi obtido
+		avatarAtivo = nil,
+		esconderEquip = false,
 		treino = { forca = 0, vitalidade = 0, precisao = 0, ganancia = 0 },
 		configForja = { auto = false, ate = "incomum", mesmoNivel = false },
 	}
 	player.CharacterAdded:Connect(function(char)
 		char:WaitForChild("HumanoidRootPart")
 		task.wait(0.2)
+		aplicarAvatar(player)
 		vestir(player)
+		local stc = estado[player]
+		if stc then
+			local raizNova = char:FindFirstChild("HumanoidRootPart")
+			if raizNova then
+				raizNova.CFrame = CFrame.new(0, topoArena + 3, 4)
+			end
+		end
 	end)
 	if not player.Character then
 		player.CharacterAdded:Wait()
