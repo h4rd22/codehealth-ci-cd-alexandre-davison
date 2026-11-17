@@ -563,6 +563,7 @@ player:SetAttribute("AutoFarm", true)
 -- Cartão do herói (canto esquerdo de cima): nível, XP e ouro
 ------------------------------------------------------------------------
 local cartao = caixa(gui, { Position = UDim2.fromOffset(14, 62), Size = UDim2.new(0.42, 0, 0, 84) })
+cartao.Name = "CartaoHeroi" -- a Ficha de Atributos (Ficha.client.luau) põe um botão aqui
 novo("UISizeConstraint", cartao, { MaxSize = Vector2.new(290, 84) })
 canto(cartao, 14)
 bordaViva(contorno(cartao, COR.dourado, 2.5), COR.dourado, Color3.fromRGB(255, 240, 170), 1.6)
