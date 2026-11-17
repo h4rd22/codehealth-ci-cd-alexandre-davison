@@ -1,5 +1,8 @@
 # Contexto do jogo (leia antes de trabalhar)
 
+## REGRA ABSOLUTA: dinheiro e Robux
+**Nunca gastar dinheiro real nem Robux sem pedir permissão explícita ao dono antes, toda vez.** Isso inclui taxas de upload/publicação de UGC, anúncios, compras na Creator Store, assinaturas (Premium etc.), plugins pagos e qualquer serviço pago. Antes de qualquer ação que custe algo: dizer o quê, quanto e por quê, e esperar um "sim" claro. Na dúvida se algo custa, perguntar.
+
 O dono do projeto não programa. Claude faz todo o código, explica tudo em português simples e testa sozinho sempre que der.
 
 ## Conceito
