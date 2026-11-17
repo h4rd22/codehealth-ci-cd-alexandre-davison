@@ -1,0 +1,42 @@
+name: Qualidade do código do jogo
+
+on:
+  push:
+    paths:
+      - "jogo/**"
+      - ".github/workflows/qualidade.yml"
+  pull_request:
+    paths:
+      - "jogo/**"
+
+jobs:
+  verificar:
+    name: Formatação, lint e build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: jogo
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Instalar Rokit
+        run: |
+          curl -sSf https://raw.githubusercontent.com/rojo-rbx/rokit/main/scripts/install.sh | bash
+          echo "$HOME/.rokit/bin" >> "$GITHUB_PATH"
+
+      - name: Instalar ferramentas (Rojo, Wally, Selene, StyLua)
+        run: rokit install --no-trust-check
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Instalar bibliotecas (Wally)
+        run: wally install
+
+      - name: Formatação (StyLua)
+        run: stylua --check src
+
+      - name: Lint (Selene)
+        run: selene src
+
+      - name: Montar o jogo (Rojo)
+        run: rojo build -o jogo.rbxl

@@ -1,0 +1,16 @@
+# Bibliotecas baixadas pelo Wally (são recriadas com "wally install")
+/Packages
+/ServerPackages
+/DevPackages
+
+# Arquivos gerados pelo Rojo e pelo Studio
+sourcemap.json
+*.rbxl
+*.rbxlx
+*.rbxl.lock
+*.rbxlx.lock
+*.rbxm
+*.rbxmx
+
+# Cache do Selene com a lista de funções do Roblox
+roblox.yml

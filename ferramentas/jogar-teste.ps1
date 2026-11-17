@@ -36,5 +36,13 @@ if ($abertos.Count -gt 0) {
 }
 
 if ($SoVerificar) { 'VAI_ABRIR'; return }
+
+# Liga o Rojo (que manda o código para o Studio), se ainda não estiver ligado
+$rojo = Join-Path $env:USERPROFILE '.rokit\bin\rojo.exe'
+$projeto = Join-Path $PSScriptRoot '..\jogo\default.project.json'
+if ((Test-Path $rojo) -and -not (Get-Process rojo -ErrorAction SilentlyContinue)) {
+  Start-Process -FilePath $rojo -ArgumentList 'serve', "`"$projeto`"" -WindowStyle Minimized
+}
+
 Start-Process -FilePath $Arquivo
-Aviso "Abrindo o jogo no Roblox Studio...`n`nQuando ele carregar, aperte F5 (ou o botão Testar) para jogar." 'Information'
+Aviso "Abrindo o jogo no Roblox Studio...`n`nQuando ele carregar, clique em 'Connect' no aviso do Rojo e depois aperte F5 (ou o botão Testar) para jogar." 'Information'

@@ -1,0 +1,15 @@
+[package]
+name = "h4rd22/rpg-idle-loot"
+version = "0.1.0"
+registry = "https://github.com/UpliftGames/wally-index"
+realm = "shared"
+private = true
+
+# Bibliotecas usadas pelos dois lados (servidor e jogador). Instalar com: wally install
+[dependencies]
+
+# Bibliotecas só do servidor
+[server-dependencies]
+
+# Bibliotecas só para testes
+[dev-dependencies]

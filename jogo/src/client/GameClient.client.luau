@@ -7,7 +7,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 local Debris = game:GetService("Debris")
 
-local Config = require(ReplicatedStorage:WaitForChild("Config"))
+local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
 local remotes = ReplicatedStorage:WaitForChild("Remotes")
 local evDano = remotes:WaitForChild("Dano")
 local evAviso = remotes:WaitForChild("Aviso")
@@ -17,7 +17,11 @@ local player = Players.LocalPlayer
 local pasta = workspace:WaitForChild("Monstros")
 
 local function raridade(id)
-	for i, r in ipairs(Config.Raridades) do if r.id == id then return r, i end end
+	for i, r in ipairs(Config.Raridades) do
+		if r.id == id then
+			return r, i
+		end
+	end
 	return Config.Raridades[1], 1
 end
 
@@ -55,11 +59,11 @@ local function mostrarFaixa(msg, cor, tempo)
 	faixa.Text = msg
 	faixa.TextColor3 = cor or Color3.fromRGB(255, 225, 120)
 	escala.Scale = 0.6
-	TweenService:Create(escala, TweenInfo.new(0.35, Enum.EasingStyle.Back), {Scale = 1}):Play()
-	TweenService:Create(faixa, TweenInfo.new(0.3), {TextTransparency = 0, TextStrokeTransparency = 0}):Play()
+	TweenService:Create(escala, TweenInfo.new(0.35, Enum.EasingStyle.Back), { Scale = 1 }):Play()
+	TweenService:Create(faixa, TweenInfo.new(0.3), { TextTransparency = 0, TextStrokeTransparency = 0 }):Play()
 	task.delay(tempo or 2.2, function()
 		if faixa.Text == msg then
-			TweenService:Create(faixa, TweenInfo.new(0.5), {TextTransparency = 1, TextStrokeTransparency = 1}):Play()
+			TweenService:Create(faixa, TweenInfo.new(0.5), { TextTransparency = 1, TextStrokeTransparency = 1 }):Play()
 		end
 	end)
 end
@@ -101,15 +105,21 @@ local function notificar(texto, cor)
 	s.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 	s.Parent = f
 	local fila = {}
-	for _, x in ipairs(pilha:GetChildren()) do if x:IsA("TextLabel") then table.insert(fila, x) end end
+	for _, x in ipairs(pilha:GetChildren()) do
+		if x:IsA("TextLabel") then
+			table.insert(fila, x)
+		end
+	end
 	if #fila > 6 then
-		table.sort(fila, function(a, b) return a.LayoutOrder > b.LayoutOrder end)
+		table.sort(fila, function(a, b)
+			return a.LayoutOrder > b.LayoutOrder
+		end)
 		fila[1]:Destroy()
 	end
 	task.delay(3.5, function()
 		if f.Parent then
-			TweenService:Create(f, TweenInfo.new(0.4), {BackgroundTransparency = 1, TextTransparency = 1}):Play()
-			TweenService:Create(s, TweenInfo.new(0.4), {Transparency = 1}):Play()
+			TweenService:Create(f, TweenInfo.new(0.4), { BackgroundTransparency = 1, TextTransparency = 1 }):Play()
+			TweenService:Create(s, TweenInfo.new(0.4), { Transparency = 1 }):Play()
 			Debris:AddItem(f, 0.45)
 		end
 	end)
@@ -142,15 +152,25 @@ local function textoFlutuante(pos, msg, cor, tamanho)
 	t.TextStrokeTransparency = 0
 	t.TextStrokeColor3 = Color3.fromRGB(30, 20, 40)
 	t.Parent = bb
-	TweenService:Create(ancora, TweenInfo.new(0.8, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Position = ancora.Position + Vector3.new(0, 3, 0)}):Play()
-	TweenService:Create(t, TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.In, 0, false, 0.35), {TextTransparency = 1, TextStrokeTransparency = 1}):Play()
+	TweenService:Create(
+		ancora,
+		TweenInfo.new(0.8, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+		{ Position = ancora.Position + Vector3.new(0, 3, 0) }
+	):Play()
+	TweenService:Create(
+		t,
+		TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.In, 0, false, 0.35),
+		{ TextTransparency = 1, TextStrokeTransparency = 1 }
+	):Play()
 	Debris:AddItem(ancora, 0.9)
 end
 
 local function tremer(forca, duracao)
 	local char = player.Character
 	local hum = char and char:FindFirstChildOfClass("Humanoid")
-	if not hum then return end
+	if not hum then
+		return
+	end
 	task.spawn(function()
 		local fim = os.clock() + duracao
 		while os.clock() < fim do
@@ -173,8 +193,11 @@ local function explosao(pos, cor, qtd)
 		p.Position = pos
 		p.Parent = workspace
 		local dir = Vector3.new(math.random() - 0.5, math.random() * 0.8 + 0.2, math.random() - 0.5).Unit
-		TweenService:Create(p, TweenInfo.new(0.45, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
-			{Position = pos + dir * (4 + math.random() * 3), Size = Vector3.new(0.05, 0.05, 0.05), Transparency = 1}):Play()
+		TweenService:Create(
+			p,
+			TweenInfo.new(0.45, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+			{ Position = pos + dir * (4 + math.random() * 3), Size = Vector3.new(0.05, 0.05, 0.05), Transparency = 1 }
+		):Play()
 		Debris:AddItem(p, 0.5)
 	end
 end
@@ -193,7 +216,9 @@ local function feixe(pos, cor, forte)
 	p.Size = Vector3.new(altura, forte and 2 or 1, forte and 2 or 1)
 	p.CFrame = CFrame.new(pos.X, pos.Y - 1 + altura / 2, pos.Z) * CFrame.Angles(0, 0, math.rad(90))
 	p.Parent = workspace
-	TweenService:Create(p, TweenInfo.new(forte and 2.2 or 1.2), {Transparency = 1, Size = Vector3.new(altura, 0.1, 0.1)}):Play()
+	TweenService
+		:Create(p, TweenInfo.new(forte and 2.2 or 1.2), { Transparency = 1, Size = Vector3.new(altura, 0.1, 0.1) })
+		:Play()
 	Debris:AddItem(p, forte and 2.3 or 1.3)
 end
 
@@ -208,7 +233,9 @@ evDano.OnClientEvent:Connect(function(tipo, pos, valor, extra, xp)
 	elseif tipo == "morte" then
 		explosao(pos, extra)
 		textoFlutuante(pos + Vector3.new(0, 1, 0), "+" .. valor .. " ouro", Color3.fromRGB(255, 205, 70), 22)
-		if xp then textoFlutuante(pos + Vector3.new(0, 2.5, 0), "+" .. xp .. " XP", Color3.fromRGB(80, 220, 170), 18) end
+		if xp then
+			textoFlutuante(pos + Vector3.new(0, 2.5, 0), "+" .. xp .. " XP", Color3.fromRGB(80, 220, 170), 18)
+		end
 	end
 end)
 
@@ -227,7 +254,9 @@ evLoot.OnClientEvent:Connect(function(tipo, pos, item, ouro)
 		mostrarFaixa("FORJADO: " .. string.upper(r.nome) .. "!", r.cor, 1.6)
 		local char = player.Character
 		local root = char and char:FindFirstChild("HumanoidRootPart")
-		if root then explosao(root.Position, r.cor, 16) end
+		if root then
+			explosao(root.Position, r.cor, 16)
+		end
 	else
 		notificar(item.nome .. " (" .. r.nome .. ")", r.cor)
 	end
@@ -246,7 +275,9 @@ evAviso.OnClientEvent:Connect(function(tipo, a, b)
 		mostrarFaixa("NÍVEL " .. a .. "!", Color3.fromRGB(80, 230, 180))
 		local char = player.Character
 		local root = char and char:FindFirstChild("HumanoidRootPart")
-		if root then explosao(root.Position, Color3.fromRGB(80, 230, 180), 18) end
+		if root then
+			explosao(root.Position, Color3.fromRGB(80, 230, 180), 18)
+		end
 	elseif tipo == "completo" then
 		mostrarFaixa("TESTE COMPLETO! Você passou da " .. a)
 	elseif tipo == "lendario" then
@@ -271,9 +302,15 @@ task.spawn(function()
 			if ligado then
 				local alvo, menor = nil, math.huge
 				for _, m in ipairs(pasta:GetChildren()) do
-					if m:GetAttribute("Dono") == player.UserId and (m:GetAttribute("Vida") or 0) > 0 and m.PrimaryPart then
+					if
+						m:GetAttribute("Dono") == player.UserId
+						and (m:GetAttribute("Vida") or 0) > 0
+						and m.PrimaryPart
+					then
 						local d = (m.PrimaryPart.Position - root.Position).Magnitude
-						if d < menor then alvo, menor = m, d end
+						if d < menor then
+							alvo, menor = m, d
+						end
 					end
 				end
 				if alvo then
