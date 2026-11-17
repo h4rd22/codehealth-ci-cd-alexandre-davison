@@ -269,7 +269,30 @@ local function corte(pos, critico)
 	end
 end
 
+-- Tela vermelha quando o herói apanha
+local flash = Instance.new("Frame")
+flash.Size = UDim2.fromScale(1, 1)
+flash.BackgroundColor3 = Color3.fromRGB(255, 30, 40)
+flash.BackgroundTransparency = 1
+flash.BorderSizePixel = 0
+flash.ZIndex = 0
+flash.Parent = gui
+local function piscarTela(forca)
+	flash.BackgroundTransparency = 1 - forca
+	TweenService:Create(flash, TweenInfo.new(0.35), { BackgroundTransparency = 1 }):Play()
+end
+
+local morto = false
+
 evDano.OnClientEvent:Connect(function(tipo, pos, valor, extra, xp, chefe)
+	if tipo == "heroi" then
+		textoFlutuante(pos + Vector3.new(0, 1, 0), "-" .. valor, Color3.fromRGB(255, 70, 70), valor >= 50 and 30 or 22)
+		piscarTela(valor >= 50 and 0.35 or 0.15)
+		if valor >= 50 then
+			tremer(0.8, 0.25)
+		end
+		return
+	end
 	if tipo == "dano" then
 		corte(pos, extra)
 		if extra then
@@ -334,9 +357,36 @@ evAviso.OnClientEvent:Connect(function(tipo, a, b)
 		mostrarFaixa(string.upper(a) .. " COMPLETO!", Color3.fromRGB(255, 225, 120), 3)
 	elseif tipo == "lendario" then
 		mostrarFaixa(a .. " achou um item LENDÁRIO: " .. b .. "!", Color3.fromRGB(255, 160, 40), 3.5)
+	elseif tipo == "habilidade" then
+		mostrarFaixa(string.upper(a), Color3.fromRGB(200, 120, 255), 1.4)
+	elseif tipo == "empurrao" then
+		local char = player.Character
+		local root = char and char:FindFirstChild("HumanoidRootPart")
+		if root and typeof(a) == "Vector3" then
+			root.AssemblyLinearVelocity = a * (b or 80) + Vector3.new(0, 35, 0)
+			tremer(1.4, 0.4)
+		end
+	elseif tipo == "derrota" then
+		morto = true
+		local msg = a == "tempo" and "O TEMPO ACABOU!" or "VOCÊ FOI DERROTADO!"
+		local sub = b and "Voltando uma fase..." or "Recomeçando a fase..."
+		mostrarFaixa(msg .. "\n" .. sub, Color3.fromRGB(255, 80, 80), 2.4)
+		piscarTela(0.5)
+		task.delay(2.6, function()
+			morto = false
+		end)
 	elseif tipo == "chefe" then
 		mostrarFaixa("CHEFE: " .. string.upper(a) .. "!", Color3.fromRGB(210, 120, 255), 3)
 		tremer(1.2, 0.6)
+	elseif tipo == "forjaAuto" then
+		if a > 0 then
+			notificar("⚒ Forja automática: " .. a .. " combinação(ões)", Color3.fromRGB(255, 170, 80))
+		else
+			notificar("⚒ Nada para combinar agora", Color3.fromRGB(180, 175, 200))
+		end
+	elseif tipo == "alquimia" then
+		notificar("🪙 Alquimia: +" .. a .. " ouro", Color3.fromRGB(255, 205, 70))
+		mostrarFaixa("+" .. a .. " OURO!", Color3.fromRGB(255, 210, 80), 1.2)
 	elseif tipo == "bau" then
 		notificar("Baú do chefe: +" .. a .. " ouro", Color3.fromRGB(255, 205, 70))
 	end
@@ -351,7 +401,7 @@ local estavaLigado = true
 task.spawn(function()
 	while true do
 		task.wait(0.2)
-		local ligado = player:GetAttribute("AutoFarm") ~= false
+		local ligado = player:GetAttribute("AutoFarm") ~= false and not morto
 		local char = player.Character
 		local hum = char and char:FindFirstChildOfClass("Humanoid")
 		local root = char and char:FindFirstChild("HumanoidRootPart")
@@ -373,7 +423,8 @@ task.spawn(function()
 				if alvo then
 					local pos = alvo.PrimaryPart.Position
 					local plano = Vector3.new(pos.X, root.Position.Y, pos.Z)
-					if (plano - root.Position).Magnitude > alcance - 2.5 then
+					local alc = alvo:GetAttribute("Chefe") and Config.Heroi.AlcanceChefe or alcance
+					if (plano - root.Position).Magnitude > alc - 2.5 then
 						hum:MoveTo(plano)
 					else
 						hum:MoveTo(root.Position)

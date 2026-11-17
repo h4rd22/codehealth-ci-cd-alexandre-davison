@@ -32,13 +32,17 @@ local evDesequipar = remote("Desequipar")
 local evVender = remote("Vender")
 local evForjar = remote("Forjar")
 local evForjarAuto = remote("ForjarAuto")
+local evAlquimia = remote("Alquimia")
+local evConfigForja = remote("ConfigForja")
 local evIrFase = remote("IrFase")
+local evVida = remote("Vida") -- servidor -> tela: vida do herói
 
 ------------------------------------------------------------------------
 -- Arena pequena com cenário por tema (ver Cenario.luau)
 ------------------------------------------------------------------------
 local Cenario = require(script.Parent:WaitForChild("Cenario"))
 local Modelos = require(script.Parent:WaitForChild("Modelos"))
+local Chefe = require(script.Parent:WaitForChild("Chefe"))
 
 local baseplate = workspace:FindFirstChild("Baseplate")
 local spawn = workspace:FindFirstChildOfClass("SpawnLocation")
@@ -89,6 +93,7 @@ local function calcularStats(st)
 		critico = h.ChanceCritico,
 		ouro = 1,
 		velocidade = h.Velocidade,
+		vidaMax = h.Vida + (st.nivel - 1) * h.VidaPorNivel,
 	}
 	for slotId, itemId in pairs(st.equipado) do
 		local item = st.itens[itemId]
@@ -102,6 +107,8 @@ local function calcularStats(st)
 				s.ouro += item.valor
 			elseif slot.atributo == "velocidade" then
 				s.velocidade += item.valor
+			elseif slot.atributo == "vida" then
+				s.vidaMax += item.valor
 			elseif slot.atributo == "danoMult" then
 				s.danoMult = (s.danoMult or 1) + item.valor
 			end
@@ -139,6 +146,7 @@ local function enviarEstado(player)
 		equipado = st.equipado,
 		stats = calcularStats(st),
 		autoFarm = st.autoFarm,
+		configForja = st.configForja,
 	})
 end
 
@@ -375,13 +383,13 @@ local function nivelDoDrop(nivelInimigo, nivelHeroi)
 	return math.max(1, math.floor(base + 0.5) + math.random(-c.Variacao, c.Variacao))
 end
 
-local function criarItem(st, raridadeIdx, nivel, slotId)
+local function criarItem(st, raridadeIdx, nivel, slotId, nomeEspecial, valorFixo)
 	local rar = Config.Raridades[raridadeIdx]
 	local slot = slotId and slotPorId(slotId) or slotsComuns[math.random(#slotsComuns)]
 	local cresc = 1 + Config.ItemNivel.CrescimentoPorNivel * (nivel - 1)
 	local bruto = slot.valor * rar.mult * cresc * (0.85 + math.random() * 0.3)
-	if slot.especial then
-		bruto = slot.valor -- o olho tem valor fixo
+	if slot.especial or valorFixo then
+		bruto = valorFixo or slot.valor -- o olho tem valor fixo
 	end
 	local valor
 	if slot.atributo == "dano" or slot.atributo == "velocidade" then
@@ -394,7 +402,9 @@ local function criarItem(st, raridadeIdx, nivel, slotId)
 		id = st.proximoId,
 		slot = slot.id,
 		raridade = rar.id,
-		nome = slot.especial and Config.OlhoChefe.nome or (slot.base .. " " .. rar.material),
+		nome = nomeEspecial
+			or (Config.NomesItens[slot.id] and Config.NomesItens[slot.id][raridadeIdx])
+			or (slot.base .. " " .. rar.material),
 		valor = valor,
 		nivel = nivel,
 	}
@@ -409,6 +419,8 @@ local function contarItens(st)
 	return n
 end
 
+local combinarAutomatico -- definida mais abaixo, na parte da forja
+
 local function guardarItem(player, item, pos, origem)
 	local st = estado[player]
 	if contarItens(st) >= Config.LimiteInventario then
@@ -419,7 +431,15 @@ local function guardarItem(player, item, pos, origem)
 	end
 	st.itens[item.id] = item
 	evLoot:FireClient(player, origem or "drop", pos, item)
-	if item.raridade == "lendario" then
+	if st.configForja.auto and not st.forjando and combinarAutomatico then
+		task.defer(function()
+			if estado[player] and combinarAutomatico(player, st) > 0 then
+				enviarEstado(player)
+			end
+		end)
+	end
+	local _, riItem = raridadePorId(item.raridade)
+	if riItem and riItem >= 5 then
 		for _, outro in ipairs(Players:GetPlayers()) do
 			evAviso:FireClient(outro, "lendario", player.DisplayName, item.nome)
 		end
@@ -429,15 +449,30 @@ end
 ------------------------------------------------------------------------
 -- Monstros (o visual vem de Modelos.luau)
 ------------------------------------------------------------------------
+local causarDano, enviarVida, vidaMaxDe -- definidas na parte "Vida do herói"
+
 local function criarMonstro(player, indiceFase)
 	local f = Config.Fases[indiceFase]
 	local base
 	if f.chefe then
 		base = Vector3.new(0, topoArena, -11)
 	else
-		local ang = math.random() * math.pi * 2
-		local raio = 7 + math.random() * (Config.RaioMonstros - 7)
-		base = Vector3.new(math.cos(ang) * raio, topoArena, math.sin(ang) * raio)
+		-- tenta um lugar longe dos outros inimigos, para não cercarem o herói todos juntos
+		for _ = 1, 12 do
+			local ang = math.random() * math.pi * 2
+			local raio = 7 + math.random() * (Config.RaioMonstros - 7)
+			base = Vector3.new(math.cos(ang) * raio, topoArena, math.sin(ang) * raio)
+			local livre = true
+			for _, outro in ipairs(pasta:GetChildren()) do
+				if outro.PrimaryPart and (outro.PrimaryPart.Position - base).Magnitude < 9 then
+					livre = false
+					break
+				end
+			end
+			if livre then
+				break
+			end
+		end
 	end
 	-- olha para o centro da arena, onde o herói começa
 	local cf = CFrame.lookAt(base, Vector3.new(0, topoArena, 0))
@@ -450,8 +485,10 @@ local function criarMonstro(player, indiceFase)
 	m:SetAttribute("Nivel", f.nivel)
 	m:SetAttribute("Dano", Config.DanoInimigo(f.nivel))
 	m:SetAttribute("Fase", indiceFase)
+	m:SetAttribute("ProxAtaque", os.clock() + 1.2)
 	if f.chefe then
 		m:SetAttribute("Chefe", true)
+		m:SetAttribute("Fim", workspace:GetServerTimeNow() + Config.ChefeTempo)
 	end
 
 	local bb = Instance.new("BillboardGui")
@@ -495,6 +532,38 @@ local function criarMonstro(player, indiceFase)
 	if m:GetAttribute("UsaArte") then
 		-- Personagem 3D: aparece crescendo inteiro e começa a "respirar"
 		Modelos.animar(m)
+		if f.chefe then
+			Chefe.iniciar(m, {
+				player = player,
+				chao = topoArena,
+				dano = Config.DanoInimigo(f.nivel),
+				vivo = function()
+					local st = estado[player]
+					return m.Parent ~= nil and (m:GetAttribute("Vida") or 0) > 0 and st ~= nil and not st.morto
+				end,
+				raizHeroi = function()
+					local char = player.Character
+					return char and char:FindFirstChild("HumanoidRootPart")
+				end,
+				acertar = function(pos, raio, dano)
+					local char = player.Character
+					local raiz = char and char:FindFirstChild("HumanoidRootPart")
+					if raiz and ((raiz.Position - pos) * Vector3.new(1, 0, 1)).Magnitude <= raio then
+						return causarDano(player, dano, raiz.Position)
+					end
+					return false
+				end,
+				empurrar = function(direcao, forca)
+					evAviso:FireClient(player, "empurrao", direcao, forca)
+				end,
+				atacar = function()
+					Modelos.atacar(m)
+				end,
+				aviso = function(texto)
+					evAviso:FireClient(player, "habilidade", texto)
+				end,
+			})
+		end
 		local final = m:GetScale()
 		local escala = Instance.new("NumberValue")
 		escala.Value = final * 0.15
@@ -568,6 +637,8 @@ local function aplicarFase(player)
 	if f.chefe then
 		evAviso:FireClient(player, "chefe", f.monstro)
 	end
+	st.vida = vidaMaxDe(st)
+	enviarVida(player)
 	enviarEstado(player)
 end
 
@@ -594,16 +665,33 @@ local function abrirBau(player, pos)
 		if not estado[player] then
 			return
 		end
-		st.ouro += Config.BauChefe.Ouro
+		local drops = Config.DropsChefe
+		st.ouro += drops.Ouro
 		local f = Config.Fases[st.fase]
 		local nivel = nivelDoDrop(f.nivel, st.nivel) + 2
-		local raridadeIdx = math.random() < Config.BauChefe.ChanceLendario and 5 or 4
-		guardarItem(player, criarItem(st, raridadeIdx, nivel), pos + Vector3.new(0, 3, 0), "bau")
-		if math.random() < Config.BauChefe.ChanceOlho then
-			local _, mitico = raridadePorId(Config.OlhoChefe.raridade)
-			guardarItem(player, criarItem(st, mitico, nivel, "olho"), pos + Vector3.new(0, 5, 0), "bau")
+		-- 1 equipamento garantido
+		local x, escolhida = math.random(), drops.Equipamento[1][1]
+		for _, par in ipairs(drops.Equipamento) do
+			x -= par[2]
+			if x <= 0 then
+				escolhida = par[1]
+				break
+			end
 		end
-		evAviso:FireClient(player, "bau", Config.BauChefe.Ouro)
+		local _, ri = raridadePorId(escolhida)
+		guardarItem(player, criarItem(st, ri, nivel), pos + Vector3.new(0, 3, 0), "bau")
+		-- especiais (Lâmina de Chakra Negro, Rinnegan...)
+		for k, esp in ipairs(drops.Especiais) do
+			if math.random() < esp.chance then
+				local _, rie = raridadePorId(esp.raridade)
+				local item = criarItem(st, rie, nivel, esp.slot, esp.nome, esp.valor)
+				guardarItem(player, item, pos + Vector3.new(0, 3 + k * 2, 0), "bau")
+				for _, outro in ipairs(Players:GetPlayers()) do
+					evAviso:FireClient(outro, "lendario", player.DisplayName, esp.nome)
+				end
+			end
+		end
+		evAviso:FireClient(player, "bau", drops.Ouro)
 		enviarEstado(player)
 	end)
 	task.delay(4, function()
@@ -691,11 +779,12 @@ local function piscar(m)
 end
 
 local function golpe(player, root)
-	local alvo, menor = nil, Config.Heroi.Alcance
+	local alvo, menor = nil, math.huge
 	for _, m in ipairs(monstrosDe(player)) do
 		if m.PrimaryPart then
 			local d = ((m.PrimaryPart.Position - root.Position) * Vector3.new(1, 0, 1)).Magnitude
-			if d <= menor then
+			local alcance = m:GetAttribute("Chefe") and Config.Heroi.AlcanceChefe or Config.Heroi.Alcance
+			if d <= alcance and d < menor then
 				alvo, menor = m, d
 			end
 		end
@@ -705,6 +794,9 @@ local function golpe(player, root)
 	end
 
 	local st = estado[player]
+	if st.morto then
+		return
+	end
 	local stats = calcularStats(st)
 	local h = Config.Heroi
 	local dano = stats.dano * (1 + (math.random() * 2 - 1) * h.Variacao)
@@ -740,6 +832,105 @@ local function loopCombate(player)
 			golpe(player, root)
 		end
 		task.wait(Config.Heroi.Intervalo)
+	end
+end
+
+------------------------------------------------------------------------
+-- Vida do herói e ataques dos inimigos
+------------------------------------------------------------------------
+vidaMaxDe = function(st)
+	return calcularStats(st).vidaMax
+end
+
+enviarVida = function(player)
+	local st = estado[player]
+	if st then
+		evVida:FireClient(player, math.max(0, math.floor(st.vida + 0.5)), vidaMaxDe(st))
+	end
+end
+
+-- O herói caiu: na fase normal recomeça a contagem; no chefe (ou se o tempo acabou) volta uma fase
+local function derrota(player, motivo)
+	local st = estado[player]
+	if not st or st.morto then
+		return
+	end
+	st.morto = true
+	local voltar = Config.Fases[st.fase].chefe == true
+	if RunService:IsStudio() then
+		print(string.format("[Derrota] %s caiu na fase %d (motivo: %s)", player.Name, st.fase, tostring(motivo)))
+	end
+	evAviso:FireClient(player, "derrota", motivo, voltar)
+	local char = player.Character
+	local hum = char and char:FindFirstChildOfClass("Humanoid")
+	if hum then
+		hum.WalkSpeed = 0
+	end
+	task.delay(2.5, function()
+		if not estado[player] then
+			return
+		end
+		if voltar and st.fase > 1 then
+			st.fase -= 1
+		end
+		st.kills = 0
+		st.morto = false
+		vestir(player) -- devolve a velocidade
+		aplicarFase(player) -- também cura a vida toda
+	end)
+end
+
+causarDano = function(player, dano, pos)
+	local st = estado[player]
+	if not st or st.morto then
+		return false
+	end
+	dano = math.max(1, math.floor(dano + 0.5))
+	st.vida -= dano
+	st.ultimoDano = os.clock()
+	evDano:FireClient(player, "heroi", pos, dano)
+	enviarVida(player)
+	if st.vida <= 0 then
+		derrota(player, "vida")
+	end
+	return true
+end
+
+local function loopInimigos(player)
+	while player.Parent and estado[player] do
+		local st = estado[player]
+		local char = player.Character
+		local raizHeroi = char and char:FindFirstChild("HumanoidRootPart")
+		local agora = os.clock()
+		if raizHeroi and not st.morto then
+			local alcance = Config.Inimigo.AtaqueAlcance
+			for _, m in ipairs(monstrosDe(player)) do
+				local raiz = m.PrimaryPart
+				if raiz then
+					local chefe = m:GetAttribute("Chefe") == true
+					local d = ((raiz.Position - raizHeroi.Position) * Vector3.new(1, 0, 1)).Magnitude
+					if d <= (chefe and alcance + 4 or alcance) and agora >= (m:GetAttribute("ProxAtaque") or 0) then
+						m:SetAttribute(
+							"ProxAtaque",
+							agora + Config.Inimigo.AtaqueIntervalo * (0.85 + math.random() * 0.3)
+						)
+						Modelos.atacar(m)
+						local dano = (m:GetAttribute("Dano") or 1) * (chefe and Config.Inimigo.DanoChefeGolpe or 1)
+						causarDano(player, dano * (0.85 + math.random() * 0.3), raizHeroi.Position)
+					end
+					if chefe and workspace:GetServerTimeNow() > (m:GetAttribute("Fim") or math.huge) then
+						derrota(player, "tempo")
+					end
+				end
+			end
+			-- regenera quando fica um tempo sem apanhar
+			local vm = vidaMaxDe(st)
+			if st.vida < vm and agora - (st.ultimoDano or 0) > 2 then
+				st.vida = math.min(vm, st.vida + vm * Config.Heroi.Regeneracao * 0.25)
+				enviarVida(player)
+			end
+		end
+		task.wait(0.25)
 	end
 end
 
@@ -808,7 +999,7 @@ end
 local function forjarItens(player, st, itens)
 	local rar, ri = raridadePorId(itens[1].raridade)
 	local proxima = Config.Raridades[ri + 1]
-	if not rar or rar.forjavel == false or not proxima or proxima.peso == 0 then
+	if not rar or rar.forjavel == false or not proxima then
 		return nil
 	end
 	local custo = Config.Forja.Custo[rar.id] or 0
@@ -821,7 +1012,7 @@ local function forjarItens(player, st, itens)
 		st.itens[it.id] = nil
 	end
 	st.ouro -= custo
-	local novo = criarItem(st, ri + 1, nivel)
+	local novo = criarItem(st, ri + 1, nivel, itens[1].slot) -- mesma categoria
 	guardarItem(player, novo, nil, "forja")
 	return novo
 end
@@ -847,7 +1038,7 @@ evForjar.OnServerEvent:Connect(function(player, ids)
 		if not item or vistos[id] or vestidos[id] then
 			return
 		end
-		if #itens > 0 and item.raridade ~= itens[1].raridade then
+		if #itens > 0 and (item.raridade ~= itens[1].raridade or item.slot ~= itens[1].slot) then
 			return
 		end
 		vistos[id] = true
@@ -858,43 +1049,100 @@ evForjar.OnServerEvent:Connect(function(player, ids)
 end)
 
 -- Forja automática: combina sozinha as raridades marcadas, das mais fracas para as mais fortes
-evForjarAuto.OnServerEvent:Connect(function(player, raridadesMarcadas)
+-- Combina sozinho tudo o que der, da raridade mais fraca até a escolhida em "ate".
+-- mesmoNivel = só junta itens do mesmo nível. Devolve quantas forjas fez.
+combinarAutomatico = function(player, st, ateId, mesmoNivel)
+	local cfg = st.configForja
+	local _, ateIdx = raridadePorId(ateId or cfg.ate)
+	if mesmoNivel == nil then
+		mesmoNivel = cfg.mesmoNivel
+	end
+	if not ateIdx then
+		return 0
+	end
+	st.forjando = true
+	local feitas = 0
+	for ri = 1, ateIdx do
+		local rar = Config.Raridades[ri]
+		while rar.forjavel ~= false and feitas < 50 do
+			local vestidos = itensLivres(st)
+			local grupos = {}
+			for _, item in pairs(st.itens) do
+				if item.raridade == rar.id and not vestidos[item.id] then
+					local chave = item.slot .. "#" .. (mesmoNivel and (item.nivel or 1) or 0)
+					grupos[chave] = grupos[chave] or {}
+					table.insert(grupos[chave], item)
+				end
+			end
+			local usar
+			for _, g in pairs(grupos) do
+				if #g >= Config.Forja.Quantidade then
+					table.sort(g, function(a, b)
+						return a.valor < b.valor
+					end)
+					usar = { table.unpack(g, 1, Config.Forja.Quantidade) }
+					break
+				end
+			end
+			if not usar or not forjarItens(player, st, usar) then
+				break
+			end
+			feitas += 1
+		end
+	end
+	st.forjando = false
+	return feitas
+end
+
+-- Botão "combinar tudo agora" (usa as escolhas da tela)
+evForjarAuto.OnServerEvent:Connect(function(player, ateId, mesmoNivel)
 	local st = estado[player]
-	if not st or type(raridadesMarcadas) ~= "table" or not podeUsarForja(player) then
+	if not st or type(ateId) ~= "string" or not raridadePorId(ateId) or not podeUsarForja(player) then
 		return
 	end
-	local marcadas = {}
-	for _, id in ipairs(raridadesMarcadas) do
-		if type(id) == "string" and raridadePorId(id) then
-			marcadas[id] = true
-		end
-	end
-	local feitas = 0
-	for _, rar in ipairs(Config.Raridades) do
-		if marcadas[rar.id] then
-			while feitas < 50 do
-				local vestidos = itensLivres(st)
-				local grupo = {}
-				for _, item in pairs(st.itens) do
-					if item.raridade == rar.id and not vestidos[item.id] then
-						table.insert(grupo, item)
-					end
-				end
-				if #grupo < Config.Forja.Quantidade then
-					break
-				end
-				table.sort(grupo, function(a, b)
-					return a.valor < b.valor
-				end)
-				local usar = { table.unpack(grupo, 1, Config.Forja.Quantidade) }
-				if not forjarItens(player, st, usar) then
-					break
-				end
-				feitas += 1
-			end
-		end
-	end
+	local feitas = combinarAutomatico(player, st, ateId, mesmoNivel == true)
 	evAviso:FireClient(player, "forjaAuto", feitas)
+	enviarEstado(player)
+end)
+
+-- Configurações da forja (engrenagem): combinação automática ao farmar
+evConfigForja.OnServerEvent:Connect(function(player, cfg)
+	local st = estado[player]
+	if not st or type(cfg) ~= "table" then
+		return
+	end
+	if type(cfg.ate) == "string" and raridadePorId(cfg.ate) then
+		st.configForja.ate = cfg.ate
+	end
+	st.configForja.auto = cfg.auto == true
+	st.configForja.mesmoNivel = cfg.mesmoNivel == true
+	if st.configForja.auto then
+		combinarAutomatico(player, st)
+	end
+	enviarEstado(player)
+end)
+
+-- Alquimia: transforma de 1 a 9 itens em ouro
+evAlquimia.OnServerEvent:Connect(function(player, ids)
+	local st = estado[player]
+	if not st or type(ids) ~= "table" or #ids < 1 or #ids > 9 or not podeUsarForja(player) then
+		return
+	end
+	local vestidos = itensLivres(st)
+	local vistos, total = {}, 0
+	for _, id in ipairs(ids) do
+		local item = type(id) == "number" and st.itens[id]
+		if not item or vistos[id] or vestidos[id] then
+			return
+		end
+		vistos[id] = true
+		total += math.floor((Config.ValorVenda[item.raridade] or 1) * (1 + 0.05 * ((item.nivel or 1) - 1)) + 0.5)
+	end
+	for id in pairs(vistos) do
+		st.itens[id] = nil
+	end
+	st.ouro += total
+	evAviso:FireClient(player, "alquimia", total)
 	enviarEstado(player)
 end)
 
@@ -916,6 +1164,57 @@ end)
 ------------------------------------------------------------------------
 -- Jogadores
 ------------------------------------------------------------------------
+------------------------------------------------------------------------
+-- Ferramenta de teste: só existe no Studio (nunca no jogo publicado)
+------------------------------------------------------------------------
+if RunService:IsStudio() then
+	local debug = Instance.new("BindableFunction")
+	debug.Name = "DebugTeste"
+	debug.Parent = script
+	debug.OnInvoke = function(acao, a, b)
+		local player = Players:GetPlayers()[1]
+		local st = player and estado[player]
+		if not st then
+			return "sem jogador"
+		end
+		if acao == "itens" then
+			-- a = quantidade, b = índice da raridade (ou nil para sortear)
+			for _ = 1, a or 10 do
+				local f = Config.Fases[st.fase]
+				local item = criarItem(st, b or sortearRaridade(), nivelDoDrop(f.nivel, st.nivel))
+				st.itens[item.id] = item
+			end
+		elseif acao == "vestirMelhor" then
+			for _, s in ipairs(Config.Slots) do
+				local melhor
+				for _, it in pairs(st.itens) do
+					if it.slot == s.id and (not melhor or it.valor > melhor.valor) then
+						melhor = it
+					end
+				end
+				if melhor then
+					st.equipado[s.id] = melhor.id
+				end
+			end
+			vestir(player)
+		elseif acao == "ouro" then
+			st.ouro += a or 1000
+		elseif acao == "nivel" then
+			st.nivel = a or 10
+		elseif acao == "fase" then
+			st.fase = a or 1
+			st.kills = 0
+			aplicarFase(player)
+		end
+		enviarEstado(player)
+		local n = 0
+		for _ in pairs(st.itens) do
+			n += 1
+		end
+		return string.format("ok: nivel=%d ouro=%d itens=%d fase=%d", st.nivel, st.ouro, n, st.fase)
+	end
+end
+
 Players.PlayerAdded:Connect(function(player)
 	estado[player] = {
 		nivel = 1,
@@ -929,6 +1228,8 @@ Players.PlayerAdded:Connect(function(player)
 		equipado = {},
 		proximoId = 0,
 		autoFarm = true,
+		vida = Config.Heroi.Vida,
+		configForja = { auto = false, ate = "incomum", mesmoNivel = false },
 	}
 	player.CharacterAdded:Connect(function(char)
 		char:WaitForChild("HumanoidRootPart")
@@ -942,6 +1243,7 @@ Players.PlayerAdded:Connect(function(player)
 	vestir(player)
 	aplicarFase(player)
 	task.spawn(loopCombate, player)
+	task.spawn(loopInimigos, player)
 end)
 
 Players.PlayerRemoving:Connect(function(player)

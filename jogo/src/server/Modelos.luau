@@ -470,7 +470,7 @@ local AJUSTES = {
 	recrutaKatsuki = { escala = 1.05, cor = Color3.fromRGB(220, 60, 70) },
 	itachu = { escala = 1.1, cor = Color3.fromRGB(230, 50, 60) },
 	caminhoPen = { escala = 1.15, cor = Color3.fromRGB(240, 140, 60) },
-	pen = { escala = 2.4, giro = 90, cor = Color3.fromRGB(190, 90, 255), aura = Color3.fromRGB(180, 90, 255) },
+	pen = { escala = 2, cor = Color3.fromRGB(190, 90, 255), aura = Color3.fromRGB(180, 90, 255) },
 }
 
 local function aura(raiz, cor)
@@ -544,11 +544,53 @@ local function deArte(nomeModelo, cf)
 	return m, raiz, tam.Y, hum
 end
 
+-- Animação de golpe (animações padrão do Roblox de atacar com arma)
+local ANIM_ATAQUE = {
+	[Enum.HumanoidRigType.R6] = "rbxassetid://129967390",
+	[Enum.HumanoidRigType.R15] = "rbxassetid://522635514",
+}
+local faixasAtaque = setmetatable({}, { __mode = "k" })
+
+function Modelos.atacar(m)
+	local hum = m:FindFirstChildWhichIsA("Humanoid", true)
+	local animador = hum and hum:FindFirstChildOfClass("Animator")
+	if not animador then
+		return
+	end
+	local faixa = faixasAtaque[m]
+	if not faixa then
+		local anim = Instance.new("Animation")
+		anim.AnimationId = ANIM_ATAQUE[hum.RigType] or ANIM_ATAQUE[Enum.HumanoidRigType.R6]
+		local ok, f = pcall(function()
+			return animador:LoadAnimation(anim)
+		end)
+		if not ok or not f then
+			return
+		end
+		faixa = f
+		faixa.Priority = Enum.AnimationPriority.Action
+		faixasAtaque[m] = faixa
+	end
+	faixa:Play(0.05, 1, 1.3)
+end
+
 -- Toca a animação de "respirar" depois que o modelo já está no mundo
 function Modelos.animar(m)
 	local hum = m:FindFirstChildWhichIsA("Humanoid", true)
 	if not hum then
 		return
+	end
+	-- Acessórios (cabelo, máscara...) sem solda caem quando o boneco se mexe: prende cada peça solta.
+	-- Precisa rodar com o modelo já no mundo (antes disso o Roblox não informa as ligações).
+	local raiz = m.PrimaryPart
+	local cabeca = m:FindFirstChild("Head")
+	for _, d in ipairs(m:GetDescendants()) do
+		if d:IsA("BasePart") and d ~= raiz and not d.Anchored and #d:GetJoints() == 0 then
+			local w = Instance.new("WeldConstraint")
+			w.Part0 = (d.Parent and d.Parent:IsA("Accessory") and cabeca) or raiz
+			w.Part1 = d
+			w.Parent = d
+		end
 	end
 	local animador = hum:FindFirstChildOfClass("Animator") or Instance.new("Animator")
 	animador.Parent = hum
