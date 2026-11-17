@@ -21,6 +21,7 @@ local evVida = R("Vida")
 local evRepetir, evTreinar = R("Repetir"), R("Treinar")
 local evAutoVenda = R("AutoVenda")
 local evAvatar, evEsconderEquip = R("Avatar"), R("EsconderEquip")
+local evJoia = R("Joia")
 
 local player = Players.LocalPlayer
 pcall(function()
@@ -122,6 +123,16 @@ local function botao(pai, props)
 		Rotation = 90,
 		Color = ColorSequence.new(Color3.new(1, 1, 1), Color3.fromRGB(150, 140, 130)),
 	})
+	-- reflexo claro na metade de cima (botão com cara de bala)
+	local reflexo = novo("Frame", b, {
+		Name = "Reflexo",
+		Position = UDim2.fromOffset(3, 2),
+		Size = UDim2.new(1, -6, 0.42, 0),
+		BackgroundColor3 = Color3.new(1, 1, 1),
+		BackgroundTransparency = 0.84,
+		BorderSizePixel = 0,
+	})
+	canto(reflexo, 6)
 	return b
 end
 local function barra(pai, props, cor)
@@ -141,6 +152,15 @@ local function barra(pai, props, cor)
 		Rotation = 90,
 		Color = ColorSequence.new(Color3.new(1, 1, 1), Color3.fromRGB(160, 160, 160)),
 	})
+	-- faixa clara em cima (barra com cara de vidro)
+	local topoBrilho = novo("Frame", cheio, {
+		Position = UDim2.fromOffset(2, 1),
+		Size = UDim2.new(1, -4, 0.38, 0),
+		BackgroundColor3 = Color3.new(1, 1, 1),
+		BackgroundTransparency = 0.7,
+		BorderSizePixel = 0,
+	})
+	canto(topoBrilho, 6)
 	local txt = rotulo(fundo, { Size = UDim2.fromScale(1, 1), Text = "", TextSize = 12, ZIndex = 3 })
 	return fundo, cheio, txt
 end
@@ -155,6 +175,44 @@ local function bolinha(pai)
 	canto(b, 7)
 	contorno(b, Color3.new(1, 1, 1), 1.5)
 	return b
+end
+
+-- Quinas douradas (losangos) nos cantos de um painel, para a moldura ficar mais rica
+local function quinas(f, cor, tam)
+	tam = tam or 12
+	for _, p in ipairs({ { 0, 0 }, { 1, 0 }, { 0, 1 }, { 1, 1 } }) do
+		local q = novo("Frame", f, {
+			Name = "Quina",
+			AnchorPoint = Vector2.new(0.5, 0.5),
+			Position = UDim2.new(p[1], p[1] == 0 and 3 or -3, p[2], p[2] == 0 and 3 or -3),
+			Size = UDim2.fromOffset(tam, tam),
+			BackgroundColor3 = cor or COR.ouro,
+			Rotation = 45,
+			ZIndex = 8,
+		})
+		contorno(q, Color3.fromRGB(90, 50, 20), 1.5)
+		novo("UIGradient", q, {
+			Rotation = 90,
+			Color = ColorSequence.new(Color3.fromRGB(255, 250, 220), Color3.fromRGB(200, 140, 40)),
+		})
+		local miolo = novo("Frame", q, {
+			AnchorPoint = Vector2.new(0.5, 0.5),
+			Position = UDim2.fromScale(0.5, 0.5),
+			Size = UDim2.fromScale(0.4, 0.4),
+			BackgroundColor3 = COR.faixa,
+			ZIndex = 9,
+		})
+		canto(miolo, 2)
+	end
+end
+-- Borda que brilha e pulsa devagar (cartões e painéis importantes)
+local function bordaViva(traco, cor1, cor2, tempo)
+	traco.Color = cor1
+	TweenService:Create(
+		traco,
+		TweenInfo.new(tempo or 1.2, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
+		{ Color = cor2 }
+	):Play()
 end
 
 local function raridade(id)
@@ -183,6 +241,20 @@ local function textoValor(atributo, v)
 		return string.format("+%.0f%% de dano", v * 100)
 	elseif atributo == "vida" then
 		return string.format("+%d de vida", v)
+	elseif atributo == "danoPct" then
+		return string.format("+%.1f%% de dano", v * 100)
+	elseif atributo == "vidaPct" then
+		return string.format("+%.1f%% de vida", v * 100)
+	elseif atributo == "critDano" then
+		return string.format("+%.0f%% de dano crítico", v * 100)
+	elseif atributo == "velAtaque" then
+		return string.format("+%.1f%% vel. de ataque", v * 100)
+	elseif atributo == "resistencia" then
+		return string.format("+%.1f%% de resistência", v * 100)
+	elseif atributo == "armadura" then
+		return string.format("+%d de armadura", v)
+	elseif atributo == "armaduraPct" then
+		return string.format("+%.0f%% de armadura", v * 100)
 	else
 		return string.format("+%d de dano", v)
 	end
@@ -211,7 +283,12 @@ cartaoItem = function(pai, item, props)
 		Rotation = 90,
 		Color = ColorSequence.new(r.cor:Lerp(Color3.new(1, 1, 1), 0.15), r.cor:Lerp(Color3.new(0, 0, 0), 0.65)),
 	})
-	contorno(b, r.corBorda or r.cor:Lerp(Color3.new(1, 1, 1), 0.3), ri >= 4 and 2.5 or 1.5)
+	local tracoCartao = contorno(b, r.corBorda or r.cor:Lerp(Color3.new(1, 1, 1), 0.3), ri >= 4 and 2.5 or 1.5)
+	if ri >= 5 then
+		local base = r.corBorda or r.cor:Lerp(Color3.new(1, 1, 1), 0.3)
+		tracoCartao.Thickness = ri >= 7 and 3.5 or 3
+		bordaViva(tracoCartao, base, Color3.new(1, 1, 1), ri >= 7 and 0.6 or 0.9)
+	end
 	local luz = novo("Frame", b, {
 		AnchorPoint = Vector2.new(0.5, 0.5),
 		Position = UDim2.fromScale(0.5, 0.5),
@@ -263,8 +340,8 @@ cartaoItem = function(pai, item, props)
 		})
 		contorno(selo, Color3.new(1, 1, 1), 1)
 	end
-	-- brilho passando pelo cartão nos tiers Mítico ou acima
-	if ri >= 6 then
+	-- brilho passando pelo cartão do Épico para cima (mais rápido nos tiers altos)
+	if ri >= 4 then
 		local sheen = novo("Frame", b, {
 			Size = UDim2.fromScale(1, 1),
 			BackgroundColor3 = Color3.new(1, 1, 1),
@@ -285,7 +362,14 @@ cartaoItem = function(pai, item, props)
 		})
 		TweenService:Create(
 			g,
-			TweenInfo.new(ri >= 8 and 1.1 or 1.6, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, false, 0.6),
+			TweenInfo.new(
+				ri >= 8 and 1.1 or ri >= 6 and 1.6 or 2.2,
+				Enum.EasingStyle.Sine,
+				Enum.EasingDirection.InOut,
+				-1,
+				false,
+				ri >= 6 and 0.6 or 1.6
+			),
 			{ Offset = Vector2.new(1, 0) }
 		):Play()
 	end
@@ -340,6 +424,137 @@ local guiJanelas = novo(
 	{ Name = "Janelas", ResetOnSpawn = false, IgnoreGuiInset = true, DisplayOrder = 5 }
 )
 
+------------------------------------------------------------------------
+-- "Suco" dos botões: todo botão da HUD cresce ao passar o mouse, afunda ao
+-- apertar e dá um pop com brilho, estrelinhas e som ao clicar
+------------------------------------------------------------------------
+local guiSuco = novo(
+	"ScreenGui",
+	player.PlayerGui,
+	{ Name = "SucoHud", ResetOnSpawn = false, IgnoreGuiInset = true, DisplayOrder = 20 }
+)
+local somClique = novo("Sound", guiSuco, { SoundId = "rbxasset://sounds/volume_slider.ogg", Volume = 0.6 })
+local SoundService = game:GetService("SoundService")
+local Debris = game:GetService("Debris")
+local function tocarClique(tom)
+	somClique.PlaybackSpeed = tom
+	SoundService:PlayLocalSound(somClique)
+end
+
+-- estrelinhas e um anel que se abrem do centro do botão
+local function estourar(b, cor)
+	local centro = b.AbsolutePosition + b.AbsoluteSize / 2
+	local tamanho = math.min(b.AbsoluteSize.X, b.AbsoluteSize.Y)
+	local anel = novo("Frame", guiSuco, {
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.fromOffset(centro.X, centro.Y),
+		Size = UDim2.fromOffset(tamanho * 0.6, tamanho * 0.6),
+		BackgroundTransparency = 1,
+	})
+	canto(anel, 999)
+	local traco = novo("UIStroke", anel, { Color = cor, Thickness = 4, Transparency = 0.1 })
+	TweenService:Create(anel, TweenInfo.new(0.35, Enum.EasingStyle.Quad), {
+		Size = UDim2.fromOffset(tamanho * 1.6 + 20, tamanho * 1.6 + 20),
+	}):Play()
+	TweenService:Create(traco, TweenInfo.new(0.35), { Transparency = 1, Thickness = 1 }):Play()
+	Debris:AddItem(anel, 0.4)
+	for i = 1, 7 do
+		local ang = (i / 7) * math.pi * 2 + math.random() * 0.6
+		local dist = tamanho * 0.5 + 18 + math.random(0, 16)
+		local estrela = rotulo(guiSuco, {
+			AnchorPoint = Vector2.new(0.5, 0.5),
+			Position = UDim2.fromOffset(centro.X, centro.Y),
+			Size = UDim2.fromOffset(18, 18),
+			Text = i % 2 == 0 and "✦" or "★",
+			TextSize = math.random(12, 18),
+			TextColor3 = cor:Lerp(Color3.new(1, 1, 1), 0.35),
+			Rotation = math.random(0, 360),
+		})
+		TweenService:Create(estrela, TweenInfo.new(0.45, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+			Position = UDim2.fromOffset(centro.X + math.cos(ang) * dist, centro.Y + math.sin(ang) * dist),
+			TextTransparency = 1,
+			TextStrokeTransparency = 1,
+			Rotation = estrela.Rotation + 180,
+		}):Play()
+		Debris:AddItem(estrela, 0.5)
+	end
+end
+
+local function corDoBotao(b)
+	local traco = b:FindFirstChildOfClass("UIStroke")
+	if traco then
+		return traco.Color
+	end
+	return COR.dourado
+end
+
+local function suco(b)
+	if b:GetAttribute("SemSuco") or b:FindFirstChild("SucoEscala") then
+		return
+	end
+	local esc = novo("UIScale", b, { Name = "SucoEscala" })
+	local dentro = false
+	local function ir(alvo, tempo, estilo)
+		TweenService:Create(esc, TweenInfo.new(tempo, estilo or Enum.EasingStyle.Quad), { Scale = alvo }):Play()
+	end
+	-- botões grandes (painéis) mexem menos
+	local function forca()
+		local lado = math.max(b.AbsoluteSize.X, b.AbsoluteSize.Y)
+		if lado > 500 then
+			return 0
+		end
+		return lado > 200 and 0.4 or 1
+	end
+	b.MouseEnter:Connect(function()
+		dentro = true
+		ir(1 + 0.07 * forca(), 0.12)
+	end)
+	b.MouseLeave:Connect(function()
+		dentro = false
+		ir(1, 0.15)
+	end)
+	b.MouseButton1Down:Connect(function()
+		ir(1 - 0.1 * forca(), 0.06)
+	end)
+	b.Activated:Connect(function()
+		local f = forca()
+		if f == 0 then
+			return
+		end
+		esc.Scale = 1 - 0.1 * f
+		TweenService:Create(esc, TweenInfo.new(0.32, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+			Scale = dentro and 1 + 0.07 * f or 1,
+		}):Play()
+		-- clarão branco por cima do botão
+		local flash = novo("Frame", b, {
+			Size = UDim2.fromScale(1, 1),
+			BackgroundColor3 = Color3.new(1, 1, 1),
+			BackgroundTransparency = 0.35,
+			ZIndex = b.ZIndex + 8,
+		})
+		local cantoB = b:FindFirstChildOfClass("UICorner")
+		canto(flash, cantoB and cantoB.CornerRadius.Offset or 8)
+		TweenService:Create(flash, TweenInfo.new(0.3), { BackgroundTransparency = 1 }):Play()
+		Debris:AddItem(flash, 0.35)
+		estourar(b, corDoBotao(b))
+		tocarClique(1.15 + math.random() * 0.25)
+	end)
+end
+local function ligarSuco(raiz)
+	for _, d in ipairs(raiz:GetDescendants()) do
+		if d:IsA("GuiButton") then
+			suco(d)
+		end
+	end
+	raiz.DescendantAdded:Connect(function(d)
+		if d:IsA("GuiButton") then
+			task.defer(suco, d)
+		end
+	end)
+end
+ligarSuco(gui)
+ligarSuco(guiJanelas)
+
 local estado = nil
 local autoFarm = true
 player:SetAttribute("AutoFarm", true)
@@ -350,7 +565,8 @@ player:SetAttribute("AutoFarm", true)
 local cartao = caixa(gui, { Position = UDim2.fromOffset(14, 62), Size = UDim2.new(0.42, 0, 0, 84) })
 novo("UISizeConstraint", cartao, { MaxSize = Vector2.new(290, 84) })
 canto(cartao, 14)
-contorno(cartao, COR.dourado, 2.5)
+bordaViva(contorno(cartao, COR.dourado, 2.5), COR.dourado, Color3.fromRGB(255, 240, 170), 1.6)
+quinas(cartao)
 
 -- Retrato do herói (foto do avatar do Roblox) com o nível num selo dourado
 local retratoHeroi = novo("ImageLabel", cartao, {
@@ -418,7 +634,7 @@ novo("UITextSizeConstraint", lblPoder, { MaxTextSize = 11, MinTextSize = 8 })
 
 local caixaOuro = caixa(gui, { Position = UDim2.fromOffset(14, 154), Size = UDim2.fromOffset(150, 38) })
 canto(caixaOuro, 19)
-contorno(caixaOuro, Color3.fromRGB(150, 115, 30), 2)
+bordaViva(contorno(caixaOuro, Color3.fromRGB(150, 115, 30), 2), Color3.fromRGB(170, 125, 30), COR.ouro, 1.4)
 local moeda = novo("Frame", caixaOuro, {
 	AnchorPoint = Vector2.new(0.5, 0.5),
 	Position = UDim2.fromOffset(20, 19),
@@ -443,6 +659,40 @@ local lblOuro = rotulo(caixaOuro, {
 	TextColor3 = COR.ouro,
 	TextXAlignment = Enum.TextXAlignment.Left,
 })
+-- O ouro sobe contando (e mostra "+N" subindo quando ganha)
+local ouroMostrado = novo("NumberValue", caixaOuro, { Value = 0 })
+ouroMostrado.Changed:Connect(function(v)
+	lblOuro.Text = tostring(math.floor(v + 0.5))
+end)
+local ultimoOuro = nil
+local function contarOuro(valor)
+	if ultimoOuro == valor then
+		return
+	end
+	local ganho = ultimoOuro and valor - ultimoOuro or 0
+	ultimoOuro = valor
+	TweenService:Create(ouroMostrado, TweenInfo.new(ganho > 0 and 0.5 or 0, Enum.EasingStyle.Quad), { Value = valor })
+		:Play()
+	if ganho > 0 then
+		local mais = rotulo(caixaOuro, {
+			AnchorPoint = Vector2.new(0, 0.5),
+			Position = UDim2.new(1, 6, 0.5, 0),
+			Size = UDim2.fromOffset(80, 20),
+			Text = "+" .. ganho,
+			TextSize = 17,
+			TextColor3 = COR.ouro,
+			TextXAlignment = Enum.TextXAlignment.Left,
+		})
+		TweenService:Create(mais, TweenInfo.new(0.8, Enum.EasingStyle.Quad), {
+			Position = UDim2.new(1, 6, 0.5, -22),
+			TextTransparency = 1,
+			TextStrokeTransparency = 1,
+		}):Play()
+		game:GetService("Debris"):AddItem(mais, 0.85)
+		lblOuro.TextSize = 22
+		TweenService:Create(lblOuro, TweenInfo.new(0.25, Enum.EasingStyle.Back), { TextSize = 18 }):Play()
+	end
+end
 
 ------------------------------------------------------------------------
 -- Portal (canto direito de cima): fase atual + botão que abre os mundos
@@ -461,7 +711,8 @@ local painelFase = novo("TextButton", gui, {
 })
 novo("UISizeConstraint", painelFase, { MaxSize = Vector2.new(300, 70) })
 canto(painelFase, 14)
-contorno(painelFase, COR.dourado, 2.5)
+bordaViva(contorno(painelFase, COR.dourado, 2.5), COR.dourado, Color3.fromRGB(200, 170, 255), 1.8)
+quinas(painelFase)
 
 -- Ícone do portal: um redemoinho que gira
 local portal = novo(
@@ -616,10 +867,47 @@ local btnAuto = botao(gui, {
 	Font = FONTE,
 })
 canto(btnAuto, 14)
-contorno(btnAuto, Color3.new(1, 1, 1), 2).Transparency = 0.6
+btnAuto.TextSize = 18
+local tracoAuto = btnAuto:FindFirstChildOfClass("UIStroke")
+tracoAuto.Thickness = 3
+tracoAuto.Transparency = 0
+-- brilho que gira em volta da borda quando está ligado
+local giroAuto = novo("UIGradient", tracoAuto, {
+	Color = ColorSequence.new({
+		ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 255, 255)),
+		ColorSequenceKeypoint.new(0.25, Color3.fromRGB(120, 255, 140)),
+		ColorSequenceKeypoint.new(0.5, Color3.fromRGB(255, 240, 120)),
+		ColorSequenceKeypoint.new(0.75, Color3.fromRGB(120, 255, 140)),
+		ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 255, 255)),
+	}),
+})
+-- halo verde atrás do botão
+local haloAuto = novo("Frame", btnAuto, {
+	Name = "Halo",
+	AnchorPoint = Vector2.new(0.5, 0.5),
+	Position = UDim2.fromScale(0.5, 0.5),
+	Size = UDim2.new(1, 16, 1, 16),
+	BackgroundColor3 = Color3.fromRGB(110, 255, 120),
+	BackgroundTransparency = 0.75,
+	ZIndex = 0,
+})
+canto(haloAuto, 20)
+local tAuto = os.clock()
+RunService.RenderStepped:Connect(function()
+	local t = os.clock() - tAuto
+	giroAuto.Rotation = (t * 160) % 360
+	if autoFarm then
+		local pulso = 0.5 + 0.5 * math.sin(t * 4)
+		haloAuto.BackgroundTransparency = 0.6 + 0.3 * pulso
+		haloAuto.Size = UDim2.new(1, 10 + 10 * pulso, 1, 10 + 10 * pulso)
+	end
+end)
 local function pintarAuto()
-	btnAuto.Text = autoFarm and "AUTO-FARM: LIGADO" or "AUTO-FARM: DESLIGADO"
-	btnAuto.BackgroundColor3 = autoFarm and COR.verde or COR.cinza
+	btnAuto.Text = autoFarm and "⚡ AUTO-FARM: LIGADO" or "AUTO-FARM: DESLIGADO"
+	btnAuto.BackgroundColor3 = autoFarm and Color3.fromRGB(60, 190, 70) or COR.cinza
+	giroAuto.Enabled = autoFarm
+	haloAuto.Visible = autoFarm
+	tracoAuto.Color = autoFarm and Color3.new(1, 1, 1) or COR.dourado
 end
 pintarAuto()
 btnAuto.Activated:Connect(function()
@@ -651,7 +939,16 @@ local function criarJanela(titulo)
 	})
 	novo("UISizeConstraint", j, { MaxSize = Vector2.new(760, 480) })
 	canto(j, 14)
-	contorno(j, COR.dourado, 3)
+	bordaViva(contorno(j, COR.dourado, 3), COR.dourado, Color3.fromRGB(255, 236, 160), 2)
+	quinas(j, nil, 18)
+	-- filete dourado por dentro da moldura
+	local filete = novo("Frame", j, {
+		Position = UDim2.fromOffset(5, 5),
+		Size = UDim2.new(1, -10, 1, -10),
+		BackgroundTransparency = 1,
+	})
+	canto(filete, 11)
+	contorno(filete, COR.dourado, 1).Transparency = 0.6
 	local topo = novo("Frame", j, { Size = UDim2.new(1, 0, 0, 46), BackgroundColor3 = COR.faixa, BorderSizePixel = 0 })
 	canto(topo, 14)
 	novo("UIGradient", topo, {
@@ -712,8 +1009,10 @@ local function abrirJanela(j)
 	fundoEscuro.Visible = true
 	j.Visible = true
 	local esc = j:FindFirstChildOfClass("UIScale") or novo("UIScale", j)
-	esc.Scale = 0.9
-	TweenService:Create(esc, TweenInfo.new(0.18, Enum.EasingStyle.Back), { Scale = 1 }):Play()
+	esc.Scale = 0.75
+	TweenService:Create(esc, TweenInfo.new(0.32, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1 }):Play()
+	fundoEscuro.BackgroundTransparency = 1
+	TweenService:Create(fundoEscuro, TweenInfo.new(0.2), { BackgroundTransparency = 0.45 }):Play()
 end
 fundoEscuro.Activated:Connect(fecharJanelas)
 
@@ -763,11 +1062,39 @@ local desenhar -- definida mais abaixo
 local function mostrarAba(id)
 	abaAtual = id
 	for k, p in pairs(paginas) do
+		if k == id and not p.Visible then
+			p.Position = UDim2.fromOffset(0, 18)
+			TweenService:Create(p, TweenInfo.new(0.22, Enum.EasingStyle.Quad), { Position = UDim2.fromOffset(0, 0) })
+				:Play()
+		end
 		p.Visible = (k == id)
 	end
 	for k, b in pairs(botoesAba) do
-		b.BackgroundColor3 = (k == id) and COR.roxo or COR.painel
+		local ativa = k == id
+		b.BackgroundColor3 = ativa and COR.roxo or COR.painel
+		b.TextColor3 = ativa and Color3.fromRGB(255, 255, 235) or COR.fraco
+		local traco = b:FindFirstChildOfClass("UIStroke")
+		if traco then
+			traco.Color = ativa and Color3.fromRGB(255, 236, 150) or COR.dourado
+			traco.Thickness = ativa and 2.5 or 1.5
+			traco.Transparency = ativa and 0 or 0.45
+		end
+		local seta = b:FindFirstChild("SetaAtiva")
+		if ativa and not seta then
+			seta = novo("Frame", b, {
+				Name = "SetaAtiva",
+				AnchorPoint = Vector2.new(0.5, 0.5),
+				Position = UDim2.new(0.5, 0, 1, 3),
+				Size = UDim2.fromOffset(10, 10),
+				Rotation = 45,
+				BackgroundColor3 = Color3.fromRGB(255, 236, 150),
+				ZIndex = 4,
+			})
+		elseif not ativa and seta then
+			seta:Destroy()
+		end
 	end
+
 	if id == "mochila" then
 		bolinhas.mochila.Visible = false
 	end
@@ -801,12 +1128,18 @@ rotulo(colEquip, {
 	TextSize = 14,
 	Font = FONTE,
 })
+local LINHAS_SLOTS = math.ceil(#Config.Slots / 3)
+local ALTURA_SLOTS = LINHAS_SLOTS * 58
 local listaSlots = novo(
 	"Frame",
 	colEquip,
-	{ Position = UDim2.fromOffset(8, 30), Size = UDim2.new(1, -16, 0, #Config.Slots * 52), BackgroundTransparency = 1 }
+	{ Position = UDim2.fromOffset(8, 30), Size = UDim2.new(1, -16, 0, ALTURA_SLOTS), BackgroundTransparency = 1 }
 )
-novo("UIListLayout", listaSlots, { Padding = UDim.new(0, 4), SortOrder = Enum.SortOrder.LayoutOrder })
+novo("UIGridLayout", listaSlots, {
+	CellSize = UDim2.new(1 / 3, -4, 0, 54),
+	CellPadding = UDim2.fromOffset(4, 4),
+	SortOrder = Enum.SortOrder.LayoutOrder,
+})
 
 local slotUI = {}
 for i, s in ipairs(Config.Slots) do
@@ -820,37 +1153,49 @@ for i, s in ipairs(Config.Slots) do
 	})
 	canto(linha, 10)
 	local ic = novo("Frame", linha, {
-		Position = UDim2.fromOffset(4, 4),
-		Size = UDim2.fromOffset(40, 40),
+		Position = UDim2.fromOffset(3, 3),
+		Size = UDim2.new(1, -6, 1, -18),
 		BackgroundColor3 = Color3.fromRGB(50, 46, 70),
 	})
 	canto(ic, 8)
 	local icStroke = contorno(ic, COR.cinza, 2)
 	local icEmoji = rotulo(ic, { Size = UDim2.fromScale(1, 1), Text = s.icone, TextSize = 22 })
 	local nome = rotulo(linha, {
-		Position = UDim2.fromOffset(52, 5),
-		Size = UDim2.new(1, -56, 0, 18),
-		TextSize = 12,
-		TextXAlignment = Enum.TextXAlignment.Left,
+		Position = UDim2.new(0, 2, 1, -15),
+		Size = UDim2.new(1, -4, 0, 14),
+		TextSize = 10,
 		TextTruncate = Enum.TextTruncate.AtEnd,
-		Text = s.nome .. ": vazio",
+		Text = s.nome,
 		TextColor3 = COR.fraco,
 	})
-	local stat = rotulo(linha, {
-		Position = UDim2.fromOffset(52, 24),
-		Size = UDim2.new(1, -56, 0, 16),
-		TextSize = 11,
-		Font = FONTE_TEXTO,
-		TextXAlignment = Enum.TextXAlignment.Left,
-		Text = "",
-		TextColor3 = COR.fraco,
+	local stat = rotulo(linha, { Size = UDim2.fromScale(0, 0), Visible = false, Text = "" })
+	-- bolinhas das joias encaixadas (canto de cima)
+	local bolinhasJoia = novo("Frame", linha, {
+		AnchorPoint = Vector2.new(1, 0),
+		Position = UDim2.new(1, -5, 0, 5),
+		Size = UDim2.fromOffset(40, 7),
+		BackgroundTransparency = 1,
+		ZIndex = 4,
 	})
-	slotUI[s.id] = { linha = linha, stroke = icStroke, nome = nome, stat = stat, ic = ic, emoji = icEmoji }
+	novo("UIListLayout", bolinhasJoia, {
+		FillDirection = Enum.FillDirection.Horizontal,
+		HorizontalAlignment = Enum.HorizontalAlignment.Right,
+		Padding = UDim.new(0, 2),
+	})
+	slotUI[s.id] = {
+		linha = linha,
+		stroke = icStroke,
+		nome = nome,
+		stat = stat,
+		ic = ic,
+		emoji = icEmoji,
+		bolinhas = bolinhasJoia,
+	}
 end
 
 local lblStats = rotulo(colEquip, {
-	Position = UDim2.fromOffset(10, 30 + #Config.Slots * 52 + 6),
-	Size = UDim2.new(1, -20, 1, -(30 + #Config.Slots * 52 + 12)),
+	Position = UDim2.fromOffset(10, 30 + ALTURA_SLOTS + 4),
+	Size = UDim2.new(1, -20, 1, -(30 + ALTURA_SLOTS + 8)),
 	TextSize = 12,
 	Font = FONTE_TEXTO,
 	TextColor3 = COR.texto,
@@ -883,8 +1228,130 @@ btnAutoVenda.Activated:Connect(function()
 	local i = table.find(ops, estado.autoVenda or "nada") or 1
 	evAutoVenda:FireServer(ops[i % #ops + 1])
 end)
+-- Bolsa de joias: ver as joias e fundir 3 iguais em 1 melhor
+local btnBolsa = botao(colInv, {
+	Name = "BolsaJoias",
+	AnchorPoint = Vector2.new(1, 0),
+	Position = UDim2.new(1, -176, 0, -2),
+	Size = UDim2.fromOffset(92, 22),
+	Text = "💎 Joias",
+	TextSize = 11,
+	BackgroundColor3 = Color3.fromRGB(90, 50, 140),
+})
+local bolsaAberta = false
+local painelJoias = novo("Frame", colInv, {
+	Name = "PainelJoias",
+	Position = UDim2.fromOffset(0, 24),
+	Size = UDim2.new(1, 0, 1, -24 - 104),
+	BackgroundColor3 = COR.painel2,
+	Visible = false,
+	ZIndex = 5,
+})
+canto(painelJoias, 12)
+contorno(painelJoias, Color3.fromRGB(170, 110, 255), 2)
+rotulo(painelJoias, {
+	Position = UDim2.fromOffset(10, 4),
+	Size = UDim2.new(1, -20, 0, 18),
+	Text = "💎 Joias — toque numa com 3 ou mais para FUNDIR em 1 do nível de cima",
+	TextSize = 11,
+	Font = FONTE_TEXTO,
+	TextColor3 = COR.fraco,
+	TextXAlignment = Enum.TextXAlignment.Left,
+	ZIndex = 6,
+})
+local gradeJoias = novo("Frame", painelJoias, {
+	Position = UDim2.fromOffset(8, 26),
+	Size = UDim2.new(1, -16, 1, -32),
+	BackgroundTransparency = 1,
+	ZIndex = 6,
+})
+local NIVEIS_J = #Config.Joias.Niveis
+novo("UIGridLayout", gradeJoias, {
+	CellSize = UDim2.new(1 / (NIVEIS_J + 1), -4, 1 / (#Config.Joias.Tipos + 1), -4),
+	CellPadding = UDim2.fromOffset(4, 4),
+	SortOrder = Enum.SortOrder.LayoutOrder,
+	FillDirectionMaxCells = NIVEIS_J + 1,
+})
+local celulasJoia = {}
+do
+	local ordemJ = 0
+	local function proxJ()
+		ordemJ += 1
+		return ordemJ
+	end
+	rotulo(gradeJoias, { LayoutOrder = proxJ(), Text = "", ZIndex = 6 })
+	for n = 1, NIVEIS_J do
+		rotulo(gradeJoias, {
+			LayoutOrder = proxJ(),
+			Text = Config.Joias.Niveis[n],
+			TextSize = 11,
+			TextColor3 = COR.dourado,
+			ZIndex = 6,
+		})
+	end
+	for _, tipo in ipairs(Config.Joias.Tipos) do
+		local nomeTipo = rotulo(gradeJoias, {
+			LayoutOrder = proxJ(),
+			Text = "◆ " .. tipo.nome,
+			TextSize = 12,
+			TextColor3 = tipo.cor:Lerp(Color3.new(1, 1, 1), 0.3),
+			TextXAlignment = Enum.TextXAlignment.Left,
+			ZIndex = 6,
+		})
+		nomeTipo.TextScaled = false
+		for n = 1, NIVEIS_J do
+			local chave = tipo.id .. ":" .. n
+			local b = novo("TextButton", gradeJoias, {
+				LayoutOrder = proxJ(),
+				BackgroundColor3 = tipo.cor:Lerp(Color3.new(0, 0, 0), 0.75 - n * 0.08),
+				Font = FONTE,
+				TextSize = 12,
+				TextColor3 = Color3.new(1, 1, 1),
+				Text = "0",
+				AutoButtonColor = true,
+				ZIndex = 6,
+			})
+			canto(b, 8)
+			local borda = contorno(b, COR.borda, 1.5)
+			b.Activated:Connect(function()
+				local qtd = estado and estado.joias and estado.joias[chave] or 0
+				if qtd >= 3 and n < NIVEIS_J then
+					evJoia:FireServer("fundir", chave)
+				end
+			end)
+			celulasJoia[chave] = { botao = b, borda = borda, n = n, tipo = tipo }
+		end
+	end
+end
+
+local function desenharJoias()
+	if not estado then
+		return
+	end
+	local total = 0
+	for chave, c in pairs(celulasJoia) do
+		local qtd = estado.joias and estado.joias[chave] or 0
+		total += qtd
+		local podeFundir = qtd >= 3 and c.n < NIVEIS_J
+		local custo = Config.Joias.CustoFundir[c.n] or 0
+		c.botao.Text = qtd == 0 and "·"
+			or (podeFundir and ("x" .. qtd .. "\n⬆ " .. custo .. " ouro") or ("x" .. qtd))
+		c.borda.Color = podeFundir and COR.dourado or (qtd > 0 and c.tipo.cor or COR.borda)
+		c.borda.Thickness = podeFundir and 2.5 or 1.5
+		c.botao.TextTransparency = qtd == 0 and 0.6 or 0
+	end
+	btnBolsa.Text = "💎 Joias (" .. total .. ")"
+end
+
+btnBolsa.Activated:Connect(function()
+	bolsaAberta = not bolsaAberta
+	painelJoias.Visible = bolsaAberta
+	btnBolsa.BackgroundColor3 = bolsaAberta and Color3.fromRGB(170, 110, 255) or Color3.fromRGB(90, 50, 140)
+	desenharJoias()
+end)
+
 local lblInv = rotulo(colInv, {
-	Size = UDim2.new(1, -176, 0, 20),
+	Size = UDim2.new(1, -272, 0, 20),
 	Text = "Mochila 0/" .. Config.LimiteInventario,
 	TextXAlignment = Enum.TextXAlignment.Left,
 	TextSize = 14,
@@ -892,7 +1359,7 @@ local lblInv = rotulo(colInv, {
 })
 local grade = novo("ScrollingFrame", colInv, {
 	Position = UDim2.fromOffset(0, 24),
-	Size = UDim2.new(1, 0, 1, -24 - 76),
+	Size = UDim2.new(1, 0, 1, -24 - 104),
 	BackgroundColor3 = COR.painel2,
 	BorderSizePixel = 0,
 	ScrollBarThickness = 6,
@@ -914,8 +1381,8 @@ novo("UIGridLayout", grade, {
 })
 
 local detalhe = novo("Frame", colInv, {
-	Position = UDim2.new(0, 0, 1, -70),
-	Size = UDim2.new(1, 0, 0, 70),
+	Position = UDim2.new(0, 0, 1, -98),
+	Size = UDim2.new(1, 0, 0, 98),
 	BackgroundColor3 = COR.painel2,
 	BorderSizePixel = 0,
 })
@@ -959,6 +1426,168 @@ local btnVender = botao(detalhe, {
 })
 
 local selecionado = nil -- id do item ou "slot:<id>"
+
+-- Encaixes de joia do item escolhido (embaixo do detalhe)
+local linhaEncaixes = novo("Frame", detalhe, {
+	Position = UDim2.new(0, 10, 1, -30),
+	Size = UDim2.new(1, -150, 0, 26),
+	BackgroundTransparency = 1,
+})
+novo("UIListLayout", linhaEncaixes, {
+	FillDirection = Enum.FillDirection.Horizontal,
+	VerticalAlignment = Enum.VerticalAlignment.Center,
+	Padding = UDim.new(0, 6),
+	SortOrder = Enum.SortOrder.LayoutOrder,
+})
+-- escolher qual joia encaixar
+local escolhaJoia = novo("Frame", colInv, {
+	Name = "EscolhaJoia",
+	AnchorPoint = Vector2.new(0, 1),
+	Position = UDim2.new(0, 8, 1, -100),
+	Size = UDim2.new(1, -16, 0, 0),
+	AutomaticSize = Enum.AutomaticSize.Y,
+	BackgroundColor3 = COR.painel,
+	Visible = false,
+	ZIndex = 20,
+})
+canto(escolhaJoia, 10)
+contorno(escolhaJoia, COR.dourado, 2)
+novo("UIPadding", escolhaJoia, {
+	PaddingTop = UDim.new(0, 6),
+	PaddingBottom = UDim.new(0, 6),
+	PaddingLeft = UDim.new(0, 6),
+	PaddingRight = UDim.new(0, 6),
+})
+novo("UIGridLayout", escolhaJoia, {
+	CellSize = UDim2.fromOffset(118, 26),
+	CellPadding = UDim2.fromOffset(4, 4),
+	SortOrder = Enum.SortOrder.LayoutOrder,
+})
+local itemEscolhaJoia
+local confirmarRemover
+
+local function nomeJoia(chave)
+	local j, n = Config.LerJoia(chave)
+	if not j then
+		return "?", Color3.new(1, 1, 1), 1
+	end
+	return j.nome .. " " .. Config.Joias.Niveis[n], j.cor, n, j
+end
+
+local function abrirEscolhaJoia(it)
+	for _, c in ipairs(escolhaJoia:GetChildren()) do
+		if c:IsA("GuiButton") or c:IsA("TextLabel") then
+			c:Destroy()
+		end
+	end
+	itemEscolhaJoia = it
+	local chaves = {}
+	for chave, n in pairs(estado and estado.joias or {}) do
+		if n > 0 then
+			table.insert(chaves, chave)
+		end
+	end
+	table.sort(chaves)
+	if #chaves == 0 then
+		rotulo(escolhaJoia, { Text = "Sem joias. Elas caem dos inimigos (raro).", TextSize = 11, ZIndex = 21 })
+	end
+	for i, chave in ipairs(chaves) do
+		local nome, cor, n, j = nomeJoia(chave)
+		local b = botao(escolhaJoia, {
+			LayoutOrder = i,
+			Text = "◆ " .. nome .. " x" .. estado.joias[chave],
+			TextSize = 11,
+			BackgroundColor3 = cor:Lerp(Color3.new(0, 0, 0), 0.45),
+			ZIndex = 21,
+		})
+		if j then
+			b.Text ..= "  " .. string.format(j.texto, j.valores[n] * (j.valores[n] < 1 and 100 or 1))
+		end
+		b.Activated:Connect(function()
+			evJoia:FireServer("encaixar", it.id, chave)
+			escolhaJoia.Visible = false
+		end)
+	end
+	escolhaJoia.Visible = true
+end
+
+local function desenharEncaixes(it)
+	for _, c in ipairs(linhaEncaixes:GetChildren()) do
+		if c:IsA("GuiObject") then
+			c:Destroy()
+		end
+	end
+	if not it or (it.encaixes or 0) <= 0 then
+		escolhaJoia.Visible = false
+		if it then
+			rotulo(linhaEncaixes, {
+				Size = UDim2.fromOffset(220, 22),
+				Text = "Sem espaço para joia (raridade Incomum ou maior)",
+				TextSize = 10,
+				Font = FONTE_TEXTO,
+				TextColor3 = COR.fraco,
+				TextXAlignment = Enum.TextXAlignment.Left,
+			})
+		end
+		return
+	end
+	rotulo(linhaEncaixes, {
+		LayoutOrder = 0,
+		Size = UDim2.fromOffset(46, 22),
+		Text = "Joias:",
+		TextSize = 11,
+		TextColor3 = COR.dourado,
+	})
+	for i = 1, it.encaixes do
+		local chave = it.joias and it.joias[i]
+		local b = novo("TextButton", linhaEncaixes, {
+			LayoutOrder = i,
+			Size = UDim2.fromOffset(chave and 92 or 26, 24),
+			BackgroundColor3 = Color3.fromRGB(30, 26, 22),
+			Font = FONTE,
+			TextSize = 10,
+			TextColor3 = Color3.new(1, 1, 1),
+			Text = "+",
+			AutoButtonColor = true,
+		})
+		canto(b, 12)
+		local borda = contorno(b, COR.borda, 2)
+		if chave then
+			local nome, cor = nomeJoia(chave)
+			b.Text = "◆ " .. nome
+			b.TextScaled = true
+			b.BackgroundColor3 = cor:Lerp(Color3.new(0, 0, 0), 0.35)
+			borda.Color = cor
+			b.Activated:Connect(function()
+				-- tirar a joia quebra ela: pede um segundo toque
+				if confirmarRemover == it.id .. ":" .. i then
+					confirmarRemover = nil
+					evJoia:FireServer("remover", it.id, i)
+				else
+					confirmarRemover = it.id .. ":" .. i
+					b.Text = "Quebrar? toque"
+					task.delay(2.5, function()
+						if confirmarRemover == it.id .. ":" .. i then
+							confirmarRemover = nil
+							if b.Parent then
+								b.Text = "◆ " .. nome
+							end
+						end
+					end)
+				end
+			end)
+		else
+			borda.Color = COR.dourado
+			b.Activated:Connect(function()
+				if escolhaJoia.Visible and itemEscolhaJoia == it then
+					escolhaJoia.Visible = false
+				else
+					abrirEscolhaJoia(it)
+				end
+			end)
+		end
+	end
+end
 
 local function itemPorId(id)
 	if not estado then
@@ -1008,6 +1637,7 @@ local function desenharDetalhe()
 		detNome.TextColor3 = COR.texto
 		detStat.Text = "para ver os atributos."
 		btnEquipar.Visible, btnVender.Visible = false, false
+		desenharEncaixes(nil)
 		return
 	end
 	local r = raridade(it.raridade)
@@ -1067,6 +1697,7 @@ local function desenharDetalhe()
 	btnEquipar.BackgroundColor3 = v and COR.cinza or COR.verde
 	btnVender.Visible = not v
 	btnVender.Text = "Vender (+" .. (Config.ValorVenda[it.raridade] or 1) .. " ouro)"
+	desenharEncaixes(it)
 end
 
 -- "Assinatura" dos itens: muda só quando entra/sai/veste/seleciona item (não a cada inimigo morto)
@@ -1086,6 +1717,7 @@ end
 local ultimaGradeMochila, ultimaGradeForja
 
 local function desenharMochila()
+	desenharJoias()
 	for _, s in ipairs(Config.Slots) do
 		local ui = slotUI[s.id]
 		local id = estado.equipado[s.id]
@@ -1106,14 +1738,30 @@ local function desenharMochila()
 			vp:SetAttribute("Item", it.id)
 			ItemArte.mostrar(vp, it.slot, ri3, r3.cor, it.conjunto, it.classe)
 		end
+		for _, c in ipairs(ui.bolinhas:GetChildren()) do
+			if c:IsA("Frame") then
+				c:Destroy()
+			end
+		end
 		if it then
+			for k = 1, it.encaixes or 0 do
+				local chaveJ = it.joias and it.joias[k]
+				local jJ = chaveJ and Config.LerJoia(chaveJ)
+				local bol = novo("Frame", ui.bolinhas, {
+					Size = UDim2.fromOffset(7, 7),
+					BackgroundColor3 = jJ and jJ.cor or Color3.fromRGB(30, 26, 22),
+					ZIndex = 4,
+				})
+				canto(bol, 4)
+				contorno(bol, jJ and Color3.new(1, 1, 1) or COR.borda, 1)
+			end
 			local r = raridade(it.raridade)
 			ui.nome.Text = it.nome
 			ui.nome.TextColor3 = r.corBorda or r.cor
 			ui.stat.Text = textoItem(it)
 			ui.stroke.Color = r.cor
 		else
-			ui.nome.Text = s.nome .. ": vazio"
+			ui.nome.Text = s.nome
 			ui.nome.TextColor3 = COR.fraco
 			ui.stat.Text = ""
 			ui.stroke.Color = COR.cinza
@@ -1635,7 +2283,7 @@ desenharForja = function()
 		lblInfoForja.Text =
 			"Transforma qualquer item em ouro.\n• Materiais: 1 a 9 itens\n• Resultado: os itens somem e você ganha ouro"
 	else
-		local custo = primeiro and (Config.Forja.Custo[primeiro.raridade] or 0) or 0
+		local custo = primeiro and Config.CustoForja(primeiro.raridade, primeiro.nivel) or 0
 		if primeiro then
 			local _, ri = raridade(primeiro.raridade)
 			local prox = Config.Raridades[ri + 1]
@@ -1727,7 +2375,7 @@ local function podeForjarAlgo()
 		if not vestido(it.id) and raridade(it.raridade).forjavel ~= false then
 			local chave = it.raridade .. "|" .. it.slot
 			cont[chave] = (cont[chave] or 0) + 1
-			if cont[chave] >= Q and estado.ouro >= (Config.Forja.Custo[it.raridade] or 0) then
+			if cont[chave] >= Q and estado.ouro >= Config.CustoForja(it.raridade, it.nivel) then
 				return true
 			end
 		end
@@ -2102,14 +2750,47 @@ end
 local colMundos = novo("Frame", corpoPortal, { Size = UDim2.new(0.3, -6, 1, 0), BackgroundTransparency = 1 })
 novo("UIListLayout", colMundos, { Padding = UDim.new(0, 8), SortOrder = Enum.SortOrder.LayoutOrder })
 local mundoSel = 1
+local difSel = 1 -- dificuldade escolhida no portal (Normal, Pesadelo, Inferno, Tormento)
 local botoesMundo = {}
+local botoesDif = {}
+local desenharPortalRef -- definida mais abaixo
 
 local function faseIndice(mundo, numero)
-	for i, f in ipairs(Config.Fases) do
-		if f.mundo == mundo and f.numero == numero then
-			return i
+	local idx = Config.IndiceFase(difSel, mundo, numero)
+	return Config.Fases[idx] and idx or nil
+end
+
+-- abas das dificuldades (em cima dos atos)
+local linhaDif =
+	novo("Frame", colMundos, { LayoutOrder = 0, Size = UDim2.new(1, 0, 0, 56), BackgroundTransparency = 1 })
+novo("UIGridLayout", linhaDif, {
+	CellSize = UDim2.new(0.5, -3, 0, 26),
+	CellPadding = UDim2.fromOffset(6, 4),
+	SortOrder = Enum.SortOrder.LayoutOrder,
+})
+for d, dif in ipairs(Config.Dificuldades) do
+	local b = novo("TextButton", linhaDif, {
+		Name = "Dif_" .. dif.id,
+		LayoutOrder = d,
+		BackgroundColor3 = dif.cor:Lerp(Color3.new(0, 0, 0), 0.55),
+		AutoButtonColor = true,
+		Font = FONTE,
+		Text = dif.nome,
+		TextSize = 13,
+		TextColor3 = Color3.new(1, 1, 1),
+	})
+	canto(b, 8)
+	local borda = contorno(b, COR.borda, 2)
+	botoesDif[d] = { botao = b, borda = borda, cor = dif.cor }
+	b.Activated:Connect(function()
+		local primeira = Config.IndiceFase(d, 1, 1)
+		if estado and primeira <= estado.faseMax then
+			difSel = d
+			if desenharPortalRef then
+				desenharPortalRef()
+			end
 		end
-	end
+	end)
 end
 
 for i, m in ipairs(Config.Mundos) do
@@ -2147,7 +2828,7 @@ for i, m in ipairs(Config.Mundos) do
 	rotulo(b, {
 		Position = UDim2.new(0, 10, 1, -44),
 		Size = UDim2.new(1, -20, 0, 20),
-		Text = "Mundo " .. i,
+		Text = "Ato " .. i,
 		TextSize = 16,
 		TextXAlignment = Enum.TextXAlignment.Left,
 		ZIndex = 3,
@@ -2353,20 +3034,37 @@ end
 local mundoMontado
 
 painelFase.Activated:Connect(function()
+	-- abre o portal já na dificuldade e no ato onde o herói está
+	local fAtual = estado and Config.Fases[estado.faseIdx]
+	if fAtual then
+		difSel, mundoSel = fAtual.dificuldade, fAtual.ato
+	end
 	abrirJanela(jPortal)
 	desenhar()
 end)
 
 local function desenharPortal()
-	if mundoMontado ~= mundoSel then
+	local chaveMontada = difSel .. ":" .. mundoSel
+	if mundoMontado ~= chaveMontada then
 		montarCartoes(mundoSel)
-		mundoMontado = mundoSel
+		mundoMontado = chaveMontada
+	end
+	for d, info in pairs(botoesDif) do
+		local liberada = estado and Config.IndiceFase(d, 1, 1) <= estado.faseMax
+		info.botao.Text = (liberada and "" or "🔒 ") .. Config.Dificuldades[d].nome
+		info.borda.Color = (d == difSel) and info.cor or COR.borda
+		info.borda.Thickness = (d == difSel) and 3 or 2
+		info.botao.BackgroundColor3 = info.cor:Lerp(Color3.new(0, 0, 0), d == difSel and 0.2 or 0.6)
 	end
 	for i, info in pairs(botoesMundo) do
 		info.borda.Color = (i == mundoSel) and COR.dourado or COR.borda
 		info.borda.Thickness = (i == mundoSel) and 3 or 2
 	end
-	lblMundoSel.Text = "Mundo " .. mundoSel .. " · " .. Config.Mundos[mundoSel].nome
+	lblMundoSel.Text = Config.Dificuldades[difSel].nome
+		.. " · Ato "
+		.. mundoSel
+		.. " · "
+		.. Config.Mundos[mundoSel].nome
 	for _, c in pairs(cartoesFase) do
 		local atual = c.idx and estado and c.idx == estado.faseIdx
 		local liberada = c.idx and estado and c.idx <= estado.faseMax
@@ -2385,6 +3083,7 @@ local function desenharPortal()
 		end
 	end
 end
+desenharPortalRef = desenharPortal
 
 ------------------------------------------------------------------------
 ------------------------------------------------------------------------
@@ -2437,7 +3136,8 @@ novo("UIGridLayout", gradeAvatar, {
 })
 
 local cartoesAvatar = {}
-for idx, f in ipairs(Config.Fases) do
+for idx = 1, 10 do
+	local f = Config.Fases[idx]
 	local rarId = Config.Avatares.Raridade[idx]
 	local r = raridade(rarId)
 	local b = novo("ImageButton", gradeAvatar, {
@@ -2572,10 +3272,14 @@ desenhar = function()
 		estado.stats.dano,
 		estado.stats.critico * 100
 	)
-	lblOuro.Text = tostring(estado.ouro)
+	contarOuro(estado.ouro)
 
 	local f = Config.Fases[estado.faseIdx]
-	lblMundo.Text = "Mundo " .. f.mundo .. " · " .. Config.Mundos[f.mundo].nome
+	lblMundo.Text = Config.Dificuldades[f.dificuldade].nome
+		.. " · Ato "
+		.. f.ato
+		.. " · "
+		.. Config.Mundos[f.ato].nome
 	lblFase.Text = "Fase " .. f.nome
 	btnRepetir.Text = estado.repetir and "🔁 Repetir fase: SIM" or "🔁 Repetir fase: NÃO"
 	btnRepetir.BackgroundColor3 = estado.repetir and COR.verde or COR.madeira

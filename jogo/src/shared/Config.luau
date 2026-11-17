@@ -41,61 +41,154 @@ Config.Heroi = {
 }
 
 -- XP necessário para passar do nível N para o N+1
+-- XP que um inimigo dá (cresce 6% por nível do inimigo)
+function Config.XPInimigo(nivel)
+	return math.max(1, math.floor(5 * 1.06 ^ (nivel - 1) + 0.5))
+end
+-- XP para passar de nível: uns 90 inimigos do seu nível no começo, ~300 no nível 100.
+-- O jogo termina lá pelo nível 105-110 (ver simulação no painel).
 function Config.XPParaNivel(nivel)
-	return math.floor(40 * nivel ^ 1.35)
+	return math.floor(Config.XPInimigo(nivel) * (90 + 2 * nivel))
+end
+-- Inimigo muito mais fraco que você dá pouco XP: o nível acompanha o conteúdo
+function Config.MultXP(nivelHeroi, nivelInimigo)
+	local d = nivelHeroi - nivelInimigo
+	return math.clamp(1 - 0.2 * math.max(0, d - 2), 0.05, 1)
+end
+-- Ouro de um inimigo (cresce junto com os preços)
+function Config.OuroInimigo(nivel)
+	return math.max(1, math.floor(2 * 1.065 ^ (nivel - 1) + 0.5))
 end
 
 -- Mundos e fases. As fases sem dados aparecem como "em breve" no portal.
+-- Progressão estilo Task Bar Hero: 4 dificuldades, cada uma com 3 atos de 10 fases (120 fases).
+-- Termina lá pelo nível 105-110. Vencer uma fase libera a próxima (Normal Ato 1 -> ... -> Tormento Ato 3).
+Config.Dificuldades = {
+	{
+		id = "normal",
+		nome = "Normal",
+		cor = Color3.fromRGB(120, 210, 120),
+		nivel = { 1, 34 }, -- nível dos inimigos da primeira à última fase
+		-- chance de cada raridade nos drops (Comum ... Secreto). Bem raro: o forte vem da síntese.
+		pesos = { 78, 18, 3.4, 0.55, 0.05, 0, 0, 0, 0 },
+	},
+	{
+		id = "pesadelo",
+		nome = "Pesadelo",
+		cor = Color3.fromRGB(170, 110, 255),
+		nivel = { 36, 60 },
+		pesos = { 65, 26, 7, 1.7, 0.28, 0.02, 0, 0, 0 },
+	},
+	{
+		id = "inferno",
+		nome = "Inferno",
+		cor = Color3.fromRGB(255, 110, 50),
+		nivel = { 62, 84 },
+		pesos = { 55, 30, 11, 3.3, 0.6, 0.09, 0.008, 0, 0 },
+	},
+	{
+		id = "tormento",
+		nome = "Tormento",
+		cor = Color3.fromRGB(230, 40, 60),
+		nivel = { 86, 104 },
+		pesos = { 45, 33, 15, 5.5, 1.2, 0.25, 0.03, 0, 0 },
+	},
+}
+
+-- Os 3 atos (iguais em toda dificuldade, só que mais fortes)
 Config.Mundos = {
 	{ nome = "Vila Oculta do Bambu", totalFases = 10 },
 	{ nome = "Floresta Sombria", totalFases = 10 },
 	{ nome = "Vale de Cristal", totalFases = 10 },
 }
+Config.Atos = Config.Mundos
 
--- tema = cenário e iluminação (ver src/server/Cenario.luau)
--- modelo = visual do inimigo (ver src/server/Modelos.luau)
--- chefe = true: só 1 inimigo grande, com barra de vida no topo e baú especial
-local function fase(numero, tema, modelo, monstro, nivel, ouro, xp, extra)
-	local f = {
-		mundo = 1,
-		numero = numero,
-		nome = "1-" .. numero,
-		tema = tema,
-		modelo = modelo,
-		monstro = monstro,
-		nivel = nivel, -- nível do inimigo: aumenta vida e dano (ver Config.Inimigo)
-		ouro = ouro,
-		xp = xp,
-	}
-	for k, v in pairs(extra or {}) do
-		f[k] = v
-	end
-	return f
-end
-
-Config.Fases = {
-	-- Vila: ninjas fraquinhos
-	fase(1, "vila", "novato", "Ninja Novato", 1, 2, 6),
-	fase(2, "vila", "mascarado", "Ninja Mascarado", 3, 4, 10),
-	fase(3, "vila", "elite", "Ninja de Elite", 5, 7, 16),
-	-- Covil da cobra: a galera do Dorochimaru
-	fase(4, "pantano", "discipulo", "Discípulo do Dorochimaru", 7, 10, 22),
-	fase(5, "pantano", "cloneDoro", "Clone do Dorochimaru", 9, 14, 30),
-	fase(6, "pantano", "dorochimaru", "Dorochimaru", 11, 19, 40),
-	-- Crepúsculo: a galera da Katsuki
-	fase(7, "crepusculo", "recrutaKatsuki", "Recruta da Katsuki", 13, 25, 52),
-	fase(8, "crepusculo", "itachu", "Itachu da Katsuki", 15, 32, 66),
-	fase(9, "crepusculo", "caminhoPen", "Caminho do Pen", 17, 40, 82),
-	-- Chefe final do mundo 1
-	fase(10, "chefe", "pen", "Pen", 20, 400, 600, { chefe = true }),
+-- inimigos de cada ato: { tema, modelo, nome }
+local INIMIGOS_ATO = {
+	{
+		{ "vila", "novato", "Ninja Novato" },
+		{ "vila", "mascarado", "Ninja Mascarado" },
+		{ "vila", "elite", "Ninja de Elite" },
+		{ "pantano", "discipulo", "Discípulo do Dorochimaru" },
+		{ "pantano", "cloneDoro", "Clone do Dorochimaru" },
+		{ "pantano", "dorochimaru", "Dorochimaru" },
+		{ "crepusculo", "recrutaKatsuki", "Recruta da Katsuki" },
+		{ "crepusculo", "itachu", "Itachu da Katsuki" },
+		{ "crepusculo", "caminhoPen", "Caminho do Pen" },
+		{ "chefe", "pen", "Pen" },
+	},
+	{
+		{ "pantano", "neji", "Guardião Hyugo" },
+		{ "pantano", "rockLee", "Rocky Li" },
+		{ "pantano", "mascarado", "ANBU Renegado" },
+		{ "pantano", "discipulo", "Espião do Som" },
+		{ "pantano", "cloneDoro", "Experimento da Cobra" },
+		{ "crepusculo", "sasori", "Sasoru das Marionetes" },
+		{ "crepusculo", "recrutaKatsuki", "Sentinela da Katsuki" },
+		{ "crepusculo", "elite", "Caçador Ninja" },
+		{ "crepusculo", "itachu", "Sombra do Itachu" },
+		{ "chefe", "deidara", "Deidaro, o Explosivo" },
+	},
+	{
+		{ "crepusculo", "neji", "Hyugo Desperto" },
+		{ "crepusculo", "rockLee", "Rocky Li dos Oito Portões" },
+		{ "crepusculo", "sasori", "Marionete Viva" },
+		{ "crepusculo", "dorochimaru", "Dorochimaru Imortal" },
+		{ "crepusculo", "deidara", "Deidaro de Argila" },
+		{ "chefe", "itachu", "Itachu do Sharingan" },
+		{ "chefe", "caminhoPen", "Caminho Asura" },
+		{ "chefe", "recrutaKatsuki", "Elite da Katsuki" },
+		{ "chefe", "caminhoPen", "Caminho Preta" },
+		{ "chefe", "pen", "Pen Desperto" },
+	},
 }
+
+Config.Fases = {}
+for d, dif in ipairs(Config.Dificuldades) do
+	for ato = 1, 3 do
+		for numero = 1, 10 do
+			local ini = INIMIGOS_ATO[ato][numero]
+			local s = (ato - 1) * 10 + numero - 1 -- 0 a 29 dentro da dificuldade
+			local chefe = numero == 10
+			local nivel = math.floor(dif.nivel[1] + (dif.nivel[2] - dif.nivel[1]) * s / 29 + 0.5) + (chefe and 2 or 0)
+			table.insert(Config.Fases, {
+				dificuldade = d,
+				mundo = ato, -- (nome antigo de "ato")
+				ato = ato,
+				numero = numero,
+				nome = ato .. "-" .. numero,
+				tema = ini[1],
+				modelo = ini[2],
+				monstro = ini[3],
+				nivel = nivel, -- nível do inimigo: aumenta vida e dano (ver Config.Inimigo)
+				ouro = Config.OuroInimigo(nivel) * (chefe and 200 or 1),
+				xp = Config.XPInimigo(nivel) * (chefe and 25 or 1),
+				chefe = chefe or nil,
+				-- avatar: por enquanto só dos inimigos do Ato 1 (número da fase 1 a 10)
+				avatar = ato == 1 and numero or nil,
+			})
+		end
+	end
+end
+-- Nome completo de uma fase, ex.: "Pesadelo · Ato 2 · 2-7"
+function Config.NomeFase(idx)
+	local f = Config.Fases[idx]
+	if not f then
+		return "?"
+	end
+	return Config.Dificuldades[f.dificuldade].nome .. " · Ato " .. f.ato .. " · " .. f.nome
+end
+-- Índice da fase pela dificuldade, ato e número
+function Config.IndiceFase(dificuldade, ato, numero)
+	return (dificuldade - 1) * 30 + (ato - 1) * 10 + numero
+end
 
 -- Inimigos: vida e dano crescem com o nível (fórmula provisória, ver Quadro de Avisos)
 Config.Inimigo = {
 	VidaBase = 30, -- vida no nível 1
-	VidaCrescimento = 1.22, -- cada nível multiplica a vida por isto (jogo difícil!)
+	VidaCrescimento = 1.09, -- cada nível multiplica a vida por 1,09 (os itens crescem só 1,06: precisa de síntese)
 	DanoBase = 2, -- dano de cada golpe no nível 1
-	DanoPorNivel = 1.1, -- dano extra a cada nível do inimigo
+	DanoCrescimento = 1.065, -- cada nível multiplica o dano por isto
 	MultChefe = 14, -- o chefe tem 14x a vida de um inimigo do mesmo nível
 	AtaqueIntervalo = 1.6, -- segundos entre os golpes de cada inimigo
 	AtaqueAlcance = 5.5, -- distância para o inimigo conseguir bater no herói
@@ -111,7 +204,7 @@ function Config.VidaInimigo(nivel, chefe)
 end
 
 function Config.DanoInimigo(nivel)
-	return math.floor(Config.Inimigo.DanoBase + Config.Inimigo.DanoPorNivel * (nivel - 1) + 0.5)
+	return math.floor(Config.Inimigo.DanoBase * Config.Inimigo.DanoCrescimento ^ (nivel - 1) + 0.5)
 end
 -- Baú especial que o chefe dropa
 -- Treinamento: gasta ouro para subir atributos permanentes.
@@ -168,6 +261,66 @@ Config.ChefeTempo = 90
 
 -- Nomes dos equipamentos por categoria e tier (T1 = Comum ... T5 = Lendário)
 Config.NomesItens = {
+	anel = {
+		"Anel de Cobre",
+		"Anel de Prata",
+		"Anel de Safira",
+		"Anel das Sombras",
+		"Anel do Trovão",
+		"Anel do Dragão",
+		"Anel dos Seis Caminhos",
+		"Anel do Vazio",
+	},
+	brinco = {
+		"Brinco de Osso",
+		"Brinco de Prata",
+		"Brinco de Jade",
+		"Brinco das Sombras",
+		"Brinco do Trovão",
+		"Brinco do Dragão",
+		"Brinco dos Seis Caminhos",
+		"Brinco do Vazio",
+	},
+	colar = {
+		"Colar de Contas",
+		"Colar de Prata",
+		"Colar de Jade",
+		"Colar das Sombras",
+		"Colar do Sábio",
+		"Colar do Dragão",
+		"Colar dos Seis Caminhos",
+		"Colar do Vazio",
+	},
+	bracelete = {
+		"Bracelete de Couro",
+		"Bracelete de Ferro",
+		"Bracelete de Jade",
+		"Bracelete das Sombras",
+		"Bracelete do Trovão",
+		"Bracelete do Dragão",
+		"Bracelete dos Seis Caminhos",
+		"Bracelete do Vazio",
+	},
+	cinto = {
+		"Faixa de Pano",
+		"Cinto de Couro",
+		"Cinto Ninja",
+		"Cinto das Sombras",
+		"Cinto do Trovão",
+		"Cinto do Dragão",
+		"Cinto dos Seis Caminhos",
+		"Cinto do Vazio",
+	},
+	broche = {
+		"Broche de Madeira",
+		"Broche de Bronze",
+		"Broche de Jade",
+		"Broche das Sombras",
+		"Broche do Sábio",
+		"Broche do Dragão",
+		"Broche dos Seis Caminhos",
+		"Broche do Vazio",
+	},
 	arma = {
 		"Kunai Enferrujada",
 		"Kunai de Aço",
@@ -217,7 +370,7 @@ Config.Conjuntos = {
 		id = "vila",
 		nome = "Conjunto da Vila Oculta",
 		cor = Color3.fromRGB(110, 210, 90),
-		fases = { 1, 5 }, -- cai nas fases 1-1 a 1-5
+		fases = { 1, 5 }, -- cai nas fases 1-1 a 1-5 (Ato 1, qualquer dificuldade)
 		chance = 0.30, -- 30% dos drops dessas fases são peças do conjunto
 		pecas = {
 			arma = "Kunai da Vila",
@@ -320,12 +473,42 @@ function Config.ClassePorId(id)
 	end
 	return nil
 end
-Config.SlotsDeClasse = { arma = true, elmo = true, armadura = true }
+Config.SlotsDeClasse = { arma = true, armaSec = true, elmo = true, armadura = true, luvas = true, calca = true }
 Config.ChanceClassePropria = 0.6 -- 60% dos drops são da sua classe; o resto é de outra (serve para síntese)
 
 -- Nome dos itens exclusivos de cada classe (do tier 1 ao 8)
 Config.NomesClasse = {
 	guerreiro = {
+		armaSec = {
+			"Escudo de Madeira",
+			"Escudo de Ferro",
+			"Escudo ANBU",
+			"Escudo das Sombras",
+			"Escudo do Trovão",
+			"Escudo do Dragão",
+			"Escudo dos Seis Caminhos",
+			"Escudo do Vazio",
+		},
+		luvas = {
+			"Luvas de Pano",
+			"Manoplas de Ferro",
+			"Manoplas ANBU",
+			"Manoplas do Crepúsculo",
+			"Manoplas do Trovão",
+			"Manoplas do Dragão",
+			"Manoplas dos Seis Caminhos",
+			"Manoplas do Vazio",
+		},
+		calca = {
+			"Calça de Treino",
+			"Grevas de Ferro",
+			"Grevas ANBU",
+			"Grevas do Crepúsculo",
+			"Grevas do Trovão",
+			"Grevas do Dragão",
+			"Grevas dos Seis Caminhos",
+			"Grevas do Vazio",
+		},
 		arma = {
 			"Espada Enferrujada",
 			"Espada de Aço",
@@ -358,6 +541,36 @@ Config.NomesClasse = {
 		},
 	},
 	cacador = {
+		armaSec = {
+			"Aljava de Bambu",
+			"Aljava de Couro",
+			"Aljava do Caçador",
+			"Aljava das Sombras",
+			"Aljava do Vento",
+			"Aljava do Dragão",
+			"Aljava dos Seis Caminhos",
+			"Aljava do Vazio",
+		},
+		luvas = {
+			"Luvas de Pano",
+			"Luvas de Couro",
+			"Luvas do Caçador",
+			"Luvas do Crepúsculo",
+			"Luvas do Vento",
+			"Luvas do Dragão",
+			"Luvas dos Seis Caminhos",
+			"Luvas do Vazio",
+		},
+		calca = {
+			"Calça de Pano",
+			"Calça de Couro",
+			"Calça do Caçador",
+			"Calça do Crepúsculo",
+			"Calça do Vento",
+			"Calça do Dragão",
+			"Calça dos Seis Caminhos",
+			"Calça do Vazio",
+		},
 		arma = {
 			"Arco de Bambu",
 			"Arco Curto",
@@ -390,6 +603,36 @@ Config.NomesClasse = {
 		},
 	},
 	mago = {
+		armaSec = {
+			"Pergaminho Velho",
+			"Grimório de Aprendiz",
+			"Orbe de Chakra",
+			"Grimório das Sombras",
+			"Orbe do Trovão",
+			"Grimório do Dragão",
+			"Orbe dos Seis Caminhos",
+			"Grimório do Vazio",
+		},
+		luvas = {
+			"Luvas de Seda",
+			"Luvas de Aprendiz",
+			"Luvas de Chakra",
+			"Luvas do Crepúsculo",
+			"Luvas do Sábio",
+			"Luvas do Dragão",
+			"Luvas dos Seis Caminhos",
+			"Luvas do Vazio",
+		},
+		calca = {
+			"Calça de Seda",
+			"Calça de Aprendiz",
+			"Saia de Chakra",
+			"Calça do Crepúsculo",
+			"Calça do Sábio",
+			"Calça do Dragão",
+			"Calça dos Seis Caminhos",
+			"Calça do Vazio",
+		},
 		arma = {
 			"Cajado de Bambu",
 			"Cajado de Carvalho",
@@ -422,6 +665,96 @@ Config.NomesClasse = {
 		},
 	},
 }
+
+-- Joias (estilo TBH / WOG): encaixam nos equipamentos (menos no olho).
+-- Caem raramente; 3 joias iguais do mesmo nível viram 1 do nível de cima (síntese de joias).
+Config.Joias = {
+	ChanceDrop = 0.006, -- 0,6% dos inimigos soltam uma joia
+	CustoFundir = { 50, 200, 800, 3000 }, -- ouro para fundir 3 joias do nível 1, 2, 3, 4
+	Niveis = { "Lascada", "Comum", "Polida", "Perfeita", "Radiante" },
+	-- valor = quanto cada nível dá (nível 1 a 5)
+	Tipos = {
+		{
+			id = "rubi",
+			nome = "Rubi",
+			cor = Color3.fromRGB(235, 50, 70),
+			atributo = "danoPct",
+			valores = { 0.02, 0.04, 0.07, 0.11, 0.16 },
+			texto = "+%d%% de dano",
+		},
+		{
+			id = "safira",
+			nome = "Safira",
+			cor = Color3.fromRGB(60, 120, 255),
+			atributo = "vidaPct",
+			valores = { 0.02, 0.04, 0.07, 0.11, 0.16 },
+			texto = "+%d%% de vida",
+		},
+		{
+			id = "esmeralda",
+			nome = "Esmeralda",
+			cor = Color3.fromRGB(40, 210, 110),
+			atributo = "critico",
+			valores = { 0.005, 0.01, 0.017, 0.025, 0.035 },
+			texto = "+%d%% de crítico",
+		},
+		{
+			id = "ametista",
+			nome = "Ametista",
+			cor = Color3.fromRGB(170, 80, 240),
+			atributo = "critDano",
+			valores = { 0.04, 0.08, 0.14, 0.22, 0.32 },
+			texto = "+%d%% de dano crítico",
+		},
+		{
+			id = "topazio",
+			nome = "Topázio",
+			cor = Color3.fromRGB(255, 200, 40),
+			atributo = "ouro",
+			valores = { 0.03, 0.06, 0.1, 0.15, 0.22 },
+			texto = "+%d%% de ouro",
+		},
+		{
+			id = "diamante",
+			nome = "Diamante",
+			cor = Color3.fromRGB(220, 240, 255),
+			atributo = "armaduraPct",
+			valores = { 0.03, 0.06, 0.1, 0.15, 0.22 },
+			texto = "+%d%% de armadura",
+		},
+		{
+			id = "onix",
+			nome = "Ônix",
+			cor = Color3.fromRGB(60, 50, 70),
+			atributo = "resistencia",
+			valores = { 0.02, 0.04, 0.06, 0.09, 0.13 },
+			texto = "+%d%% de resistência",
+		},
+	},
+}
+function Config.JoiaPorId(id)
+	for _, j in ipairs(Config.Joias.Tipos) do
+		if j.id == id then
+			return j
+		end
+	end
+	return nil
+end
+-- chave de joia no inventário: "rubi:2" = Rubi nível 2
+function Config.LerJoia(chave)
+	local tipo, nivel = string.match(chave or "", "^(%a+):(%d)$")
+	local j = tipo and Config.JoiaPorId(tipo)
+	nivel = tonumber(nivel)
+	if j and nivel and nivel >= 1 and nivel <= #Config.Joias.Niveis then
+		return j, nivel
+	end
+	return nil
+end
+-- Defesa: a armadura reduz o dano recebido (no máximo 75%)
+function Config.ReducaoArmadura(armadura, nivelInimigo)
+	local k = 10 * Config.DanoInimigo(nivelInimigo or 1) + 20
+	return math.min(0.75, armadura / (armadura + k))
+end
 
 -- Avatares: chance mínima de dropar a "skin" do inimigo da fase. Troca o corpo do herói e dá buff.
 Config.Avatares = {
@@ -465,12 +798,21 @@ Config.AutoVendaOpcoes = { "nada", "comum", "incomum", "raro" }
 Config.DropsChefe = {
 	Ouro = 150,
 	-- sempre cai 1 equipamento, sorteado por estas chances
+	-- (o equipamento garantido usa as chances da dificuldade, uma raridade acima)
 	Equipamento = { { "epico", 0.75 }, { "lendario", 0.22 }, { "mitico", 0.03 } },
 	-- itens especiais com chance própria
 	Especiais = {
-		{ nome = "Lâmina de Chakra Negro", slot = "arma", raridade = "mitico", chance = 0.04, icone = "🗡️" },
-		-- Secreto (preto): por enquanto só o Rinnegan, só do Pen e bem raro
-		{ nome = "Rinnegan", slot = "olho", raridade = "secreto", chance = 0.01, icone = "👁️", valor = 1.0 },
+		{ nome = "Lâmina de Chakra Negro", slot = "arma", raridade = "mitico", chance = 0.004, icone = "🗡️" },
+		-- Divino (amarelo): o Rinnegan, só do Pen, raríssimo (1 em 2.000 vitórias)
+		{
+			nome = "Rinnegan",
+			slot = "olho",
+			raridade = "divino",
+			chance = 0.0005,
+			icone = "👁️",
+			valor = 1.0,
+			soDe = "pen",
+		},
 	},
 }
 ------------------------------------------------------------------------
@@ -484,21 +826,23 @@ Config.ItemNivel = {
 	PesoInimigo = 0.7, -- 70% do nível do inimigo
 	PesoHeroi = 0.3, -- 30% do nível do herói
 	Variacao = 2, -- até 2 níveis para mais ou para menos
-	CrescimentoPorNivel = 0.15, -- cada nível deixa o item 15% mais forte
+	Crescimento = 1.06, -- cada nível do item multiplica a força por 1,06
 }
 Config.LimiteInventario = 40 -- passou disso, o item vira ouro automaticamente
 
 Config.Raridades = {
 	{
 		id = "comum",
+		encaixes = 0, -- quantas joias cabem
 		nome = "Comum",
-		peso = 62,
+		peso = 78, -- (as chances de verdade estão em Config.Dificuldades)
 		mult = 1.0,
 		cor = Color3.fromRGB(170, 170, 175),
 		material = "de Madeira",
 	},
 	{
 		id = "incomum",
+		encaixes = 1, -- quantas joias cabem
 		nome = "Incomum",
 		peso = 26,
 		mult = 1.6,
@@ -507,6 +851,7 @@ Config.Raridades = {
 	},
 	{
 		id = "raro",
+		encaixes = 1, -- quantas joias cabem
 		nome = "Raro",
 		peso = 9,
 		mult = 2.5,
@@ -515,6 +860,7 @@ Config.Raridades = {
 	},
 	{
 		id = "epico",
+		encaixes = 2, -- quantas joias cabem
 		nome = "Épico",
 		peso = 2.5,
 		mult = 4.0,
@@ -523,6 +869,7 @@ Config.Raridades = {
 	},
 	{
 		id = "lendario",
+		encaixes = 2, -- quantas joias cabem
 		nome = "Lendário",
 		peso = 0.5,
 		mult = 7.0,
@@ -531,6 +878,7 @@ Config.Raridades = {
 	},
 	{
 		id = "mitico",
+		encaixes = 3, -- quantas joias cabem
 		nome = "Mítico",
 		peso = 0, -- não cai de monstro comum: só do chefe ou da forja
 		mult = 12.0,
@@ -539,18 +887,31 @@ Config.Raridades = {
 	},
 	{
 		id = "imortal",
+		encaixes = 3, -- quantas joias cabem
 		nome = "Imortal",
 		peso = 0, -- só da forja (3 Míticos). Chance de cair: a decidir (Quadro de Avisos)
 		mult = 20.0,
-		cor = Color3.fromRGB(255, 235, 110),
+		cor = Color3.fromRGB(40, 225, 210), -- turquesa brilhante
 		material = "Imortal",
-		forjavel = false, -- por enquanto o Imortal não vira Secreto na forja
+		forjavel = false, -- o Imortal não vira Divino na forja
+	},
+	{
+		id = "divino",
+		encaixes = 4, -- quantas joias cabem
+		nome = "Divino",
+		peso = 0, -- só itens especiais de chefe, MUITO raros (ex.: Rinnegan do Pen)
+		mult = 30.0,
+		cor = Color3.fromRGB(255, 210, 40), -- amarelo dourado
+		corBorda = Color3.fromRGB(255, 250, 200),
+		material = "Divino",
+		forjavel = false,
 	},
 	{
 		id = "secreto",
+		encaixes = 4, -- quantas joias cabem
 		nome = "Secreto",
-		peso = 0, -- por enquanto só o Rinnegan do chefe Pen
-		mult = 35.0,
+		peso = 0, -- ainda não existe nenhum item Secreto (a decidir)
+		mult = 50.0,
 		cor = Color3.fromRGB(20, 18, 24), -- item preto
 		corBorda = Color3.fromRGB(235, 235, 255),
 		material = "Secreto",
@@ -559,10 +920,13 @@ Config.Raridades = {
 }
 
 -- Cada parte do equipamento melhora uma coisa diferente.
+-- Espaços de equipamento (estilo TBH / WOG): armas, armadura completa e 6 acessórios.
+-- grupo: "arma", "armadura" ou "acessorio". Todos aceitam joias (menos o olho).
 Config.Slots = {
 	{
 		id = "arma",
 		nome = "Arma",
+		grupo = "arma",
 		base = "Lâmina",
 		icone = "⚔️",
 		atributo = "dano",
@@ -570,8 +934,19 @@ Config.Slots = {
 		texto = "+%d de dano",
 	},
 	{
+		id = "armaSec",
+		nome = "Arma secundária",
+		grupo = "arma",
+		base = "Adaga",
+		icone = "🗡️",
+		atributo = "dano",
+		valor = 1.5,
+		texto = "+%d de dano",
+	},
+	{
 		id = "elmo",
 		nome = "Elmo",
+		grupo = "armadura",
 		base = "Elmo",
 		icone = "⛑️",
 		atributo = "critico",
@@ -581,6 +956,7 @@ Config.Slots = {
 	{
 		id = "armadura",
 		nome = "Armadura",
+		grupo = "armadura",
 		base = "Peitoral",
 		icone = "🛡️",
 		atributo = "vida",
@@ -588,8 +964,29 @@ Config.Slots = {
 		texto = "+%d de vida",
 	},
 	{
+		id = "luvas",
+		nome = "Luvas",
+		grupo = "armadura",
+		base = "Luvas",
+		icone = "🧤",
+		atributo = "velAtaque",
+		valor = 0.02,
+		texto = "+%d%% de velocidade de ataque",
+	},
+	{
+		id = "calca",
+		nome = "Calça",
+		grupo = "armadura",
+		base = "Calça",
+		icone = "👖",
+		atributo = "armadura",
+		valor = 6,
+		texto = "+%d de armadura",
+	},
+	{
 		id = "botas",
 		nome = "Botas",
+		grupo = "armadura",
 		base = "Botas",
 		icone = "👢",
 		atributo = "velocidade",
@@ -597,25 +994,102 @@ Config.Slots = {
 		texto = "+%d de velocidade",
 	},
 	{
+		id = "anel",
+		nome = "Anel",
+		grupo = "acessorio",
+		base = "Anel",
+		icone = "💍",
+		atributo = "danoPct",
+		valor = 0.03,
+		texto = "+%d%% de dano",
+	},
+	{
+		id = "brinco",
+		nome = "Brinco",
+		grupo = "acessorio",
+		base = "Brinco",
+		icone = "✨",
+		atributo = "critDano",
+		valor = 0.08,
+		texto = "+%d%% de dano crítico",
+	},
+	{
+		id = "colar",
+		nome = "Colar",
+		grupo = "acessorio",
+		base = "Colar",
+		icone = "📿",
+		atributo = "vidaPct",
+		valor = 0.03,
+		texto = "+%d%% de vida",
+	},
+	{
+		id = "bracelete",
+		nome = "Bracelete",
+		grupo = "acessorio",
+		base = "Bracelete",
+		icone = "⭕",
+		atributo = "velAtaque",
+		valor = 0.015,
+		texto = "+%d%% de velocidade de ataque",
+	},
+	{
+		id = "cinto",
+		nome = "Cinto",
+		grupo = "acessorio",
+		base = "Cinto",
+		icone = "🎗️",
+		atributo = "armadura",
+		valor = 5,
+		texto = "+%d de armadura",
+	},
+	{
+		id = "broche",
+		nome = "Broche",
+		grupo = "acessorio",
+		base = "Broche",
+		icone = "🏵️",
+		atributo = "resistencia",
+		valor = 0.02,
+		texto = "+%d%% de resistência (fogo, gelo, raio, veneno)",
+	},
+	{
 		id = "olho",
 		nome = "Olho",
+		grupo = "especial",
 		base = "Olho",
 		icone = "👁️",
 		atributo = "danoMult",
 		valor = 0.5,
 		texto = "+%d%% de dano",
 		especial = true, -- não cai aleatório: só o Rinnegan do chefe
+		semJoia = true,
 	},
 }
 
 -- Forja: junta itens iguais em raridade para criar 1 item da raridade de cima.
 Config.Forja = {
 	Quantidade = 3, -- quantos itens entram
-	Custo = { comum = 10, incomum = 30, raro = 90, epico = 250, lendario = 700, mitico = 2000 }, -- ouro por forja
+	Custo = { comum = 10, incomum = 30, raro = 90, epico = 250, lendario = 700, mitico = 2000 }, -- ouro por forja (nível 1)
+	CustoCrescimento = 1.06, -- o preço multiplica por isto a cada nível do item
 }
+-- Preço de uma síntese: depende da raridade e do nível do item mais alto
+function Config.CustoForja(raridadeId, nivel)
+	local base = Config.Forja.Custo[raridadeId] or 0
+	return math.floor(base * Config.Forja.CustoCrescimento ^ ((nivel or 1) - 1) + 0.5)
+end
 
 -- Quanto ouro um item vale ao vender
-Config.ValorVenda =
-	{ comum = 3, incomum = 8, raro = 20, epico = 50, lendario = 150, mitico = 400, imortal = 1200, secreto = 5000 }
+Config.ValorVenda = {
+	comum = 3,
+	incomum = 8,
+	raro = 20,
+	epico = 50,
+	lendario = 150,
+	mitico = 400,
+	imortal = 1200,
+	divino = 4000,
+	secreto = 8000,
+}
 
 return Config

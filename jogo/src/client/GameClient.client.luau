@@ -698,6 +698,18 @@ evAviso.OnClientEvent:Connect(function(tipo, a, b)
 	elseif tipo == "horda" then
 		mostrarFaixa("⚔ HORDA À FRENTE! ⚔", Color3.fromRGB(255, 90, 70), 1.4)
 		tremer(0.5, 0.25)
+	elseif tipo == "joia" then
+		notificar("💎 Joia: " .. a .. "!", b)
+		local char = player.Character
+		local root = char and char:FindFirstChild("HumanoidRootPart")
+		if root then
+			explosao(root.Position + Vector3.new(0, 2, 0), b, 14)
+		end
+	elseif tipo == "joiaEncaixada" then
+		notificar("💎 Joia encaixada em " .. a, b)
+	elseif tipo == "joiaFundida" then
+		mostrarFaixa("💎 FUSÃO! " .. a, b, 1.8)
+		tremer(0.6, 0.3)
 	elseif tipo == "classeErrada" then
 		notificar("✖ " .. a .. " é só para " .. b .. " (use na síntese)", Color3.fromRGB(255, 110, 110))
 	elseif tipo == "avatarRepetido" then
@@ -834,5 +846,42 @@ task.spawn(function()
 			end
 		end
 		estavaLigado = ligado
+	end
+end)
+
+------------------------------------------------------------------------
+-- Peças dos equipamentos que giram e flutuam no corpo (anéis, orbes, cristais).
+-- O servidor solda essas peças com uma Weld marcada "GiroItem"; aqui ela se mexe.
+------------------------------------------------------------------------
+local CollectionService = game:GetService("CollectionService")
+local giros = {}
+local function addGiro(w)
+	if not w:IsA("Weld") then
+		return
+	end
+	local centro, rel = w:GetAttribute("Centro"), w:GetAttribute("Rel")
+	if typeof(centro) ~= "CFrame" or typeof(rel) ~= "CFrame" then
+		return
+	end
+	giros[w] = {
+		centro = centro,
+		rel = rel,
+		eixo = w:GetAttribute("Eixo") or Vector3.yAxis,
+		vel = w:GetAttribute("Vel") or 0,
+		flut = w:GetAttribute("Flut") or 0,
+	}
+end
+for _, w in ipairs(CollectionService:GetTagged("GiroItem")) do
+	addGiro(w)
+end
+CollectionService:GetInstanceAddedSignal("GiroItem"):Connect(addGiro)
+CollectionService:GetInstanceRemovedSignal("GiroItem"):Connect(function(w)
+	giros[w] = nil
+end)
+RunService.RenderStepped:Connect(function()
+	local t = os.clock()
+	local onda = math.sin(t * 2.2)
+	for w, g in pairs(giros) do
+		w.C0 = g.centro * CFrame.fromAxisAngle(g.eixo, g.vel * t) * CFrame.new(0, onda * g.flut, 0) * g.rel
 	end
 end)

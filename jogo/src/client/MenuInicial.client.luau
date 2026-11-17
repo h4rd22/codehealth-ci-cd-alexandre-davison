@@ -190,7 +190,7 @@ local function criarMenu()
 		AnchorPoint = Vector2.new(0.5, 0),
 		Position = UDim2.fromScale(0.5, 0.13),
 		Size = UDim2.fromScale(0.7, 0.035),
-		Text = "Mundo 1 · Vila Oculta do Bambu — a escolha define suas armas, elmos e armaduras",
+		Text = "Normal · Ato 1 · Vila Oculta do Bambu — a classe define suas armas e armaduras",
 		Font = FONTE_TEXTO,
 		TextSize = 18,
 		TextColor3 = FRACO,

@@ -32,6 +32,7 @@ local evAutoVenda = remote("AutoVenda") -- até qual raridade vender sozinho
 local evAvatar = remote("Avatar") -- usar um avatar (número da fase) ou 0 para o visual normal
 local evEsconderEquip = remote("EsconderEquip") -- esconder os equipamentos no corpo
 local evTreinar = remote("Treinar") -- sobe um atributo do treinamento
+local evJoia = remote("Joia") -- encaixar, remover e fundir joias
 local evClasse = remote("Classe") -- menu inicial: escolher Guerreiro, Caçador ou Mago
 local evEquipar = remote("Equipar")
 local evDesequipar = remote("Desequipar")
@@ -102,23 +103,52 @@ local function calcularStats(st)
 		ouro = 1,
 		velocidade = h.Velocidade,
 		vidaMax = h.Vida + (st.nivel - 1) * h.VidaPorNivel,
+		armadura = 0,
+		critDano = 0, -- soma no multiplicador do crítico
+		velAtaque = 0, -- % mais rápido
+		resistencia = 0, -- fogo, gelo, raio e veneno
 	}
+	local danoPctItens, vidaPctItens, armaduraPct = 0, 0, 0
+	local function somar(atributo, valor)
+		if atributo == "dano" then
+			s.dano += valor
+		elseif atributo == "critico" then
+			s.critico += valor
+		elseif atributo == "ouro" then
+			s.ouro += valor
+		elseif atributo == "velocidade" then
+			s.velocidade += valor
+		elseif atributo == "vida" then
+			s.vidaMax += valor
+		elseif atributo == "danoMult" then
+			s.danoMult = (s.danoMult or 1) + valor
+		elseif atributo == "danoPct" then
+			danoPctItens += valor
+		elseif atributo == "vidaPct" then
+			vidaPctItens += valor
+		elseif atributo == "armadura" then
+			s.armadura += valor
+		elseif atributo == "armaduraPct" then
+			armaduraPct += valor
+		elseif atributo == "critDano" then
+			s.critDano += valor
+		elseif atributo == "velAtaque" then
+			s.velAtaque += valor
+		elseif atributo == "resistencia" then
+			s.resistencia += valor
+		end
+	end
 	for slotId, itemId in pairs(st.equipado) do
 		local item = st.itens[itemId]
 		local slot = slotPorId(slotId)
 		if item and slot then
-			if slot.atributo == "dano" then
-				s.dano += item.valor
-			elseif slot.atributo == "critico" then
-				s.critico += item.valor
-			elseif slot.atributo == "ouro" then
-				s.ouro += item.valor
-			elseif slot.atributo == "velocidade" then
-				s.velocidade += item.valor
-			elseif slot.atributo == "vida" then
-				s.vidaMax += item.valor
-			elseif slot.atributo == "danoMult" then
-				s.danoMult = (s.danoMult or 1) + item.valor
+			somar(slot.atributo, item.valor)
+			-- joias encaixadas no item
+			for _, chave in ipairs(item.joias or {}) do
+				local j, nivelJ = Config.LerJoia(chave)
+				if j then
+					somar(j.atributo, j.valores[nivelJ])
+				end
 			end
 		end
 	end
@@ -143,7 +173,7 @@ local function calcularStats(st)
 			contagem[it.conjunto] = (contagem[it.conjunto] or 0) + 1
 		end
 	end
-	local danoPct, vidaPct = 0, 0
+	local danoPct, vidaPct = danoPctItens, vidaPctItens
 	for id, n in pairs(contagem) do
 		local c = Config.ConjuntoPorId(id)
 		if c then
@@ -176,6 +206,14 @@ local function calcularStats(st)
 		s.intervalo = h.Intervalo
 	end
 	s.critico = math.min(s.critico, Config.Heroi.CriticoMaximo)
+	s.armadura = math.floor(s.armadura * (1 + armaduraPct) + 0.5)
+	s.multCritico = h.MultCritico + s.critDano
+	s.velAtaque = math.min(s.velAtaque, 1.5) -- no máximo 150% mais rápido
+	s.intervalo = s.intervalo / (1 + s.velAtaque)
+	s.resistencia = math.min(s.resistencia, 0.75)
+	if st.multAdmin then
+		danoPct = (1 + danoPct) * st.multAdmin - 1
+	end
 	s.dano *= 1 + danoPct
 	s.vidaMax = math.floor(s.vidaMax * (1 + vidaPct) + 0.5)
 	s.dano = math.floor(s.dano + 0.5)
@@ -226,6 +264,7 @@ local function enviarEstado(player)
 		pontosHabilidade = st.pontosHabilidade,
 		habilidades = st.habilidades,
 		barraHab = st.barraHab,
+		joias = st.joias,
 	})
 end
 
@@ -355,14 +394,17 @@ end
 ------------------------------------------------------------------------
 -- Itens
 ------------------------------------------------------------------------
-local function sortearRaridade()
+-- Sorteia a raridade de um drop. As chances dependem da dificuldade da fase (bem raras!)
+local function sortearRaridade(f)
+	local dif = f and Config.Dificuldades[f.dificuldade]
+	local pesos = dif and dif.pesos
 	local total = 0
-	for _, r in ipairs(Config.Raridades) do
-		total += r.peso
+	for i, r in ipairs(Config.Raridades) do
+		total += pesos and (pesos[i] or 0) or r.peso
 	end
 	local x = math.random() * total
 	for i, r in ipairs(Config.Raridades) do
-		x -= r.peso
+		x -= pesos and (pesos[i] or 0) or r.peso
 		if x <= 0 then
 			return i
 		end
@@ -413,7 +455,7 @@ end
 local function criarItem(st, raridadeIdx, nivel, slotId, nomeEspecial, valorFixo, conjuntoId, classe)
 	local rar = Config.Raridades[raridadeIdx]
 	local slot = slotId and slotPorId(slotId) or slotsComuns[math.random(#slotsComuns)]
-	local cresc = 1 + Config.ItemNivel.CrescimentoPorNivel * (nivel - 1)
+	local cresc = Config.ItemNivel.Crescimento ^ (nivel - 1)
 	local bruto = slot.valor * rar.mult * cresc * (0.85 + math.random() * 0.3)
 	if slot.atributo == "critico" or slot.atributo == "velocidade" then
 		-- crítico e velocidade crescem bem menos (senão um elmo raro dava +100% de crítico)
@@ -440,6 +482,8 @@ local function criarItem(st, raridadeIdx, nivel, slotId, nomeEspecial, valorFixo
 		slot = slot.id,
 		raridade = rar.id,
 		classe = classeItem,
+		encaixes = slot.semJoia and 0 or (rar.encaixes or 0), -- quantas joias cabem
+		joias = {},
 		nome = (conjuntoId and nomeDoItem(slot.id, raridadeIdx, classeItem, conjuntoId))
 			or nomeEspecial
 			or nomeDoItem(slot.id, raridadeIdx, classeItem)
@@ -803,23 +847,16 @@ local function abrirBau(player, pos)
 			return
 		end
 		local drops = Config.DropsChefe
-		st.ouro += drops.Ouro
 		local f = Config.Fases[st.fase]
+		local ouroBau = math.floor(f.ouro * 0.5 + 0.5)
+		st.ouro += ouroBau
 		local nivel = nivelDoDrop(f.nivel, st.nivel) + 2
-		-- 1 equipamento garantido
-		local x, escolhida = math.random(), drops.Equipamento[1][1]
-		for _, par in ipairs(drops.Equipamento) do
-			x -= par[2]
-			if x <= 0 then
-				escolhida = par[1]
-				break
-			end
-		end
-		local _, ri = raridadePorId(escolhida)
+		-- 1 equipamento garantido, uma raridade acima do normal da dificuldade (no máximo Mítico)
+		local ri = math.min(sortearRaridade(f) + 1, 6)
 		guardarItem(player, criarItem(st, ri, nivel), pos + Vector3.new(0, 3, 0), "bau")
 		-- especiais (Lâmina de Chakra Negro, Rinnegan...)
 		for k, esp in ipairs(drops.Especiais) do
-			if math.random() < esp.chance then
+			if (not esp.soDe or esp.soDe == f.modelo) and math.random() < esp.chance then
 				local _, rie = raridadePorId(esp.raridade)
 				local item = criarItem(st, rie, nivel, esp.slot, esp.nome, esp.valor, nil, false)
 				guardarItem(player, item, pos + Vector3.new(0, 3 + k * 2, 0), "bau")
@@ -828,7 +865,7 @@ local function abrirBau(player, pos)
 				end
 			end
 		end
-		evAviso:FireClient(player, "bau", drops.Ouro)
+		evAviso:FireClient(player, "bau", ouroBau)
 		enviarEstado(player)
 	end)
 	task.delay(4, function()
@@ -850,8 +887,9 @@ local function monstroMorreu(player, m)
 	local stats = calcularStats(st)
 	local ouro = math.max(1, math.floor(f.ouro * stats.ouro + 0.5))
 	st.ouro += ouro
-	ganharXP(player, f.xp)
-	evDano:FireClient(player, "morte", pos, ouro, cor, f.xp, f.chefe)
+	local xpGanho = math.max(1, math.floor(f.xp * Config.MultXP(st.nivel, f.nivel) + 0.5))
+	ganharXP(player, xpGanho)
+	evDano:FireClient(player, "morte", pos, ouro, cor, xpGanho, f.chefe)
 
 	local tempoSumir = f.chefe and 0.8 or 0.2
 	for _, p in ipairs(m:GetDescendants()) do
@@ -868,14 +906,15 @@ local function monstroMorreu(player, m)
 	end)
 
 	-- chance mínima de dropar o avatar do inimigo desta fase
-	if math.random() < (f.chefe and Config.Avatares.ChanceChefe or Config.Avatares.ChanceNormal) then
-		if table.find(st.avatares, faseIdx) then
+	local avatarId = f.avatar
+	if avatarId and math.random() < (f.chefe and Config.Avatares.ChanceChefe or Config.Avatares.ChanceNormal) then
+		if table.find(st.avatares, avatarId) then
 			local ouroAv = Config.Avatares.OuroRepetido * f.nivel
 			st.ouro += ouroAv
 			evAviso:FireClient(player, "avatarRepetido", f.monstro, ouroAv)
 		else
-			table.insert(st.avatares, faseIdx)
-			evAviso:FireClient(player, "avatar", f.monstro, Config.Avatares.Raridade[faseIdx])
+			table.insert(st.avatares, avatarId)
+			evAviso:FireClient(player, "avatar", f.monstro, Config.Avatares.Raridade[avatarId])
 			for _, outro in ipairs(Players:GetPlayers()) do
 				if outro ~= player then
 					evAviso:FireClient(outro, "lendario", player.DisplayName, "Avatar: " .. f.monstro)
@@ -884,12 +923,24 @@ local function monstroMorreu(player, m)
 		end
 	end
 
+	if math.random() < Config.Joias.ChanceDrop * (f.chefe and 20 or 1) then
+		local tipo = Config.Joias.Tipos[math.random(#Config.Joias.Tipos)]
+		-- dificuldades maiores soltam joias de nível maior
+		local nivelJ = 1
+		if math.random() < 0.15 * (f.dificuldade - 1) then
+			nivelJ = math.min(f.dificuldade, 4)
+		end
+		local chave = tipo.id .. ":" .. nivelJ
+		st.joias[chave] = (st.joias[chave] or 0) + 1
+		evAviso:FireClient(player, "joia", tipo.nome .. " " .. Config.Joias.Niveis[nivelJ], tipo.cor)
+	end
+
 	if f.chefe then
 		abrirBau(player, pos)
 	elseif math.random() < Config.ChanceDrop then
 		local conjuntoId, slotConjunto
 		for _, c in ipairs(Config.Conjuntos) do
-			if faseIdx >= c.fases[1] and faseIdx <= c.fases[2] and math.random() < c.chance then
+			if f.ato == 1 and f.numero >= c.fases[1] and f.numero <= c.fases[2] and math.random() < c.chance then
 				conjuntoId = c.id
 				slotConjunto = slotsComuns[math.random(#slotsComuns)].id
 				break
@@ -900,7 +951,7 @@ local function monstroMorreu(player, m)
 			player,
 			criarItem(
 				st,
-				sortearRaridade(),
+				sortearRaridade(f),
 				nivelDoDrop(f.nivel, st.nivel),
 				slotConjunto,
 				nomeConjunto,
@@ -923,7 +974,7 @@ local function monstroMorreu(player, m)
 				local raiz0 = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
 				guardarItem(
 					player,
-					criarItem(st, math.min(sortearRaridade() + 1, 5), nivelDoDrop(f.nivel, st.nivel)),
+					criarItem(st, math.min(sortearRaridade(f) + 1, 6), nivelDoDrop(f.nivel, st.nivel)),
 					raiz0 and raiz0.Position or pos,
 					"bau"
 				)
@@ -1022,7 +1073,7 @@ local function golpe(player, root)
 	local dano = stats.dano * (1 + (math.random() * 2 - 1) * h.Variacao)
 	local critico = math.random() < stats.critico
 	if critico then
-		dano *= h.MultCritico
+		dano *= stats.multCritico or h.MultCritico
 	end
 	local classe = Config.ClassePorId(st.classe)
 	dano *= classe and classe.danoBasico or 1 -- o ataque básico do Mago é fraco: a força dele são as magias
@@ -1060,7 +1111,8 @@ local function loopCombate(player)
 			golpe(player, root)
 		end
 		local classe = Config.ClassePorId(estado[player] and estado[player].classe)
-		task.wait(classe and classe.intervalo or Config.Heroi.Intervalo)
+		local stVel = estado[player]
+		task.wait(stVel and calcularStats(stVel).intervalo or (classe and classe.intervalo) or Config.Heroi.Intervalo)
 	end
 end
 
@@ -1123,7 +1175,12 @@ causarDano = function(player, dano, pos)
 	if not st or st.morto then
 		return false
 	end
-	dano = math.max(1, math.floor(dano + 0.5))
+	if st.deus then
+		return false -- modo deus do menu admin
+	end
+	local fAtual = Config.Fases[st.fase]
+	local reducao = Config.ReducaoArmadura(calcularStats(st).armadura, fAtual and fAtual.nivel or 1)
+	dano = math.max(1, math.floor(dano * (1 - reducao) + 0.5))
 	st.vida -= dano
 	st.ultimoDano = os.clock()
 	evDano:FireClient(player, "heroi", pos, dano)
@@ -1388,6 +1445,64 @@ evEsconderEquip.OnServerEvent:Connect(function(player, esconder)
 	end
 end)
 
+-- Joias: "encaixar" (itemId, chave), "remover" (itemId, posição; a joia quebra), "fundir" (chave: 3 iguais viram 1 acima)
+local ultimaJoia = {}
+evJoia.OnServerEvent:Connect(function(player, acao, a, b)
+	local st = estado[player]
+	if not st or type(acao) ~= "string" then
+		return
+	end
+	local agora = os.clock()
+	if ultimaJoia[player] and agora - ultimaJoia[player] < 0.15 then
+		return
+	end
+	ultimaJoia[player] = agora
+	if acao == "encaixar" then
+		local item = type(a) == "number" and st.itens[a]
+		local j = type(b) == "string" and Config.LerJoia(b)
+		if not item or not j or (st.joias[b] or 0) <= 0 then
+			return
+		end
+		item.joias = item.joias or {}
+		if #item.joias >= (item.encaixes or 0) then
+			return
+		end
+		st.joias[b] -= 1
+		if st.joias[b] <= 0 then
+			st.joias[b] = nil
+		end
+		table.insert(item.joias, b)
+		evAviso:FireClient(player, "joiaEncaixada", item.nome, j.cor)
+	elseif acao == "remover" then
+		local item = type(a) == "number" and st.itens[a]
+		if not item or type(b) ~= "number" or not item.joias or not item.joias[b] then
+			return
+		end
+		table.remove(item.joias, b) -- a joia quebra ao sair (como no TBH)
+	elseif acao == "fundir" then
+		local j, nivelJ
+		if type(a) == "string" then
+			j, nivelJ = Config.LerJoia(a)
+		end
+		if not j or nivelJ >= #Config.Joias.Niveis or (st.joias[a] or 0) < 3 then
+			return
+		end
+		local custo = Config.Joias.CustoFundir[nivelJ] or 0
+		if st.ouro < custo then
+			return
+		end
+		st.ouro -= custo
+		st.joias[a] -= 3
+		if st.joias[a] <= 0 then
+			st.joias[a] = nil
+		end
+		local nova = j.id .. ":" .. (nivelJ + 1)
+		st.joias[nova] = (st.joias[nova] or 0) + 1
+		evAviso:FireClient(player, "joiaFundida", j.nome .. " " .. Config.Joias.Niveis[nivelJ + 1], j.cor)
+	end
+	enviarEstado(player)
+end)
+
 evClasse.OnServerEvent:Connect(function(player, classeId)
 	local st = estado[player]
 	if not st or st.classe or type(classeId) ~= "string" or not Config.ClassePorId(classeId) then
@@ -1515,13 +1630,15 @@ local function forjarItens(player, st, itens)
 	if not rar or rar.forjavel == false or not proxima then
 		return nil
 	end
-	local custo = Config.Forja.Custo[rar.id] or 0
-	if st.ouro < custo then
-		return nil
-	end
 	local nivel = 1
 	for _, it in ipairs(itens) do
 		nivel = math.max(nivel, it.nivel or 1)
+	end
+	local custo = Config.CustoForja(rar.id, nivel)
+	if st.ouro < custo then
+		return nil
+	end
+	for _, it in ipairs(itens) do
 		st.itens[it.id] = nil
 	end
 	st.ouro -= custo
@@ -1695,21 +1812,31 @@ end)
 ------------------------------------------------------------------------
 -- Ferramenta de teste: só existe no Studio (nunca no jogo publicado)
 ------------------------------------------------------------------------
-if RunService:IsStudio() then
-	local debug = Instance.new("BindableFunction")
-	debug.Name = "DebugTeste"
-	debug.Parent = script
-	debug.OnInvoke = function(acao, a, b)
-		local player = Players:GetPlayers()[1]
-		local st = player and estado[player]
-		if not st then
-			return "sem jogador"
-		end
+-- Menu admin: só no Studio ou para o dono do jogo (game.CreatorId). O servidor confere sempre.
+local function ehAdmin(player)
+	return RunService:IsStudio() or player.UserId == game.CreatorId
+end
+
+local function acaoAdmin(player, acao, a, b)
+	local st = player and estado[player]
+	if not st then
+		return "sem jogador"
+	end
+	if type(acao) ~= "string" then
+		return "ação inválida"
+	end
+	if a ~= nil and type(a) ~= "number" and type(a) ~= "string" then
+		return "valor inválido"
+	end
+	if b ~= nil and type(b) ~= "number" and type(b) ~= "string" then
+		return "valor inválido"
+	end
+	do
 		if acao == "itens" then
 			-- a = quantidade, b = índice da raridade (ou nil para sortear)
 			for _ = 1, a or 10 do
 				local f = Config.Fases[st.fase]
-				local item = criarItem(st, b or sortearRaridade(), nivelDoDrop(f.nivel, st.nivel))
+				local item = criarItem(st, b or sortearRaridade(f), nivelDoDrop(f.nivel, st.nivel))
 				st.itens[item.id] = item
 			end
 		elseif acao == "drop" then
@@ -1717,7 +1844,7 @@ if RunService:IsStudio() then
 			local char = player.Character
 			local raizHeroi = char and char:FindFirstChild("HumanoidRootPart")
 			local pos = raizHeroi and (raizHeroi.Position + raizHeroi.CFrame.LookVector * 6) or Vector3.new(0, 5, 0)
-			guardarItem(player, criarItem(st, b or sortearRaridade(), 10), pos)
+			guardarItem(player, criarItem(st, b or sortearRaridade(Config.Fases[st.fase]), 10), pos)
 		elseif acao == "conjunto" then
 			-- a = qual conjunto (1 ou 2), b = raridade
 			local c = Config.Conjuntos[a or 1]
@@ -1752,23 +1879,121 @@ if RunService:IsStudio() then
 			end
 			vestir(player)
 		elseif acao == "ouro" then
-			st.ouro += a or 1000
+			st.ouro = math.max(0, st.ouro + (tonumber(a) or 1000))
 		elseif acao == "nivel" then
-			st.nivel = a or 10
+			st.nivel = math.clamp(math.floor(tonumber(a) or 10), 1, 999)
+			st.xp = 0
+			st.vida = vidaMaxDe(st)
+			enviarVida(player)
+		elseif acao == "subirNivel" then
+			-- sobe níveis pelo caminho normal (ganha pontos de habilidade etc.)
+			for _ = 1, math.clamp(math.floor(tonumber(a) or 1), 1, 100) do
+				ganharXP(player, math.max(1, Config.XPParaNivel(st.nivel) - st.xp))
+			end
+		elseif acao == "xp" then
+			ganharXP(player, math.max(0, tonumber(a) or 100))
+		elseif acao == "pontos" then
+			st.pontosHabilidade = (st.pontosHabilidade or 0) + (tonumber(a) or 5)
 		elseif acao == "liberar" then
 			st.faseMax = #Config.Fases
 		elseif acao == "fase" then
-			st.fase = a or 1
+			st.fase = math.clamp(math.floor(tonumber(a) or 1), 1, #Config.Fases)
 			st.faseMax = math.max(st.faseMax, st.fase)
 			st.kills = 0
 			aplicarFase(player)
+		elseif acao == "matarHorda" then
+			for _, m in ipairs(monstrosDe(player)) do
+				if (m:GetAttribute("Vida") or 0) > 0 then
+					monstroMorreu(player, m)
+				end
+			end
+		elseif acao == "curar" then
+			st.vida = vidaMaxDe(st)
+			enviarVida(player)
+		elseif acao == "deus" then
+			st.deus = not st.deus
+		elseif acao == "danoX" then
+			st.multAdmin = math.clamp(tonumber(a) or 1, 0.1, 1000)
+		elseif acao == "item" then
+			-- a = categoria (arma, elmo...), b = índice da raridade
+			local slot = slotPorId(tostring(a))
+			if slot then
+				local f = Config.Fases[st.fase]
+				local ri = math.clamp(math.floor(tonumber(b) or 4), 1, #Config.Raridades)
+				local item =
+					criarItem(st, ri, nivelDoDrop(f.nivel, st.nivel), slot.id, nil, nil, nil, st.classe or "guerreiro")
+				guardarItem(player, item, nil, "forja")
+			end
+		elseif acao == "joias" then
+			-- a = nível (1 a 5): uma de cada tipo
+			local nivelJ = math.clamp(math.floor(tonumber(a) or 1), 1, #Config.Joias.Niveis)
+			for _, tipo in ipairs(Config.Joias.Tipos) do
+				local chave = tipo.id .. ":" .. nivelJ
+				st.joias[chave] = (st.joias[chave] or 0) + 3
+			end
+		elseif acao == "limparMochila" then
+			local vestidos = {}
+			for _, id in pairs(st.equipado) do
+				vestidos[id] = true
+			end
+			for id in pairs(st.itens) do
+				if not vestidos[id] then
+					st.itens[id] = nil
+				end
+			end
+		elseif acao == "resetar" then
+			-- volta ao começo de verdade: nível 1, 0 ouro, 0 XP, sem itens (a classe continua)
+			st.nivel, st.xp, st.ouro = 1, 0, 0
+			st.itens, st.equipado = {}, {}
+			st.fase, st.faseMax, st.kills = 1, 1, 0
+			st.treino = { forca = 0, vitalidade = 0, precisao = 0, ganancia = 0 }
+			st.pontosHabilidade = 0
+			st.habilidades = nil
+			st.avatares, st.avatarAtivo = {}, nil
+			st.joias = {}
+			st.deus, st.multAdmin = nil, nil
+			vestir(player)
+			aplicarFase(player)
 		end
-		enviarEstado(player)
-		local n = 0
-		for _ in pairs(st.itens) do
-			n += 1
-		end
-		return string.format("ok: nivel=%d ouro=%d itens=%d fase=%d", st.nivel, st.ouro, n, st.fase)
+	end
+	enviarEstado(player)
+	local n = 0
+	for _ in pairs(st.itens) do
+		n += 1
+	end
+	return string.format(
+		"ok: nivel=%d ouro=%d itens=%d fase=%d%s",
+		st.nivel,
+		st.ouro,
+		n,
+		st.fase,
+		st.deus and " (modo deus)" or ""
+	)
+end
+
+local evAdmin = Instance.new("RemoteFunction")
+evAdmin.Name = "Admin"
+evAdmin.Parent = remotes
+local ultimoAdmin = {}
+evAdmin.OnServerInvoke = function(player, acao, a, b)
+	if not ehAdmin(player) then
+		return "sem permissão"
+	end
+	local agora = os.clock()
+	if ultimoAdmin[player] and agora - ultimoAdmin[player] < 0.1 then
+		return "devagar"
+	end
+	ultimoAdmin[player] = agora
+	return acaoAdmin(player, acao, a, b)
+end
+
+-- Ferramenta de teste do Studio (usada pelos testes automáticos): age no primeiro jogador
+if RunService:IsStudio() then
+	local debug = Instance.new("BindableFunction")
+	debug.Name = "DebugTeste"
+	debug.Parent = script
+	debug.OnInvoke = function(acao, a, b)
+		return acaoAdmin(Players:GetPlayers()[1], acao, a, b)
 	end
 end
 
@@ -1787,6 +2012,7 @@ Players.PlayerAdded:Connect(function(player)
 		vida = Config.Heroi.Vida,
 		repetir = false,
 		autoVenda = "nada",
+		joias = {}, -- joias guardadas: { ["rubi:1"] = quantidade }
 		avatares = {}, -- lista com o número das fases cujo avatar já foi obtido
 		avatarAtivo = nil,
 		esconderEquip = false,
@@ -1828,6 +2054,7 @@ end)
 
 Players.PlayerRemoving:Connect(function(player)
 	ultimaForja[player] = nil
+	ultimaJoia[player] = nil
 	ultimoTreino[player] = nil
 	limparMonstros(player)
 	estado[player] = nil
