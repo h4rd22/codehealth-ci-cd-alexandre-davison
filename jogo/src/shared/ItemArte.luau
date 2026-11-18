@@ -7,6 +7,7 @@
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 local CollectionService = game:GetService("CollectionService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local ItemArte = {}
 
@@ -2602,6 +2603,60 @@ local function rastroCorpo(parte, cor, claro, largura)
 	t.Parent = a0
 end
 
+-- Auras prontas (estilo anime) usadas do Épico para cima: modelo, se repinta na cor do tier e
+-- quanto da quantidade original de partículas usar (as originais são pesadas)
+local AURA_PRONTA = {
+	[4] = { "SSJ", true, 0.35 },
+	[5] = { "SSJ", true, 0.6 },
+	[6] = { "Kaioken", true, 0.8 },
+	[7] = { "SuperNamekian", true, 0.9 },
+	[8] = { "SSJ3", false, 0.9 },
+	[9] = { "PureMajin", true, 0.9 },
+}
+local function auraImportada(pasta, raiz, ri, principal, claro)
+	local cfg = AURA_PRONTA[ri]
+	local arte = cfg and ReplicatedStorage:FindFirstChild("Arte")
+	local vfx = arte and arte:FindFirstChild("VFX")
+	local auras = vfx and vfx:FindFirstChild("Auras")
+	local modelo = auras and auras:FindFirstChild(cfg[1])
+	if not modelo or not modelo:IsA("BasePart") then
+		return false
+	end
+	local p = modelo:Clone()
+	for _, d in ipairs(p:GetDescendants()) do
+		if d:IsA("LuaSourceContainer") then
+			d:Destroy() -- segurança: modelo grátis nunca roda script
+		elseif d:IsA("ParticleEmitter") then
+			d.Rate *= cfg[3]
+			if cfg[2] then
+				if ri >= 9 then
+					-- Secreto: fumaça preta (sem brilho) com fio branco
+					d.Color = ColorSequence.new(Color3.fromRGB(10, 8, 16), Color3.fromRGB(70, 60, 100))
+					d.LightEmission = 0
+				else
+					d.Color = ColorSequence.new(claro, principal)
+				end
+			end
+		elseif d:IsA("PointLight") then
+			d.Color = ri >= 9 and Color3.fromRGB(190, 180, 255) or principal
+		end
+	end
+	p.Name = "AuraRara"
+	p.Transparency = 1
+	p.Anchored = false
+	p.CanCollide = false
+	p.CanQuery = false
+	p.CanTouch = false
+	p.Massless = true
+	p.CFrame = raiz.CFrame
+	local w = Instance.new("WeldConstraint")
+	w.Part0 = raiz
+	w.Part1 = p
+	w.Parent = p
+	p.Parent = pasta
+	return true
+end
+
 -- Aura no corpo (do Raro para cima). Cada tier soma um efeito novo:
 -- T3 brilhinhos · T4 anel no chão + luz · T5 coluna de energia + rastros
 -- T5 chamas de aura · T6 anéis subindo + contorno · T7 turquesa com raios e auréola · T8 Divino dourado · T9 fumaça preta e faíscas brancas
@@ -2698,9 +2753,11 @@ function ItemArte.aura(char, pasta, ri, cor)
 		rastroCorpo(pecaCorpo(char, "RightFoot", "Right Leg"), principal, claro, largRastro * 0.7)
 		rastroCorpo(pecaCorpo(char, "LeftFoot", "Left Leg"), principal, claro, largRastro * 0.7)
 	end
-	-- chamas de aura cobrindo o corpo (preta e fumacenta no Secreto)
+	-- aura de anime pronta (pacote grátis em ReplicatedStorage.Arte.VFX.Auras), pintada na cor do tier
+	local importada = auraImportada(pasta, raiz, ri, principal, claro)
+	-- chamas de aura cobrindo o corpo (preta e fumacenta no Secreto); com a aura pronta fica só a dela
 	local corpo = pecaInvisivel(pasta, Vector3.new(2.4, 4.5, 1.6), raiz.CFrame * CFrame.new(0, 0.2, 0), raiz)
-	emissor(corpo, {
+	local chamasFx = emissor(corpo, {
 		Texture = secreto and TEX.fumaca or TEX.fogo,
 		Shape = Enum.ParticleEmitterShape.Box,
 		EmissionDirection = Enum.NormalId.Top,
@@ -2723,6 +2780,7 @@ function ItemArte.aura(char, pasta, ri, cor)
 		RotSpeed = NumberRange.new(-60, 60),
 		Rotation = NumberRange.new(0, 360),
 	})
+	chamasFx.Enabled = not importada
 	if ri < 6 then
 		return
 	end
