@@ -10,6 +10,7 @@ local RunService = game:GetService("RunService")
 local Lighting = game:GetService("Lighting")
 
 local Dados = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Habilidades"))
+local NumerosDano = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("NumerosDano"))
 
 -- Efeitos prontos (partículas) do Henrique: raios no corpo do atordoado, fumaça no congelado
 local VFX
@@ -1806,7 +1807,6 @@ local function numero(pos, texto, cor, tamanho)
 	Debris:AddItem(ancora, 1)
 end
 
-local ICONE_NUM = { gelo = "❄", raio = "⚡", fogo = "🔥", queima = "" }
 
 evDano.OnClientEvent:Connect(function(tipo, a, b, c, d)
 	if tipo == "magia" then
@@ -1829,16 +1829,8 @@ evDano.OnClientEvent:Connect(function(tipo, a, b, c, d)
 		fimRecarga[a] = os.clock() + b
 		duracaoRecarga[a] = b
 	elseif tipo == "danoElem" then
-		local el = Dados.Elementos[d] or Dados.Elementos.arcano
-		local icone = ICONE_NUM[d] or ""
-		local txt = abreviar(b)
-		if c then
-			numero(a, icone .. " " .. txt .. "!", el.cor:Lerp(COR.ouro, 0.35), 38)
-		elseif d == "queima" then
-			numero(a, txt, el.cor, 17)
-		else
-			numero(a, (icone ~= "" and (icone .. " ") or "") .. txt, el.cor, 26)
-		end
+		-- número na cor do elemento (gelo azul-claro, fogo laranja, raio roxo); crítico maior com "!"
+		NumerosDano.mostrar(a, b, d or "arcano", { critico = c == true, menor = d == "queima" })
 	end
 end)
 

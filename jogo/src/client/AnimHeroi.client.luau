@@ -491,7 +491,6 @@ local function golpeGuerreiro(alvo, critico)
 		task.delay(0.08, function()
 			local olhar = CFrame.lookAt(alvo, raiz.Position)
 			if critico then
-				Animacoes.onomatopeia(alvo, DOURADO, true, { "斬", "ZAN!" })
 				VFX.estouro("Golpes/HEAVYPunchGenshinpack", olhar, { anexo = "ParticleA", mult = 0.3 })
 				VFX.estouro("Golpes/GiganticCrush", olhar, { escala = 0.6 })
 			else

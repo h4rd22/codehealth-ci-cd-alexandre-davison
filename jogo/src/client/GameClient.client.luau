@@ -10,6 +10,7 @@ local RunService = game:GetService("RunService")
 
 local Config = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
 local ItemArte = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("ItemArte"))
+local NumerosDano = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("NumerosDano"))
 local remotes = ReplicatedStorage:WaitForChild("Remotes")
 local evDano = remotes:WaitForChild("Dano")
 local evAviso = remotes:WaitForChild("Aviso")
@@ -599,7 +600,7 @@ local morto = false
 
 evDano.OnClientEvent:Connect(function(tipo, pos, valor, extra, xp, chefe)
 	if tipo == "heroi" then
-		textoFlutuante(pos + Vector3.new(0, 1, 0), "-" .. valor, Color3.fromRGB(255, 70, 70), valor >= 50 and 30 or 22)
+		NumerosDano.mostrar(pos, valor, "heroi", { prefixo = "-" })
 		piscarTela(valor >= 50 and 0.35 or 0.15)
 		if valor >= 50 then
 			tremer(0.8, 0.25)
@@ -617,11 +618,9 @@ evDano.OnClientEvent:Connect(function(tipo, pos, valor, extra, xp, chefe)
 		else
 			corte(pos, extra)
 		end
+		NumerosDano.mostrar(pos, valor, extra and "critico" or "normal")
 		if extra then
-			textoFlutuante(pos, "CRÍTICO! " .. valor, Color3.fromRGB(255, 220, 60), 34)
 			tremer(0.6, 0.15)
-		else
-			textoFlutuante(pos, tostring(valor), Color3.new(1, 1, 1), 24)
 		end
 	elseif tipo == "morte" then
 		explosao(pos, extra, chefe and 40 or 10)
