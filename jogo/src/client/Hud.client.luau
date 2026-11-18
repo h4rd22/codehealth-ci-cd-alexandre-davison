@@ -1967,6 +1967,18 @@ local btnVender = botao(detalhe, {
 	Visible = false,
 })
 
+-- Gravação de atributos (a janela fica em Gravacao.client.luau)
+local btnGravar = botao(detalhe, {
+	Name = "BtnGravar",
+	AnchorPoint = Vector2.new(1, 0),
+	Position = UDim2.new(1, -8, 0, 68),
+	Size = UDim2.fromOffset(130, 24),
+	Text = "✒ Gravar",
+	TextSize = 13,
+	BackgroundColor3 = Color3.fromRGB(150, 70, 230),
+	Visible = false,
+})
+
 local selecionado = nil -- id do item ou "slot:<id>"
 
 -- Encaixes de joia do item escolhido (embaixo do detalhe)
@@ -2168,6 +2180,12 @@ btnEquipar.Activated:Connect(function()
 		end
 	end
 end)
+btnGravar.Activated:Connect(function()
+	if type(selecionado) == "number" then
+		player:SetAttribute("ItemGravar", nil)
+		player:SetAttribute("ItemGravar", selecionado)
+	end
+end)
 btnVender.Activated:Connect(function()
 	if type(selecionado) == "number" and not vestido(selecionado) then
 		evVender:FireServer(selecionado)
@@ -2181,7 +2199,7 @@ local function desenharDetalhe()
 		detNome.Text = "Toque num item"
 		detNome.TextColor3 = COR.texto
 		detStat.Text = "para ver os atributos."
-		btnEquipar.Visible, btnVender.Visible = false, false
+		btnEquipar.Visible, btnVender.Visible, btnGravar.Visible = false, false, false
 		desenharEncaixes(nil)
 		return
 	end
@@ -2225,6 +2243,22 @@ local function desenharDetalhe()
 		.. textoItem(it)
 		.. comparar
 		.. linhaConj
+	-- linhas gravadas
+	if it.gravacoes and #it.gravacoes > 0 then
+		local partes = {}
+		for _, g in ipairs(it.gravacoes) do
+			local q = Config.QualidadeGravacao(g.qualidade)
+			table.insert(
+				partes,
+				string.format(
+					'<font color="#%s">%s</font>',
+					(q and q.cor or COR.fraco):ToHex(),
+					Config.TextoGravacao(g)
+				)
+			)
+		end
+		detStat.Text ..= "\n✒ " .. table.concat(partes, "  ·  ")
+	end
 	local classeIt = it.classe and Config.ClassePorId(it.classe)
 	local outraClasse = classeIt and it.classe ~= estado.classe
 	if classeIt then
@@ -2241,6 +2275,8 @@ local function desenharDetalhe()
 	btnEquipar.Text = v and "Tirar" or "Vestir"
 	btnEquipar.BackgroundColor3 = v and COR.cinza or COR.verde
 	btnVender.Visible = not v
+	btnGravar.Visible = true
+	btnGravar.Text = "✒ Gravar (" .. (it.gravacoes and #it.gravacoes or 0) .. "/" .. Config.Gravacao.Linhas .. ")"
 	btnVender.Text = "Vender (+" .. (Config.ValorVenda[it.raridade] or 1) .. " ouro)"
 	desenharEncaixes(it)
 end

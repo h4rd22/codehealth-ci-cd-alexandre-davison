@@ -1104,6 +1104,104 @@ function Config.CustoForja(raridadeId, nivel)
 	return math.floor(base * Config.Forja.CustoCrescimento ^ ((nivel or 1) - 1) + 0.5)
 end
 
+-- Gravação de atributos: cada item ganha até 2 linhas extras sorteadas.
+-- Custa ouro + Pergaminhos de Gravação (drop raro de monstro, certo no baú do chefe e da Alquimia).
+Config.Gravacao = {
+	Linhas = 2,
+	ChanceDropPergaminho = 0.01, -- por monstro comum
+	PergaminhosChefe = { 2, 4 }, -- baú do chefe dá entre 2 e 4
+	PergaminhosAlquimia = { raro = 1, epico = 1, lendario = 2, mitico = 3, imortal = 5, divino = 8, secreto = 10 },
+	CustoPergaminhos = 1, -- por gravação (regravar custa o dobro)
+	-- grupo de cada slot e os atributos possíveis (valor base de uma gravação "Boa" num item Comum)
+	GrupoDoSlot = {
+		arma = "arma",
+		armaSec = "arma",
+		elmo = "armadura",
+		armadura = "armadura",
+		luvas = "armadura",
+		calca = "armadura",
+		botas = "armadura",
+		anel = "acessorio",
+		brinco = "acessorio",
+		colar = "acessorio",
+		bracelete = "acessorio",
+		cinto = "acessorio",
+		broche = "acessorio",
+		olho = "acessorio",
+	},
+	Grupos = {
+		arma = {
+			{ atributo = "danoPct", base = 0.06 },
+			{ atributo = "critico", base = 0.02 },
+			{ atributo = "critDano", base = 0.12 },
+			{ atributo = "velAtaque", base = 0.05 },
+			{ atributo = "danoChefe", base = 0.10 },
+			{ atributo = "ouro", base = 0.06 },
+		},
+		armadura = {
+			{ atributo = "vidaPct", base = 0.06 },
+			{ atributo = "armaduraPct", base = 0.08 },
+			{ atributo = "resistencia", base = 0.04 },
+			{ atributo = "regen", base = 0.01 },
+			{ atributo = "velocidade", base = 1.5 },
+		},
+		acessorio = {
+			{ atributo = "danoPct", base = 0.04 },
+			{ atributo = "critico", base = 0.015 },
+			{ atributo = "critDano", base = 0.10 },
+			{ atributo = "ouro", base = 0.08 },
+			{ atributo = "xp", base = 0.05 },
+			{ atributo = "vidaPct", base = 0.04 },
+		},
+	},
+	Qualidades = {
+		{ id = "fraca", nome = "Fraca", mult = 0.5, peso = 40, cor = Color3.fromRGB(160, 160, 165) },
+		{ id = "boa", nome = "Boa", mult = 0.8, peso = 30, cor = Color3.fromRGB(110, 210, 120) },
+		{ id = "otima", nome = "Ótima", mult = 1.1, peso = 18, cor = Color3.fromRGB(80, 160, 255) },
+		{ id = "perfeita", nome = "Perfeita", mult = 1.5, peso = 9, cor = Color3.fromRGB(190, 100, 255) },
+		{ id = "lendaria", nome = "Lendária", mult = 2.2, peso = 3, cor = Color3.fromRGB(255, 170, 40) },
+	},
+	NomesAtributo = {
+		danoPct = "Dano",
+		critico = "Chance de Crítico",
+		critDano = "Dano Crítico",
+		velAtaque = "Velocidade de Ataque",
+		danoChefe = "Dano contra Chefes",
+		ouro = "Ouro",
+		vidaPct = "Vida",
+		armaduraPct = "Armadura",
+		resistencia = "Resistências",
+		regen = "Regeneração",
+		velocidade = "Velocidade",
+		xp = "Experiência",
+	},
+}
+function Config.QualidadeGravacao(id)
+	for _, q in ipairs(Config.Gravacao.Qualidades) do
+		if q.id == id then
+			return q
+		end
+	end
+	return nil
+end
+-- valor final da linha: base x qualidade x bônus da raridade do item (índice 1..9)
+function Config.ValorGravacao(base, qualidadeMult, raridadeIndice)
+	return base * qualidadeMult * (1 + 0.15 * ((raridadeIndice or 1) - 1))
+end
+-- ouro por gravação (regravar uma linha já gravada custa o dobro)
+function Config.CustoGravacao(nivel, raridadeIndice, regravar)
+	local c = 50 * 1.06 ^ ((nivel or 1) - 1) * (1 + 0.5 * ((raridadeIndice or 1) - 1))
+	return math.floor(c * (regravar and 2 or 1) + 0.5)
+end
+-- texto curto de uma linha gravada, ex.: "+12% Dano" ou "+3 Velocidade"
+function Config.TextoGravacao(g)
+	local nome = Config.Gravacao.NomesAtributo[g.atributo] or g.atributo
+	if g.atributo == "velocidade" then
+		return string.format("+%.1f %s", g.valor, nome)
+	end
+	return string.format("+%.1f%% %s", g.valor * 100, nome)
+end
+
 -- Quanto ouro um item vale ao vender
 Config.ValorVenda = {
 	comum = 3,

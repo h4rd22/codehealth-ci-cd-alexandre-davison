@@ -793,6 +793,18 @@ evAviso.OnClientEvent:Connect(function(tipo, a, b)
 	elseif tipo == "alquimia" then
 		notificar("🪙 Alquimia: +" .. a .. " ouro", Color3.fromRGB(255, 205, 70))
 		mostrarFaixa("+" .. a .. " OURO!", Color3.fromRGB(255, 210, 80), 1.2)
+		if (b or 0) > 0 then
+			notificar("📜 +" .. b .. " Pergaminho(s) de Gravação", Color3.fromRGB(240, 220, 160))
+		end
+	elseif tipo == "pergaminho" then
+		notificar("📜 +" .. a .. " Pergaminho(s) de Gravação", Color3.fromRGB(240, 220, 160))
+		local char = player.Character
+		local root = char and char:FindFirstChild("HumanoidRootPart")
+		if root then
+			explosao(root.Position + Vector3.new(0, 2, 0), Color3.fromRGB(255, 230, 170), 10)
+		end
+	elseif tipo == "gravacaoSemRecurso" then
+		notificar("✒ Precisa de " .. a .. " ouro e " .. b .. " pergaminho(s)", Color3.fromRGB(255, 110, 110))
 	elseif tipo == "bau" then
 		notificar("Baú do chefe: +" .. a .. " ouro", Color3.fromRGB(255, 205, 70))
 	end

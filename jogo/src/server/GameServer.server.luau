@@ -33,6 +33,7 @@ local evAvatar = remote("Avatar") -- usar um avatar (número da fase) ou 0 para 
 local evEsconderEquip = remote("EsconderEquip") -- esconder os equipamentos no corpo
 local evTreinar = remote("Treinar") -- sobe um atributo do treinamento
 local evJoia = remote("Joia") -- encaixar, remover e fundir joias
+local evGravar = remote("Gravar") -- Gravação de atributos (linhas extras nos itens)
 local evClasse = remote("Classe") -- menu inicial: escolher Guerreiro, Caçador ou Mago
 local evEquipar = remote("Equipar")
 local evDesequipar = remote("Desequipar")
@@ -136,6 +137,12 @@ local function calcularStats(st)
 			s.velAtaque += valor
 		elseif atributo == "resistencia" then
 			s.resistencia += valor
+		elseif atributo == "danoChefe" then
+			s.danoChefe = (s.danoChefe or 0) + valor
+		elseif atributo == "xp" then
+			s.xpBonus = (s.xpBonus or 0) + valor
+		elseif atributo == "regen" then
+			s.regenBonus = (s.regenBonus or 0) + valor
 		end
 	end
 	for slotId, itemId in pairs(st.equipado) do
@@ -149,6 +156,10 @@ local function calcularStats(st)
 				if j then
 					somar(j.atributo, j.valores[nivelJ])
 				end
+			end
+			-- linhas da Gravação de atributos
+			for _, g in ipairs(item.gravacoes or {}) do
+				somar(g.atributo, g.valor)
 			end
 		end
 	end
@@ -227,8 +238,12 @@ local function calcularStats(st)
 	s.vidaPct = vidaPct
 	s.resist = { fogo = s.resistencia, gelo = s.resistencia, raio = s.resistencia, veneno = s.resistencia }
 	s.resFogo, s.resGelo, s.resRaio, s.resVeneno = s.resistencia, s.resistencia, s.resistencia, s.resistencia
-	s.xp = 1 -- multiplicador de XP (1 = normal; ainda não há bônus)
-	s.regen = (classe and classe.regeneracao) or h.Regeneracao -- % da vida por segundo fora de combate
+	s.xp = 1 + (s.xpBonus or 0) -- multiplicador de XP (gravações de Experiência)
+	s.xpBonus = nil
+	s.regen = ((classe and classe.regeneracao) or h.Regeneracao) + (s.regenBonus or 0) -- % da vida por segundo fora de combate
+	s.regenBonus = nil
+	s.danoChefe = s.danoChefe or 0 -- bônus de dano contra chefes
+	st.danoChefe, st.regenAtual, st.xpMult = s.danoChefe, s.regen, s.xp -- guardados para os loops
 	local fAtualStats = Config.Fases[st.fase]
 	s.reducao = Config.ReducaoArmadura(s.armadura, fAtualStats and fAtualStats.nivel or 1) -- dano bloqueado na fase atual
 	s.golpesPorSegundo = 1 / s.intervalo
@@ -276,6 +291,7 @@ local function enviarEstado(player)
 		habilidades = st.habilidades,
 		barraHab = st.barraHab,
 		joias = st.joias,
+		pergaminhos = st.pergaminhos or 0,
 	})
 end
 
@@ -902,7 +918,7 @@ local function monstroMorreu(player, m)
 	local stats = calcularStats(st)
 	local ouro = math.max(1, math.floor(f.ouro * stats.ouro + 0.5))
 	st.ouro += ouro
-	local xpGanho = math.max(1, math.floor(f.xp * Config.MultXP(st.nivel, f.nivel) + 0.5))
+	local xpGanho = math.max(1, math.floor(f.xp * Config.MultXP(st.nivel, f.nivel) * stats.xp + 0.5))
 	ganharXP(player, xpGanho)
 	evDano:FireClient(player, "morte", pos, ouro, cor, xpGanho, f.chefe)
 
@@ -948,6 +964,19 @@ local function monstroMorreu(player, m)
 		local chave = tipo.id .. ":" .. nivelJ
 		st.joias[chave] = (st.joias[chave] or 0) + 1
 		evAviso:FireClient(player, "joia", tipo.nome .. " " .. Config.Joias.Niveis[nivelJ], tipo.cor)
+	end
+
+	-- Pergaminhos de Gravação: raros nos monstros, certos no chefe
+	local G = Config.Gravacao
+	local pergs = 0
+	if f.chefe then
+		pergs = math.random(G.PergaminhosChefe[1], G.PergaminhosChefe[2])
+	elseif math.random() < G.ChanceDropPergaminho then
+		pergs = 1
+	end
+	if pergs > 0 then
+		st.pergaminhos = (st.pergaminhos or 0) + pergs
+		evAviso:FireClient(player, "pergaminho", pergs)
 	end
 
 	if f.chefe then
@@ -1042,6 +1071,11 @@ end
 -- Tira vida de um inimigo, mostra o número e confere se morreu
 -- elemento (opcional): "gelo", "raio", "fogo" ou "queima" = número colorido das magias
 local function ferirInimigo(player, alvo, dano, critico, elemento)
+	-- gravação "Dano contra Chefes"
+	local stF = estado[player]
+	if stF and (stF.danoChefe or 0) > 0 and alvo:GetAttribute("Chefe") then
+		dano = math.floor(dano * (1 + stF.danoChefe) + 0.5)
+	end
 	local vida = math.max(0, (alvo:GetAttribute("Vida") or 0) - dano)
 	alvo:SetAttribute("Vida", vida)
 	local barra = alvo:FindFirstChild("Barra")
@@ -1298,7 +1332,7 @@ local function loopInimigos(player)
 			local vm = vidaMaxDe(st)
 			if st.vida < vm and agora - (st.ultimoDano or 0) > 2 then
 				local classeRegen = Config.ClassePorId(st.classe)
-				local regen = classeRegen and classeRegen.regeneracao or Config.Heroi.Regeneracao
+				local regen = st.regenAtual or (classeRegen and classeRegen.regeneracao) or Config.Heroi.Regeneracao
 				st.vida = math.min(vm, st.vida + vm * regen * 0.25)
 				enviarVida(player)
 			end
@@ -1515,6 +1549,71 @@ evJoia.OnServerEvent:Connect(function(player, acao, a, b)
 		st.joias[nova] = (st.joias[nova] or 0) + 1
 		evAviso:FireClient(player, "joiaFundida", j.nome .. " " .. Config.Joias.Niveis[nivelJ + 1], j.cor)
 	end
+	enviarEstado(player)
+end)
+
+-- Gravação de atributos: sorteia (ou re-sorteia) uma das 2 linhas extras de um item
+local ultimaGravacao = {}
+evGravar.OnServerEvent:Connect(function(player, itemId, linha)
+	local st = estado[player]
+	if not st or type(itemId) ~= "number" or type(linha) ~= "number" then
+		return
+	end
+	local agora = os.clock()
+	if ultimaGravacao[player] and agora - ultimaGravacao[player] < 0.3 then
+		return
+	end
+	ultimaGravacao[player] = agora
+	local G = Config.Gravacao
+	local item = st.itens[itemId]
+	linha = math.floor(linha)
+	if not item or linha < 1 or linha > G.Linhas then
+		return
+	end
+	local grupo = G.Grupos[G.GrupoDoSlot[item.slot] or ""]
+	if not grupo then
+		return
+	end
+	item.gravacoes = item.gravacoes or {}
+	if linha > #item.gravacoes + 1 then
+		return -- grava em ordem: primeiro a linha 1, depois a 2
+	end
+	local regravar = item.gravacoes[linha] ~= nil
+	local _, ri = raridadePorId(item.raridade)
+	local custoOuro = Config.CustoGravacao(item.nivel, ri, regravar)
+	local custoPerg = G.CustoPergaminhos * (regravar and 2 or 1)
+	if st.ouro < custoOuro or (st.pergaminhos or 0) < custoPerg then
+		evAviso:FireClient(player, "gravacaoSemRecurso", custoOuro, custoPerg)
+		return
+	end
+	st.ouro -= custoOuro
+	st.pergaminhos -= custoPerg
+	-- a outra linha não pode repetir o mesmo atributo
+	local outra = item.gravacoes[linha == 1 and 2 or 1]
+	local opcoes = {}
+	for _, op in ipairs(grupo) do
+		if not outra or op.atributo ~= outra.atributo then
+			table.insert(opcoes, op)
+		end
+	end
+	local op = opcoes[math.random(#opcoes)]
+	local somaPesos = 0
+	for _, q in ipairs(G.Qualidades) do
+		somaPesos += q.peso
+	end
+	local sorteio, qual = math.random() * somaPesos, G.Qualidades[1]
+	for _, q in ipairs(G.Qualidades) do
+		sorteio -= q.peso
+		if sorteio <= 0 then
+			qual = q
+			break
+		end
+	end
+	local valor = Config.ValorGravacao(op.base, qual.mult, ri)
+	valor = math.floor(valor * (op.atributo == "velocidade" and 10 or 1000) + 0.5)
+		/ (op.atributo == "velocidade" and 10 or 1000)
+	item.gravacoes[linha] = { atributo = op.atributo, valor = valor, qualidade = qual.id }
+	evAviso:FireClient(player, "gravacao", item.id, linha, op.atributo, valor, qual.id)
 	enviarEstado(player)
 end)
 
@@ -1810,7 +1909,7 @@ evAlquimia.OnServerEvent:Connect(function(player, ids)
 		return
 	end
 	local vestidos = itensLivres(st)
-	local vistos, total = {}, 0
+	local vistos, total, pergs = {}, 0, 0
 	for _, id in ipairs(ids) do
 		local item = type(id) == "number" and st.itens[id]
 		if not item or vistos[id] or vestidos[id] then
@@ -1818,12 +1917,14 @@ evAlquimia.OnServerEvent:Connect(function(player, ids)
 		end
 		vistos[id] = true
 		total += math.floor((Config.ValorVenda[item.raridade] or 1) * (1 + 0.05 * ((item.nivel or 1) - 1)) + 0.5)
+		pergs += Config.Gravacao.PergaminhosAlquimia[item.raridade] or 0
 	end
 	for id in pairs(vistos) do
 		st.itens[id] = nil
 	end
 	st.ouro += total
-	evAviso:FireClient(player, "alquimia", total)
+	st.pergaminhos = (st.pergaminhos or 0) + pergs
+	evAviso:FireClient(player, "alquimia", total, pergs)
 	enviarEstado(player)
 end)
 
@@ -1960,6 +2061,8 @@ local function acaoAdmin(player, acao, a, b)
 					criarItem(st, ri, nivelDoDrop(f.nivel, st.nivel), slot.id, nil, nil, nil, st.classe or "guerreiro")
 				guardarItem(player, item, nil, "forja")
 			end
+		elseif acao == "pergaminhos" then
+			st.pergaminhos = (st.pergaminhos or 0) + math.clamp(math.floor(tonumber(a) or 10), 1, 999)
 		elseif acao == "joias" then
 			-- a = nível (1 a 5): uma de cada tipo
 			local nivelJ = math.clamp(math.floor(tonumber(a) or 1), 1, #Config.Joias.Niveis)
@@ -2049,6 +2152,7 @@ Players.PlayerAdded:Connect(function(player)
 		repetir = false,
 		autoVenda = "nada",
 		joias = {}, -- joias guardadas: { ["rubi:1"] = quantidade }
+		pergaminhos = 0, -- Pergaminhos de Gravação
 		avatares = {}, -- lista com o número das fases cujo avatar já foi obtido
 		avatarAtivo = nil,
 		esconderEquip = false,
@@ -2091,6 +2195,7 @@ end)
 Players.PlayerRemoving:Connect(function(player)
 	ultimaForja[player] = nil
 	ultimaJoia[player] = nil
+	ultimaGravacao[player] = nil
 	ultimoTreino[player] = nil
 	limparMonstros(player)
 	estado[player] = nil
