@@ -1955,13 +1955,73 @@ local function broche(m, ri, cor)
 	enfeitesTier(m, ri, pal, CFrame.new(), 0.9)
 end
 
+------------------------------------------------------------------------
+-- Modelos prontos (pacotes grátis em ReplicatedStorage.Arte.Equipamentos, sem scripts)
+------------------------------------------------------------------------
+local function modeloPronto(pacote, nome)
+	local arte = ReplicatedStorage:FindFirstChild("Arte")
+	local equip = arte and arte:FindFirstChild("Equipamentos")
+	local pasta = equip and equip:FindFirstChild(pacote)
+	local o = pasta and pasta:FindFirstChild(nome)
+	if not o then
+		return nil
+	end
+	local c = o:Clone()
+	for _, d in ipairs(c:GetDescendants()) do
+		if d:IsA("LuaSourceContainer") then
+			d:Destroy() -- segurança: modelo grátis nunca roda script
+		end
+	end
+	return c
+end
+
+-- Guerreiro: uma katana por raridade (a lâmina aponta para +Y e o cabo fica embaixo)
+local KATANA = {
+	"TrainingKatana",
+	"IronKatana",
+	"AzureKatana",
+	"ShadowKatana",
+	"FlameKatana",
+	"CrimsonKatana",
+	"FrostKatana",
+	"GoldenKatana",
+	"VoidKatana",
+}
+local function espadaPronta(m, ri, cor)
+	local k = modeloPronto("packKatanas", KATANA[ri])
+	if not k or not k:IsA("BasePart") then
+		espada(m, ri, cor)
+		return
+	end
+	local pal = paleta(ri, cor)
+	local base = CFrame.Angles(0, 0, math.rad(-45)) -- mesma diagonal do ícone da espada desenhada
+	local comprimento = 3.9 + ri * 0.18 -- cresce com o tier
+	k.Size *= comprimento / k.Size.Y
+	k.Anchored = true
+	k.CanCollide = false
+	k.CanQuery = false
+	k.CanTouch = false
+	k.CastShadow = false
+	k.Name = "Nucleo"
+	-- a ponta de baixo do cabo fica no lugar do pomo da espada desenhada (a mão segura igual)
+	-- girada 90° para o lado largo da lâmina ficar de frente (no modelo a lâmina é fina em X)
+	k.CFrame = base * CFrame.new(0, -1.55 + comprimento / 2, 0) * CFrame.Angles(0, math.rad(90), 0)
+	k.Parent = m
+	m:SetAttribute("Pomo", (base * CFrame.new(0, -1.42, 0)).Position)
+	if ri >= 3 then
+		-- pomo brilhante na cor da raridade
+		bola(m, 0.3 + ri * 0.03, base * CFrame.new(0, -1.55, 0), pal.gema or cor, MAT.Neon)
+	end
+	enfeitesTier(m, ri, pal, base * CFrame.new(0, 0.9, 0), 0.8)
+end
+
 local DESENHO_CLASSE = {
 	cacador = { arma = arco, armaSec = aljava, elmo = capuz, armadura = couro },
 	mago = { arma = cajado, armaSec = grimorio, elmo = chapeuMago, armadura = tunica },
 }
 
 local DESENHO = {
-	arma = espada,
+	arma = espadaPronta,
 	armaSec = escudo,
 	elmo = elmo,
 	armadura = armadura,
