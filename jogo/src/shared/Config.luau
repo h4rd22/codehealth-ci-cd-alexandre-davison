@@ -1108,6 +1108,7 @@ end
 -- Custa ouro + Pergaminhos de Gravação (drop raro de monstro, certo no baú do chefe e da Alquimia).
 Config.Gravacao = {
 	Linhas = 2,
+	RaridadeMinima = 7, -- só itens Imortal ou acima podem ser gravados
 	ChanceDropPergaminho = 0.01, -- por monstro comum
 	PergaminhosChefe = { 2, 4 }, -- baú do chefe dá entre 2 e 4
 	PergaminhosAlquimia = { raro = 1, epico = 1, lendario = 2, mitico = 3, imortal = 5, divino = 8, secreto = 10 },

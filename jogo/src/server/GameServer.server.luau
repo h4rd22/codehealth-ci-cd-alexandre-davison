@@ -1580,6 +1580,9 @@ evGravar.OnServerEvent:Connect(function(player, itemId, linha)
 	end
 	local regravar = item.gravacoes[linha] ~= nil
 	local _, ri = raridadePorId(item.raridade)
+	if (ri or 0) < G.RaridadeMinima then
+		return -- só Imortal pra cima
+	end
 	local custoOuro = Config.CustoGravacao(item.nivel, ri, regravar)
 	local custoPerg = G.CustoPergaminhos * (regravar and 2 or 1)
 	if st.ouro < custoOuro or (st.pergaminhos or 0) < custoPerg then

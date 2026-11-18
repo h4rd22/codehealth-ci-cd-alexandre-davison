@@ -2275,7 +2275,7 @@ local function desenharDetalhe()
 	btnEquipar.Text = v and "Tirar" or "Vestir"
 	btnEquipar.BackgroundColor3 = v and COR.cinza or COR.verde
 	btnVender.Visible = not v
-	btnGravar.Visible = true
+	btnGravar.Visible = select(2, raridade(it.raridade)) >= Config.Gravacao.RaridadeMinima
 	btnGravar.Text = "✒ Gravar (" .. (it.gravacoes and #it.gravacoes or 0) .. "/" .. Config.Gravacao.Linhas .. ")"
 	btnVender.Text = "Vender (+" .. (Config.ValorVenda[it.raridade] or 1) .. " ouro)"
 	desenharEncaixes(it)
