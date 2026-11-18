@@ -13,6 +13,8 @@ Config.Mapa = {
 	Comprimento = 420, -- tamanho da estrada (studs)
 	Largura = 20, -- largura da estrada
 	HordaTamanho = 7, -- inimigos por horda (10 hordas = 70 inimigos)
+	-- no começo do jogo (Normal, Ato 1) as hordas são menores: 3 inimigos na 1-1 até 7 na 1-9
+	HordaInicio = { 3, 3, 4, 4, 5, 5, 6, 6, 7 },
 	DistanciaHorda = 34, -- a próxima horda aparece esta distância à frente do herói
 	Aggro = 26, -- os inimigos veem o herói desta distância e correm para atacar
 	VelocidadeInimigo = 11, -- velocidade dos inimigos correndo
@@ -48,7 +50,8 @@ end
 -- XP para passar de nível: uns 90 inimigos do seu nível no começo, ~300 no nível 100.
 -- O jogo termina lá pelo nível 105-110 (ver simulação no painel).
 function Config.XPParaNivel(nivel)
-	return math.floor(Config.XPInimigo(nivel) * (90 + 2 * nivel))
+	-- primeiros níveis rápidos (nível 2 com ~23 inimigos), depois ~90 a ~300 inimigos por nível
+	return math.floor(Config.XPInimigo(nivel) * math.min(90 + 2 * nivel, 15 + 8 * nivel))
 end
 -- Inimigo muito mais fraco que você dá pouco XP: o nível acompanha o conteúdo
 function Config.MultXP(nivelHeroi, nivelInimigo)
@@ -193,10 +196,24 @@ Config.Inimigo = {
 	AtaqueIntervalo = 1.6, -- segundos entre os golpes de cada inimigo
 	AtaqueAlcance = 5.5, -- distância para o inimigo conseguir bater no herói
 	DanoChefeGolpe = 1.3, -- o golpe normal do chefe dá 1,3x o dano do nível dele
+	-- Reforço do começo: o Ato 1 dura pelo menos ~1 hora. Os inimigos têm vida extra (5x) até o
+	-- nível 14 (todo o Ato 1 do Normal); depois ela vai sumindo até o nível 30.
+	ReforcoInicio = 4.0, -- vida extra no nível 1 (4.0 = +400%, ou seja 5x)
+	ReforcoRampa = 0.2, -- o reforço cresce por nível até o platô (5x na 1-1, ~15x no fim do Ato 1)
+	ReforcoPlatoAte = 14,
+	ReforcoAteNivel = 50, -- depois do platô some aos poucos (a vida dos inimigos nunca diminui de uma fase para a outra)
 }
 
 function Config.VidaInimigo(nivel, chefe)
-	local v = Config.Inimigo.VidaBase * Config.Inimigo.VidaCrescimento ^ (nivel - 1)
+	local ini = Config.Inimigo
+	local v = ini.VidaBase * ini.VidaCrescimento ^ (nivel - 1)
+	local plato = ini.ReforcoPlatoAte
+	local pico = 1 + ini.ReforcoInicio * (1 + ini.ReforcoRampa * (plato - 1))
+	if nivel <= plato then
+		v *= 1 + ini.ReforcoInicio * (1 + ini.ReforcoRampa * (nivel - 1))
+	elseif nivel < ini.ReforcoAteNivel then
+		v *= pico ^ (1 - (nivel - plato) / (ini.ReforcoAteNivel - plato))
+	end
 	if chefe then
 		v *= Config.Inimigo.MultChefe
 	end
@@ -257,7 +274,7 @@ function Config.CustoTreino(t, nivel)
 end
 
 -- Tempo para derrotar o chefe. Se acabar, o herói volta uma fase (regra do CONTEXTO.md).
-Config.ChefeTempo = 90
+Config.ChefeTempo = 120 -- segundos para vencer o chefe (o Pen do Ato 1 é um muro: pede farmar e fazer síntese)
 
 -- Nomes dos equipamentos por categoria e tier (T1 = Comum ... T5 = Lendário)
 Config.NomesItens = {
@@ -454,7 +471,7 @@ Config.Classes = {
 		estilo = "Magias elementais",
 		descricao = "Ataque básico fraco, mas magias de gelo, raio e fogo saem sozinhas e arrasam hordas. Frágil.",
 		dano = 1.15, -- Poder Mágico: as magias usam este dano (ver Habilidades.luau)
-		danoBasico = 0.35, -- o ataque básico causa só 35% do dano (fraco de propósito)
+		danoBasico = 0.5, -- o ataque básico causa só 50% do dano (fraco de propósito; a força são as magias)
 		vida = 0.8,
 		critico = 0,
 		alcance = 16,

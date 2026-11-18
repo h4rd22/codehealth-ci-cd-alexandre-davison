@@ -782,7 +782,11 @@ local function completarMonstros(player)
 			enviarVida(player)
 		end
 		local faltam = math.max(1, metaDaFase(st.fase) - st.kills)
-		local qtd = math.min(mapa.HordaTamanho, faltam)
+		local tamanho = mapa.HordaTamanho
+		if f.dificuldade == 1 and f.ato == 1 and mapa.HordaInicio and mapa.HordaInicio[f.numero] then
+			tamanho = mapa.HordaInicio[f.numero]
+		end
+		local qtd = math.min(tamanho, faltam)
 		local usados = {}
 		for _ = 1, qtd do
 			local pos
