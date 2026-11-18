@@ -343,6 +343,26 @@ local function morteComum(m, cor)
 	local cf0 = craiz.CFrame
 	local _, dirMundo = longeDoHeroi(raiz)
 	local olhar = CFrame.lookAt(cf0.Position, cf0.Position - dirMundo) -- de frente para o herói
+	-- impacto: o corpo "congela" branco por um instante antes de voar (sensação de golpe forte)
+	local branco = Instance.new("Highlight")
+	branco.FillColor = BRANCO
+	branco.FillTransparency = 0
+	branco.OutlineColor = cor
+	branco.DepthMode = Enum.HighlightDepthMode.Occluded
+	branco.Parent = c
+	Animacoes.clarao(cf0.Position, BRANCO, 5, 0.18, 14)
+	Animacoes.anel(
+		CFrame.lookAt(cf0.Position, cf0.Position + dirMundo) * CFrame.Angles(-math.pi / 2, 0, 0),
+		cor,
+		6,
+		0.3,
+		0.6
+	)
+	task.wait(0.07)
+	branco:Destroy()
+	if not c.Parent then
+		return
+	end
 	local tipo = math.random(3)
 	if Animacoes.rig(c) then
 		Animacoes.manter(c, "morte", function()
