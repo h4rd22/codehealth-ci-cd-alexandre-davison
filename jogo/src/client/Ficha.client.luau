@@ -1,12 +1,11 @@
 -- Ficha: painel com todos os atributos do herói (estilo ficha de RPG).
--- Abre ao clicar/tocar no próprio boneco ou no botão 📊 ao lado do cartão do herói.
+-- Abre pelo botão ao lado do cartão do herói (clicar no boneco não abre: atrapalhava jogar).
 -- Os números vêm do servidor (estado.stats, calculado em calcularStats no GameServer);
 -- os bônus das magias do Mago são somados aqui a partir de estado.habilidades.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
-local UserInputService = game:GetService("UserInputService")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Config = require(Shared:WaitForChild("Config"))
@@ -498,30 +497,6 @@ evEstado.OnClientEvent:Connect(function(e)
 	estado = e
 	if gui.Enabled or (lugarAtual and lugarAtual.Parent) then
 		atualizar()
-	end
-end)
-
-------------------------------------------------------------------------
--- Abrir: clique/toque no próprio boneco
-------------------------------------------------------------------------
-local params = RaycastParams.new()
-params.FilterType = Enum.RaycastFilterType.Include
-UserInputService.InputBegan:Connect(function(input, processado)
-	if processado or gui.Enabled then
-		return
-	end
-	if input.UserInputType ~= Enum.UserInputType.MouseButton1 and input.UserInputType ~= Enum.UserInputType.Touch then
-		return
-	end
-	local char = player.Character
-	local cam = workspace.CurrentCamera
-	if not char or not cam then
-		return
-	end
-	params.FilterDescendantsInstances = { char }
-	local raio = cam:ScreenPointToRay(input.Position.X, input.Position.Y)
-	if workspace:Raycast(raio.Origin, raio.Direction * 300, params) then
-		abrirFichaOuMochila()
 	end
 end)
 

@@ -292,6 +292,7 @@ local function enviarEstado(player)
 		barraHab = st.barraHab,
 		joias = st.joias,
 		pergaminhos = st.pergaminhos or 0,
+		secretos = st.secretos, -- nomes dos Secretos que este jogador já dropou (os outros aparecem "???")
 	})
 end
 
@@ -877,7 +878,6 @@ local function abrirBau(player, pos)
 		if not estado[player] then
 			return
 		end
-		local drops = Config.DropsChefe
 		local f = Config.Fases[st.fase]
 		local ouroBau = math.floor(f.ouro * 0.5 + 0.5)
 		st.ouro += ouroBau
@@ -886,8 +886,11 @@ local function abrirBau(player, pos)
 		local ri = math.min(sortearRaridade(f) + 1, 6)
 		guardarItem(player, criarItem(st, ri, nivel), pos + Vector3.new(0, 3, 0), "bau")
 		-- especiais (Lâmina de Chakra Negro, Rinnegan...)
-		for k, esp in ipairs(drops.Especiais) do
-			if (not esp.soDe or esp.soDe == f.modelo) and math.random() < esp.chance then
+		for k, esp in ipairs(Config.EspeciaisDaFase(st.fase)) do
+			if math.random() < esp.chance then
+				if esp.raridade == "secreto" then
+					st.secretos[esp.nome] = true -- revela o nome no portal e na barra do chefe
+				end
 				local _, rie = raridadePorId(esp.raridade)
 				local item = criarItem(st, rie, nivel, esp.slot, esp.nome, esp.valor, nil, false)
 				guardarItem(player, item, pos + Vector3.new(0, 3 + k * 2, 0), "bau")
@@ -1026,10 +1029,10 @@ local function monstroMorreu(player, m)
 		end
 		if st.repetir then
 			-- repete a mesma fase, mas já libera a próxima no portal
-			st.faseMax = math.max(st.faseMax, math.min(st.fase + 1, #Config.Fases))
+			st.faseMax = math.max(st.faseMax, math.min(st.fase + 1, Config.UltimaFaseJogavel))
 			evAviso:FireClient(player, "repetir", f.nome)
 			task.delay(f.chefe and 3 or 0.6, completarMonstros, player)
-		elseif st.fase < #Config.Fases then
+		elseif st.fase < Config.UltimaFaseJogavel then
 			st.fase += 1
 			st.faseMax = math.max(st.faseMax, st.fase)
 			local nova = Config.Fases[st.fase]
@@ -1936,7 +1939,12 @@ evIrFase.OnServerEvent:Connect(function(player, faseIdx)
 	if not st or type(faseIdx) ~= "number" then
 		return
 	end
-	if not Config.Fases[faseIdx] or faseIdx > st.faseMax or faseIdx == st.fase then
+	if
+		not Config.Fases[faseIdx]
+		or faseIdx > st.faseMax
+		or faseIdx > Config.UltimaFaseJogavel
+		or faseIdx == st.fase
+	then
 		return
 	end
 	st.fase = faseIdx
@@ -2035,9 +2043,9 @@ local function acaoAdmin(player, acao, a, b)
 		elseif acao == "pontos" then
 			st.pontosHabilidade = (st.pontosHabilidade or 0) + (tonumber(a) or 5)
 		elseif acao == "liberar" then
-			st.faseMax = #Config.Fases
+			st.faseMax = Config.UltimaFaseJogavel
 		elseif acao == "fase" then
-			st.fase = math.clamp(math.floor(tonumber(a) or 1), 1, #Config.Fases)
+			st.fase = math.clamp(math.floor(tonumber(a) or 1), 1, Config.UltimaFaseJogavel)
 			st.faseMax = math.max(st.faseMax, st.fase)
 			st.kills = 0
 			aplicarFase(player)
@@ -2156,6 +2164,7 @@ Players.PlayerAdded:Connect(function(player)
 		autoVenda = "nada",
 		joias = {}, -- joias guardadas: { ["rubi:1"] = quantidade }
 		pergaminhos = 0, -- Pergaminhos de Gravação
+		secretos = {},
 		avatares = {}, -- lista com o número das fases cujo avatar já foi obtido
 		avatarAtivo = nil,
 		esconderEquip = false,

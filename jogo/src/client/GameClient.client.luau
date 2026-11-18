@@ -655,9 +655,8 @@ evLoot.OnClientEvent:Connect(function(tipo, pos, item, ouro)
 			itemPulando(pos, item, corTexto, ri)
 		end
 	end
-	if tipo == "forja" then
-		-- a cerimônia da síntese (SinteseFX, do Jorge) já mostra tudo
-	else
+	-- na síntese a cerimônia (SinteseFX, do Jorge) já mostra tudo
+	if tipo ~= "forja" then
 		notificar(item.nome .. " (" .. r.nome .. ")", corTexto)
 	end
 	if ri >= 5 then

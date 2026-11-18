@@ -476,7 +476,11 @@ local AJUSTES = {
 	itachu = { escala = 1.1, cor = Color3.fromRGB(230, 50, 60), elite = true },
 	caminhoPen = { escala = 1.15, cor = Color3.fromRGB(240, 140, 60), elite = true },
 	pen = { escala = 1.6, cor = Color3.fromRGB(190, 90, 255), aura = Color3.fromRGB(180, 90, 255) },
+	-- chefe final do Ato 3 (armadura vermelha, aura de chama escura)
+	madaro = { escala = 1.6, cor = Color3.fromRGB(200, 30, 40), aura = Color3.fromRGB(255, 60, 40) },
 }
+-- enquanto a arte de um chefe novo não chega, usa o boneco de outro (com o tamanho/aura do novo)
+local RESERVA = { madaro = "itachu" }
 
 local function aura(raiz, cor)
 	local fx = Instance.new("ParticleEmitter")
@@ -496,7 +500,7 @@ end
 local function deArte(nomeModelo, cf)
 	local arte = ReplicatedStorage:FindFirstChild("Arte")
 	local pasta = arte and arte:FindFirstChild("Inimigos")
-	local original = pasta and pasta:FindFirstChild(nomeModelo)
+	local original = pasta and (pasta:FindFirstChild(nomeModelo) or pasta:FindFirstChild(RESERVA[nomeModelo] or ""))
 	if not original then
 		return nil
 	end

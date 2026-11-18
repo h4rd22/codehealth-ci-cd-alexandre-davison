@@ -512,6 +512,46 @@ do
 end
 
 local estado = nil
+
+-- Chips com os drops do chefe de uma fase. O Secreto mostra "???" até o jogador dropar.
+local function preencherDrops(lista, faseIdx, tamanho)
+	for _, c in ipairs(lista:GetChildren()) do
+		if c:IsA("GuiObject") then
+			c:Destroy()
+		end
+	end
+	local ordem = 0
+	local function chip(texto, cor)
+		ordem += 1
+		local c = rotulo(lista, {
+			LayoutOrder = ordem,
+			AutomaticSize = Enum.AutomaticSize.X,
+			Size = UDim2.fromOffset(0, tamanho + 8),
+			Text = " " .. texto .. " ",
+			TextSize = tamanho,
+			TextColor3 = cor,
+			BackgroundTransparency = 0.2,
+			BackgroundColor3 = Color3.fromRGB(14, 10, 18),
+		})
+		canto(c, 6)
+		contorno(c, cor, 1)
+	end
+	local d = Config.DropsChefe
+	chip(d.Ouro .. " ouro", COR.ouro)
+	for _, par in ipairs(d.Equipamento) do
+		local r = raridade(par[1])
+		chip(r.nome .. " " .. math.floor(par[2] * 100 + 0.5) .. "%", r.corBorda or r.cor)
+	end
+	if not faseIdx then
+		return
+	end
+	local vistos = estado and estado.secretos or {}
+	for _, esp in ipairs(Config.EspeciaisDaFase(faseIdx)) do
+		local r = raridade(esp.raridade)
+		local nome = (esp.raridade == "secreto" and not vistos[esp.nome]) and "???" or esp.nome
+		chip(nome .. " " .. (esp.chance * 100) .. "%", r.corBorda or r.cor)
+	end
+end
 local autoFarm = true
 player:SetAttribute("AutoFarm", true)
 
@@ -3101,8 +3141,8 @@ do
 			BackgroundColor3 = dif.cor:Lerp(Color3.new(0, 0, 0), 0.55),
 			AutoButtonColor = true,
 			Font = FONTE,
-			Text = dif.nome,
-			TextSize = 13,
+			Text = dif.trancada and (dif.nome .. " · em breve") or dif.nome,
+			TextSize = dif.trancada and 11 or 13,
 			TextColor3 = Color3.new(1, 1, 1),
 		})
 		canto(b, 8)
@@ -3110,7 +3150,7 @@ do
 		botoesDif[d] = { botao = b, borda = borda, cor = dif.cor }
 		b.Activated:Connect(function()
 			local primeira = Config.IndiceFase(d, 1, 1)
-			if estado and primeira <= estado.faseMax then
+			if estado and not dif.trancada and primeira <= estado.faseMax then
 				difSel = d
 				if desenharPortalRef then
 					desenharPortalRef()
@@ -3215,10 +3255,10 @@ do
 	})
 	canto(caixaDrops, 10)
 	contorno(caixaDrops, Color3.fromRGB(150, 80, 220), 1.5)
-	rotulo(caixaDrops, {
+	local tituloDrops = rotulo(caixaDrops, {
 		Position = UDim2.fromOffset(10, 2),
 		Size = UDim2.new(1, -20, 0, 18),
-		Text = "Drops do chefe Pen (1-10)",
+		Text = "Drops do chefe",
 		TextSize = 12,
 		TextColor3 = Color3.fromRGB(220, 170, 255),
 		TextXAlignment = Enum.TextXAlignment.Left,
@@ -3234,33 +3274,11 @@ do
 		SortOrder = Enum.SortOrder.LayoutOrder,
 		VerticalAlignment = Enum.VerticalAlignment.Center,
 	})
-	do
-		local ordem = 0
-		local function chip(texto, cor)
-			ordem += 1
-			local c = rotulo(listaDrops, {
-				LayoutOrder = ordem,
-				AutomaticSize = Enum.AutomaticSize.X,
-				Size = UDim2.fromOffset(0, 20),
-				Text = " " .. texto .. " ",
-				TextSize = 10,
-				TextColor3 = cor,
-				BackgroundTransparency = 0.2,
-				BackgroundColor3 = Color3.fromRGB(14, 10, 18),
-			})
-			canto(c, 6)
-			contorno(c, cor, 1)
-		end
-		local d = Config.DropsChefe
-		chip(d.Ouro .. " ouro", COR.ouro)
-		for _, par in ipairs(d.Equipamento) do
-			local r = raridade(par[1])
-			chip(r.nome .. " " .. math.floor(par[2] * 100 + 0.5) .. "%", r.corBorda or r.cor)
-		end
-		for _, esp in ipairs(d.Especiais) do
-			local r = raridade(esp.raridade)
-			chip(esp.nome .. " " .. (esp.chance * 100) .. "%", r.corBorda or r.cor)
-		end
+	local function atualizarDropsPortal()
+		local idx = faseIndice(mundoSel, 10)
+		local f = idx and Config.Fases[idx]
+		tituloDrops.Text = f and ("Drops do chefe " .. f.monstro .. " (" .. f.nome .. ")") or "Drops do chefe"
+		preencherDrops(listaDrops, idx, 10)
 	end
 
 	-- cartões das fases (montados uma vez; o estado é atualizado em desenharPortal)
@@ -3423,6 +3441,7 @@ do
 				c.borda.Color = liberada and COR.dourado or COR.borda
 			end
 		end
+		atualizarDropsPortal()
 	end
 	desenharPortalRef = desenharPortal
 end
@@ -3888,33 +3907,6 @@ local function chipsDrops(pai)
 		SortOrder = Enum.SortOrder.LayoutOrder,
 		VerticalAlignment = Enum.VerticalAlignment.Center,
 	})
-	local ordem = 0
-	local function chip(texto, cor)
-		ordem += 1
-		local c = rotulo(lista, {
-			LayoutOrder = ordem,
-			AutomaticSize = Enum.AutomaticSize.X,
-			Size = UDim2.fromOffset(0, 18),
-			Text = " " .. texto .. " ",
-			TextSize = 11,
-			Font = FONTE,
-			TextColor3 = cor,
-			BackgroundTransparency = 0.25,
-			BackgroundColor3 = Color3.fromRGB(14, 12, 22),
-		})
-		canto(c, 6)
-		contorno(c, cor, 1)
-	end
-	local d = Config.DropsChefe
-	chip(d.Ouro .. " ouro", COR.ouro)
-	for _, par in ipairs(d.Equipamento) do
-		local r = raridade(par[1])
-		chip(r.nome .. " " .. math.floor(par[2] * 100 + 0.5) .. "%", r.corBorda or r.cor)
-	end
-	for _, esp in ipairs(d.Especiais) do
-		local r = raridade(esp.raridade)
-		chip(esp.nome .. " " .. (esp.chance * 100) .. "%", r.corBorda or r.cor)
-	end
 	return lista
 end
 local dropsChefe = chipsDrops(barraChefe)
@@ -3931,6 +3923,7 @@ rotulo(barraChefe, {
 	"DROPS"
 
 local pastaMonstros = workspace:WaitForChild("Monstros")
+local chaveDrops = nil -- refaz os chips só quando muda o chefe ou um Secreto é revelado
 task.spawn(function()
 	while true do
 		task.wait(0.1)
@@ -3945,6 +3938,15 @@ task.spawn(function()
 			local vida = chefe:GetAttribute("Vida") or 0
 			local maximo = chefe:GetAttribute("VidaMax") or 1
 			lblChefe.Text = chefe.Name
+			local revelados = 0
+			for _ in pairs(estado and estado.secretos or {}) do
+				revelados += 1
+			end
+			local chave = tostring(chefe:GetAttribute("Fase")) .. ":" .. revelados
+			if chave ~= chaveDrops then
+				chaveDrops = chave
+				preencherDrops(dropsChefe, chefe:GetAttribute("Fase"), 11)
+			end
 			local resta = math.max(0, (chefe:GetAttribute("Fim") or 0) - workspace:GetServerTimeNow())
 			chefeTxt.Text = string.format("%d / %d   ·   %d:%02d", vida, maximo, resta // 60, resta % 60)
 			chefeCheio.Size = UDim2.fromScale(math.clamp(vida / maximo, 0, 1), 1)

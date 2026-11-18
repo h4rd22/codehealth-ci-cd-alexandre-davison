@@ -78,6 +78,7 @@ Config.Dificuldades = {
 	{
 		id = "pesadelo",
 		nome = "Pesadelo",
+		trancada = true, -- outro anime, com outros chefes (em breve)
 		cor = Color3.fromRGB(170, 110, 255),
 		nivel = { 36, 60 },
 		pesos = { 65, 26, 7, 1.7, 0.28, 0.02, 0, 0, 0 },
@@ -85,6 +86,7 @@ Config.Dificuldades = {
 	{
 		id = "inferno",
 		nome = "Inferno",
+		trancada = true, -- outro anime, com outros chefes (em breve)
 		cor = Color3.fromRGB(255, 110, 50),
 		nivel = { 62, 84 },
 		pesos = { 55, 30, 11, 3.3, 0.6, 0.09, 0.008, 0, 0 },
@@ -92,11 +94,20 @@ Config.Dificuldades = {
 	{
 		id = "tormento",
 		nome = "Tormento",
+		trancada = true, -- outro anime, com outros chefes (em breve)
 		cor = Color3.fromRGB(230, 40, 60),
 		nivel = { 86, 104 },
 		pesos = { 45, 33, 15, 5.5, 1.2, 0.25, 0.03, 0, 0 },
 	},
 }
+
+-- Dificuldades trancadas ainda não podem ser jogadas (cada uma vai ser de outro anime)
+Config.UltimaFaseJogavel = 0
+for d, dif in ipairs(Config.Dificuldades) do
+	if not dif.trancada then
+		Config.UltimaFaseJogavel = d * 30
+	end
+end
 
 -- Os 3 atos (iguais em toda dificuldade, só que mais fortes)
 Config.Mundos = {
@@ -142,7 +153,7 @@ local INIMIGOS_ATO = {
 		{ "chefe", "caminhoPen", "Caminho Asura" },
 		{ "chefe", "recrutaKatsuki", "Elite da Katsuki" },
 		{ "chefe", "caminhoPen", "Caminho Preta" },
-		{ "chefe", "pen", "Pen Desperto" },
+		{ "chefe", "madaro", "Madaro, o Fantasma Uchira" },
 	},
 }
 
@@ -181,6 +192,17 @@ function Config.NomeFase(idx)
 	end
 	return Config.Dificuldades[f.dificuldade].nome .. " · Ato " .. f.ato .. " · " .. f.nome
 end
+-- Itens especiais que o chefe desta fase pode soltar
+function Config.EspeciaisDaFase(idx)
+	local lista = {}
+	for _, esp in ipairs(Config.DropsChefe.Especiais) do
+		if not esp.soFase or esp.soFase == idx then
+			table.insert(lista, esp)
+		end
+	end
+	return lista
+end
+
 -- Índice da fase pela dificuldade, ato e número
 function Config.IndiceFase(dificuldade, ato, numero)
 	return (dificuldade - 1) * 30 + (ato - 1) * 10 + numero
@@ -820,15 +842,29 @@ Config.DropsChefe = {
 	-- itens especiais com chance própria
 	Especiais = {
 		{ nome = "Lâmina de Chakra Negro", slot = "arma", raridade = "mitico", chance = 0.004, icone = "🗡️" },
-		-- Divino (amarelo): o Rinnegan, só do Pen, raríssimo (1 em 2.000 vitórias)
+		-- Secretos (preto): 1 por chefe, só na fase dele (soFase). O nome aparece "???" até dropar.
 		{
 			nome = "Rinnegan",
 			slot = "olho",
-			raridade = "divino",
-			chance = 0.0005,
+			raridade = "secreto",
+			chance = 0.0005, -- 1 em 2.000 vitórias
 			icone = "👁️",
 			valor = 1.0,
-			soDe = "pen",
+			soFase = 10, -- Normal · Ato 1 · 1-10 (Pen)
+		},
+		{
+			nome = "Mãos de Argila Viva",
+			slot = "luvas",
+			raridade = "secreto",
+			chance = 0.0005,
+			soFase = 20, -- Normal · Ato 2 · 2-10 (Deidaro)
+		},
+		{
+			nome = "Leque de Guerra Uchira",
+			slot = "arma",
+			raridade = "secreto",
+			chance = 0.0005,
+			soFase = 30, -- Normal · Ato 3 · 3-10 (Madaro)
 		},
 	},
 }
@@ -916,7 +952,7 @@ Config.Raridades = {
 		id = "divino",
 		encaixes = 4, -- quantas joias cabem
 		nome = "Divino",
-		peso = 0, -- só itens especiais de chefe, MUITO raros (ex.: Rinnegan do Pen)
+		peso = 0, -- só itens especiais de chefe, MUITO raros
 		mult = 30.0,
 		cor = Color3.fromRGB(255, 210, 40), -- amarelo dourado
 		corBorda = Color3.fromRGB(255, 250, 200),
@@ -927,7 +963,7 @@ Config.Raridades = {
 		id = "secreto",
 		encaixes = 4, -- quantas joias cabem
 		nome = "Secreto",
-		peso = 0, -- ainda não existe nenhum item Secreto (a decidir)
+		peso = 0, -- só o item Secreto de cada chefe (ver Config.DropsChefe.Especiais)
 		mult = 50.0,
 		cor = Color3.fromRGB(20, 18, 24), -- item preto
 		corBorda = Color3.fromRGB(235, 235, 255),
