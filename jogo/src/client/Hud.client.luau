@@ -215,6 +215,95 @@ local function bordaViva(traco, cor1, cor2, tempo)
 	):Play()
 end
 
+-- Joia desenhada na tela: losango lapidado com faceta, reflexo e brilho nos níveis altos.
+-- cor = nil desenha um encaixe vazio.
+local function iconeJoia(pai, cor, nivel, tam, props)
+	nivel = nivel or 1
+	local caixaJ = novo("Frame", pai, { Size = UDim2.fromOffset(tam, tam), BackgroundTransparency = 1 })
+	for k, v in pairs(props or {}) do
+		caixaJ[k] = v
+	end
+	local centro = { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5) }
+	if not cor then
+		local vazio = novo("Frame", caixaJ, {
+			AnchorPoint = centro.AnchorPoint,
+			Position = centro.Position,
+			Size = UDim2.fromScale(0.6, 0.6),
+			Rotation = 45,
+			BackgroundColor3 = Color3.fromRGB(26, 20, 18),
+		})
+		contorno(vazio, COR.borda, 1)
+		return caixaJ
+	end
+	if nivel >= 4 then
+		-- halo pulsando atrás da joia
+		local halo = novo("Frame", caixaJ, {
+			AnchorPoint = centro.AnchorPoint,
+			Position = centro.Position,
+			Size = UDim2.fromScale(1.25, 1.25),
+			BackgroundColor3 = cor,
+			BackgroundTransparency = 0.6,
+		})
+		canto(halo, 999)
+		TweenService:Create(
+			halo,
+			TweenInfo.new(0.8, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
+			{ BackgroundTransparency = 0.88, Size = UDim2.fromScale(1.45, 1.45) }
+		):Play()
+	end
+	local pedra = novo("Frame", caixaJ, {
+		AnchorPoint = centro.AnchorPoint,
+		Position = centro.Position,
+		Size = UDim2.fromScale(0.7, 0.7),
+		Rotation = 45,
+		BackgroundColor3 = Color3.new(1, 1, 1),
+	})
+	novo("UIGradient", pedra, {
+		Rotation = 0,
+		Color = ColorSequence.new({
+			ColorSequenceKeypoint.new(0, cor:Lerp(Color3.new(1, 1, 1), 0.6)),
+			ColorSequenceKeypoint.new(0.45, cor),
+			ColorSequenceKeypoint.new(1, cor:Lerp(Color3.new(0, 0, 0), 0.55)),
+		}),
+	})
+	contorno(pedra, cor:Lerp(Color3.new(1, 1, 1), 0.65), nivel >= 3 and 1.5 or 1)
+	-- faceta do meio e reflexo
+	novo("Frame", pedra, {
+		AnchorPoint = centro.AnchorPoint,
+		Position = centro.Position,
+		Size = UDim2.fromScale(0.46, 0.46),
+		BackgroundColor3 = cor:Lerp(Color3.new(1, 1, 1), 0.35),
+		BackgroundTransparency = 0.15,
+		BorderSizePixel = 0,
+	})
+	novo("Frame", pedra, {
+		Position = UDim2.fromScale(0.1, 0.1),
+		Size = UDim2.fromScale(0.26, 0.26),
+		BackgroundColor3 = Color3.new(1, 1, 1),
+		BackgroundTransparency = 0.1,
+		BorderSizePixel = 0,
+	})
+	if nivel >= 3 then
+		local estrela = rotulo(caixaJ, {
+			AnchorPoint = Vector2.new(0.5, 0.5),
+			Position = UDim2.fromScale(0.85, 0.15),
+			Size = UDim2.fromScale(0.5, 0.5),
+			Text = "✦",
+			TextScaled = true,
+			TextColor3 = Color3.new(1, 1, 1),
+			TextStrokeTransparency = 1,
+		})
+		if nivel >= 5 then
+			TweenService:Create(
+				estrela,
+				TweenInfo.new(1.2, Enum.EasingStyle.Linear, Enum.EasingDirection.In, -1),
+				{ Rotation = 360 }
+			):Play()
+		end
+	end
+	return caixaJ
+end
+
 local function raridade(id)
 	for i, r in ipairs(Config.Raridades) do
 		if r.id == id then
@@ -372,6 +461,48 @@ cartaoItem = function(pai, item, props)
 			),
 			{ Offset = Vector2.new(1, 0) }
 		):Play()
+	end
+	-- joias encaixadas: ícones lapidados embaixo e um brilho na cor da primeira joia
+	if item.joias and next(item.joias) then
+		local fila = novo("Frame", b, {
+			AnchorPoint = Vector2.new(0.5, 1),
+			Position = UDim2.new(0.5, 0, 1, -13),
+			Size = UDim2.fromOffset(60, 12),
+			BackgroundTransparency = 1,
+			ZIndex = 6,
+		})
+		novo("UIListLayout", fila, {
+			FillDirection = Enum.FillDirection.Horizontal,
+			HorizontalAlignment = Enum.HorizontalAlignment.Center,
+			Padding = UDim.new(0, 1),
+		})
+		local primeira
+		for k = 1, item.encaixes or 0 do
+			local jJ, nJ = Config.LerJoia(item.joias[k] or "")
+			if jJ then
+				primeira = primeira or jJ.cor
+				iconeJoia(fila, jJ.cor, nJ, 12, { LayoutOrder = k, ZIndex = 6 })
+			end
+		end
+		if primeira then
+			local brilhoJ = novo(
+				"UIStroke",
+				novo("Frame", b, {
+					AnchorPoint = Vector2.new(0.5, 0.5),
+					Position = UDim2.fromScale(0.5, 0.5),
+					Size = UDim2.new(1, -6, 1, -6),
+					BackgroundTransparency = 1,
+					ZIndex = 5,
+				}),
+				{ Color = primeira, Thickness = 2, Transparency = 0.2 }
+			)
+			canto(brilhoJ.Parent, 8)
+			TweenService:Create(
+				brilhoJ,
+				TweenInfo.new(0.9, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
+				{ Transparency = 0.8 }
+			):Play()
+		end
 	end
 	rotulo(b, {
 		AnchorPoint = Vector2.new(1, 1),
@@ -1174,7 +1305,7 @@ for i, s in ipairs(Config.Slots) do
 	local bolinhasJoia = novo("Frame", linha, {
 		AnchorPoint = Vector2.new(1, 0),
 		Position = UDim2.new(1, -5, 0, 5),
-		Size = UDim2.fromOffset(40, 7),
+		Size = UDim2.fromOffset(46, 11),
 		BackgroundTransparency = 1,
 		ZIndex = 4,
 	})
@@ -1293,13 +1424,18 @@ do
 	for _, tipo in ipairs(Config.Joias.Tipos) do
 		local nomeTipo = rotulo(gradeJoias, {
 			LayoutOrder = proxJ(),
-			Text = "◆ " .. tipo.nome,
+			Text = "      " .. tipo.nome,
 			TextSize = 12,
 			TextColor3 = tipo.cor:Lerp(Color3.new(1, 1, 1), 0.3),
 			TextXAlignment = Enum.TextXAlignment.Left,
 			ZIndex = 6,
 		})
 		nomeTipo.TextScaled = false
+		iconeJoia(nomeTipo, tipo.cor, 3, 16, {
+			AnchorPoint = Vector2.new(0, 0.5),
+			Position = UDim2.fromScale(0, 0.5),
+			ZIndex = 7,
+		})
 		for n = 1, NIVEIS_J do
 			local chave = tipo.id .. ":" .. n
 			local b = novo("TextButton", gradeJoias, {
@@ -1314,6 +1450,13 @@ do
 			})
 			canto(b, 8)
 			local borda = contorno(b, COR.borda, 1.5)
+			b.TextXAlignment = Enum.TextXAlignment.Right
+			novo("UIPadding", b, { PaddingRight = UDim.new(0, 4) })
+			iconeJoia(b, tipo.cor, n, 14 + n * 2, {
+				AnchorPoint = Vector2.new(0, 0.5),
+				Position = UDim2.new(0, 3, 0.5, 0),
+				ZIndex = 7,
+			})
 			b.Activated:Connect(function()
 				local qtd = estado and estado.joias and estado.joias[chave] or 0
 				if qtd >= 3 and n < NIVEIS_J then
@@ -1496,11 +1639,13 @@ local function abrirEscolhaJoia(it)
 		local nome, cor, n, j = nomeJoia(chave)
 		local b = botao(escolhaJoia, {
 			LayoutOrder = i,
-			Text = "◆ " .. nome .. " x" .. estado.joias[chave],
+			Text = "      " .. nome .. " x" .. estado.joias[chave],
 			TextSize = 11,
 			BackgroundColor3 = cor:Lerp(Color3.new(0, 0, 0), 0.45),
 			ZIndex = 21,
 		})
+		b.TextXAlignment = Enum.TextXAlignment.Left
+		iconeJoia(b, cor, n, 18, { AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 4, 0.5, 0), ZIndex = 22 })
 		if j then
 			b.Text ..= "  " .. string.format(j.texto, j.valores[n] * (j.valores[n] < 1 and 100 or 1))
 		end
@@ -1554,9 +1699,10 @@ local function desenharEncaixes(it)
 		canto(b, 12)
 		local borda = contorno(b, COR.borda, 2)
 		if chave then
-			local nome, cor = nomeJoia(chave)
-			b.Text = "◆ " .. nome
+			local nome, cor, nJ = nomeJoia(chave)
+			b.Text = "     " .. nome
 			b.TextScaled = true
+			iconeJoia(b, cor, nJ, 18, { AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 3, 0.5, 0) })
 			b.BackgroundColor3 = cor:Lerp(Color3.new(0, 0, 0), 0.35)
 			borda.Color = cor
 			b.Activated:Connect(function()
@@ -1571,7 +1717,7 @@ local function desenharEncaixes(it)
 						if confirmarRemover == it.id .. ":" .. i then
 							confirmarRemover = nil
 							if b.Parent then
-								b.Text = "◆ " .. nome
+								b.Text = "     " .. nome
 							end
 						end
 					end)
@@ -1740,7 +1886,7 @@ local function desenharMochila()
 			ItemArte.mostrar(vp, it.slot, ri3, r3.cor, it.conjunto, it.classe)
 		end
 		for _, c in ipairs(ui.bolinhas:GetChildren()) do
-			if c:IsA("Frame") then
+			if c:IsA("GuiObject") then
 				c:Destroy()
 			end
 		end
@@ -1748,13 +1894,8 @@ local function desenharMochila()
 			for k = 1, it.encaixes or 0 do
 				local chaveJ = it.joias and it.joias[k]
 				local jJ = chaveJ and Config.LerJoia(chaveJ)
-				local bol = novo("Frame", ui.bolinhas, {
-					Size = UDim2.fromOffset(7, 7),
-					BackgroundColor3 = jJ and jJ.cor or Color3.fromRGB(30, 26, 22),
-					ZIndex = 4,
-				})
-				canto(bol, 4)
-				contorno(bol, jJ and Color3.new(1, 1, 1) or COR.borda, 1)
+				local _, nJ = Config.LerJoia(chaveJ or "")
+				iconeJoia(ui.bolinhas, jJ and jJ.cor, nJ, 11, { ZIndex = 4 })
 			end
 			local r = raridade(it.raridade)
 			ui.nome.Text = it.nome
