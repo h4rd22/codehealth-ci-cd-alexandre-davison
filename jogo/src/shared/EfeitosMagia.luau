@@ -607,7 +607,6 @@ function E.nevasca(d)
 	local base = chao(d.centro)
 	local raio = d.raio or 13
 	local duracao = d.duracao or 3
-	anunciar("🌀 NEVASCA ETERNA!", GELO)
 	flash(GELO_CLARO, 0.45, 0.5)
 	tremer(0.5, 0.3)
 	corDoMundo({ TintColor = Color3.fromRGB(200, 230, 255), Brightness = 0.05, Saturation = -0.25 }, duracao)
@@ -744,7 +743,6 @@ function E.tempestade(d)
 	local player = Players.LocalPlayer
 	local char = player and player.Character
 	local raiz = char and char:FindFirstChild("HumanoidRootPart")
-	anunciar("⛈️ TEMPESTADE DIVINA!", RAIO)
 	corDoMundo(
 		{ Brightness = -0.15, Contrast = 0.2, Saturation = -0.3, TintColor = Color3.fromRGB(185, 190, 255) },
 		duracao
@@ -915,7 +913,6 @@ function E.meteoro(d)
 	local base = chao(d.centro)
 	local raio = d.raio or 9
 	local tempo = d.tempo or 0.9
-	anunciar("☄️ METEORO INFERNAL!", FOGO)
 	corDoMundo({ TintColor = Color3.fromRGB(255, 205, 180), Contrast = 0.15, Brightness = -0.05 }, tempo + 0.8)
 	-- mira no chão: círculo vermelho piscando
 	Animacoes.circuloMagico(CFrame.new(base + Vector3.new(0, 0.1, 0)), Color3.fromRGB(255, 60, 30), raio, tempo + 0.15)
