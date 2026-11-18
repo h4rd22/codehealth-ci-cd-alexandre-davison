@@ -560,6 +560,75 @@ function Animacoes.circuloMagico(cf, cor, raio, tempo)
 	end)
 end
 
+-- Onomatopeia de mangá no mundo: kanji grande + som em letras (ex.: "斬" e "ZAN!").
+-- Nasce grande e torta, tremendo, e some subindo. grande = golpes fortes, crítico e chefe.
+local ONOMATOPEIAS = {
+	{ "斬", "ZAN!" }, -- corte
+	{ "撃", "DOON!" }, -- golpe
+	{ "破", "BAKI!" }, -- quebra
+	{ "爆", "BOOM!" }, -- explosão
+	{ "砕", "KRASH!" }, -- esmagar
+}
+function Animacoes.onomatopeia(pos, cor, grande, escolha)
+	local par = escolha or ONOMATOPEIAS[math.random(#ONOMATOPEIAS)]
+	local ancora = pecaFx(Vector3.one * 0.2, cor)
+	ancora.Transparency = 1
+	ancora.Position = pos + Vector3.new((math.random() - 0.5) * 2, 2.5, (math.random() - 0.5) * 2)
+	ancora.Parent = fx()
+	local tam = grande and 170 or 110
+	local bb = Instance.new("BillboardGui")
+	bb.Size = UDim2.fromOffset(tam, tam)
+	bb.AlwaysOnTop = true
+	bb.LightInfluence = 0
+	bb.Adornee = ancora
+	bb.Parent = ancora
+	local raiz = Instance.new("Frame")
+	raiz.Size = UDim2.fromScale(1, 1)
+	raiz.BackgroundTransparency = 1
+	raiz.Rotation = math.random(-18, 18)
+	raiz.Parent = bb
+	local escala = Instance.new("UIScale")
+	escala.Scale = 2.4
+	escala.Parent = raiz
+	local function texto(t, tamanho, y, corT, grossura)
+		local l = Instance.new("TextLabel")
+		l.BackgroundTransparency = 1
+		l.AnchorPoint = Vector2.new(0.5, 0.5)
+		l.Position = UDim2.fromScale(0.5, y)
+		l.Size = UDim2.fromScale(1, tamanho)
+		l.TextScaled = true
+		l.Font = Enum.Font.FredokaOne
+		l.Text = t
+		l.TextColor3 = Color3.new(1, 1, 1)
+		l.Parent = raiz
+		local s = Instance.new("UIStroke")
+		s.Thickness = grossura
+		s.Color = Color3.fromRGB(20, 8, 6)
+		s.Parent = l
+		local g = Instance.new("UIGradient")
+		g.Rotation = 90
+		g.Color = ColorSequence.new(Color3.new(1, 1, 1), corT)
+		g.Parent = l
+		return l, s
+	end
+	local k, sk = texto(par[1], 0.62, 0.36, cor, grande and 6 or 4)
+	local r, sr = texto(par[2], 0.3, 0.82, cor:Lerp(Color3.new(1, 1, 1), 0.3), grande and 4 or 3)
+	TweenService:Create(escala, TweenInfo.new(0.22, Enum.EasingStyle.Back), { Scale = 1 }):Play()
+	local vida = grande and 0.9 or 0.65
+	local rot0 = raiz.Rotation
+	Animacoes.durante(vida, function(a)
+		-- treme no começo e sobe devagar
+		local tremor = a < 0.25 and (1 - a / 0.25) * 6 or 0
+		raiz.Position = UDim2.fromOffset((math.random() - 0.5) * tremor, (math.random() - 0.5) * tremor - a * 25)
+		raiz.Rotation = rot0 + (math.random() - 0.5) * tremor
+		local t = a > 0.6 and (a - 0.6) / 0.4 or 0
+		k.TextTransparency, r.TextTransparency = t, t
+		sk.Transparency, sr.Transparency = t, t
+	end, function()
+		ancora:Destroy()
+	end)
+end
+
 -- Raio em zigue-zague entre dois pontos
 function Animacoes.relampago(de, ate, cor, tempo, espessura)
 	tempo = tempo or 0.18

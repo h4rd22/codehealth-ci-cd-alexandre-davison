@@ -358,6 +358,9 @@ local function morteComum(m, cor)
 		0.3,
 		0.6
 	)
+	if math.random() < 0.45 then
+		Animacoes.onomatopeia(cf0.Position, cor, false)
+	end
 	task.wait(0.07)
 	branco:Destroy()
 	if not c.Parent then
@@ -522,6 +525,7 @@ local function morteChefe(m, cor)
 		-- explosão final enorme
 		Animacoes.clarao(pos, BRANCO, 30, 0.7, 80)
 		VFX.estouro("Golpes/GiganticCrush", pos, { escala = 3 })
+		Animacoes.onomatopeia(pos, cor, true, { "滅", "METSU!" })
 		Animacoes.clarao(pos, cor, 22, 0.9)
 		Animacoes.brilhos(pos, cor, 120, 45)
 		Animacoes.brilhos(pos, BRANCO, 60, 30)
@@ -568,6 +572,9 @@ local function apanhou(m, chefe, forte)
 		raiz.Position,
 		{ anexo = forte and "AttachmentBig" or "Attachment", escala = chefe and 2 or 1 }
 	)
+	if forte then
+		Animacoes.onomatopeia(raiz.Position, Color3.fromRGB(255, 120, 60), true, { "撃", "DOON!" })
+	end
 end
 
 ------------------------------------------------------------------------
