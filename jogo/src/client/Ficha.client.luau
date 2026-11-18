@@ -183,16 +183,13 @@ local fechar = novo("TextButton", topo, {
 canto(fechar, 8)
 contorno(fechar, COR.dourado, 1.5)
 
--- duas colunas com rolagem
-local corpo = novo("Frame", janela, {
-	Position = UDim2.fromOffset(12, 68),
-	Size = UDim2.new(1, -24, 1, -80),
-	BackgroundTransparency = 1,
-})
-local function coluna(x)
+-- Seções da ficha. Podem ser desenhadas em dois lugares: na janela (popup)
+-- e dentro da mochila (Frame "LugarFicha" da mochila da Jessica).
+local linhas = {} -- linhas[chave] = { TextLabel de valor, ... } (um por lugar desenhado)
+local function coluna(corpo, x, largura)
 	local c = novo("ScrollingFrame", corpo, {
 		Position = UDim2.new(x, x > 0 and 6 or 0, 0, 0),
-		Size = UDim2.new(0.5, -6, 1, 0),
+		Size = UDim2.new(largura, largura < 1 and -6 or 0, 1, 0),
 		BackgroundTransparency = 1,
 		BorderSizePixel = 0,
 		ScrollBarThickness = 5,
@@ -203,10 +200,8 @@ local function coluna(x)
 	novo("UIListLayout", c, { Padding = UDim.new(0, 8), SortOrder = Enum.SortOrder.LayoutOrder })
 	return c
 end
-local colEsq, colDir = coluna(0), coluna(0.5)
 
 -- Seção: caixa com título colorido e linhas "ícone  nome ........ valor"
-local linhas = {} -- linhas[chave] = {valor, nome}
 local function secao(pai, ordem, icone, nomeSecao, cor, itens)
 	local caixa = novo("Frame", pai, {
 		LayoutOrder = ordem,
@@ -248,7 +243,7 @@ local function secao(pai, ordem, icone, nomeSecao, cor, itens)
 			Text = it.icone,
 			TextSize = 14,
 		})
-		local nome = rotulo(l, {
+		rotulo(l, {
 			Position = UDim2.fromOffset(32, 0),
 			Size = UDim2.new(0.62, -32, 1, 0),
 			Text = it.nome,
@@ -267,56 +262,71 @@ local function secao(pai, ordem, icone, nomeSecao, cor, itens)
 			TextColor3 = it.cor or COR.texto,
 			TextXAlignment = Enum.TextXAlignment.Right,
 		})
-		linhas[it.id] = { valor = valor, nome = nome, linha = l }
+		linhas[it.id] = linhas[it.id] or {}
+		table.insert(linhas[it.id], valor)
 	end
 	return caixa
 end
 
 local EL = Hab.Elementos
-secao(colEsq, 1, "⚔️", "Ataque", Color3.fromRGB(215, 80, 60), {
-	{ id = "dano", icone = "🗡️", nome = "Dano", cor = Color3.fromRGB(255, 150, 120) },
-	{ id = "danoPct", icone = "📊", nome = "Bônus de dano", cor = Color3.fromRGB(255, 150, 120) },
-	{ id = "danoBasico", icone = "👊", nome = "Dano do ataque básico" },
-	{ id = "aps", icone = "⚡", nome = "Ataques por segundo" },
-	{ id = "velAtaque", icone = "💨", nome = "Velocidade de ataque bônus" },
-	{ id = "critico", icone = "🎯", nome = "Chance de crítico", cor = COR.ouro },
-	{ id = "multCritico", icone = "💥", nome = "Dano crítico", cor = COR.ouro },
-	{ id = "dps", icone = "📈", nome = "Dano por segundo (básico)", cor = Color3.fromRGB(255, 200, 120) },
-	{ id = "alcance", icone = "🏹", nome = "Alcance" },
+-- umaColuna = true quando o lugar é estreito (tudo numa coluna só, com rolagem)
+local function desenharSecoes(corpo, umaColuna)
+	local colEsq = coluna(corpo, 0, umaColuna and 1 or 0.5)
+	local colDir = umaColuna and colEsq or coluna(corpo, 0.5, 0.5)
+	secao(colEsq, 1, "⚔️", "Ataque", Color3.fromRGB(215, 80, 60), {
+		{ id = "dano", icone = "🗡️", nome = "Dano", cor = Color3.fromRGB(255, 150, 120) },
+		{ id = "danoPct", icone = "📊", nome = "Bônus de dano", cor = Color3.fromRGB(255, 150, 120) },
+		{ id = "danoBasico", icone = "👊", nome = "Dano do ataque básico" },
+		{ id = "aps", icone = "⚡", nome = "Ataques por segundo" },
+		{ id = "velAtaque", icone = "💨", nome = "Velocidade de ataque bônus" },
+		{ id = "critico", icone = "🎯", nome = "Chance de crítico", cor = COR.ouro },
+		{ id = "multCritico", icone = "💥", nome = "Dano crítico", cor = COR.ouro },
+		{ id = "dps", icone = "📈", nome = "Dano por segundo (básico)", cor = Color3.fromRGB(255, 200, 120) },
+		{ id = "alcance", icone = "🏹", nome = "Alcance" },
+	})
+	secao(colEsq, 2, "🛡️", "Defesa", Color3.fromRGB(80, 140, 220), {
+		{ id = "vida", icone = "❤️", nome = "Vida máxima", cor = Color3.fromRGB(255, 110, 110) },
+		{ id = "regen", icone = "💚", nome = "Regeneração (fora de combate)", cor = Color3.fromRGB(120, 230, 140) },
+		{ id = "armadura", icone = "🛡️", nome = "Armadura", cor = Color3.fromRGB(150, 200, 255) },
+		{ id = "reducao", icone = "🧱", nome = "Dano reduzido (fase atual)", cor = Color3.fromRGB(150, 200, 255) },
+		{ id = "resFogo", icone = "🔥", nome = "Resistência a fogo", cor = EL.fogo.cor },
+		{ id = "resGelo", icone = "❄️", nome = "Resistência a gelo", cor = EL.gelo.cor },
+		{ id = "resRaio", icone = "⚡", nome = "Resistência a raio", cor = EL.raio.cor },
+		{ id = "resVeneno", icone = "☠️", nome = "Resistência a veneno", cor = Color3.fromRGB(150, 230, 90) },
+	})
+	secao(colDir, umaColuna and 3 or 1, "✨", "Magia", EL.arcano.cor, {
+		{ id = "poder", icone = "🔮", nome = "Poder mágico", cor = EL.arcano.cor },
+		{ id = "elemFogo", icone = "🔥", nome = "Dano de fogo", cor = EL.fogo.cor },
+		{ id = "elemGelo", icone = "❄️", nome = "Dano de gelo", cor = EL.gelo.cor },
+		{ id = "elemRaio", icone = "⚡", nome = "Dano de raio", cor = EL.raio.cor },
+		{ id = "recarga", icone = "⏳", nome = "Recarga das magias", cor = Color3.fromRGB(170, 230, 255) },
+		{ id = "critMagia", icone = "🎯", nome = "Crítico das magias", cor = COR.ouro },
+		{ id = "eco", icone = "🔁", nome = "Chance de eco", cor = EL.arcano.cor },
+		{ id = "pontos", icone = "⭐", nome = "Pontos de habilidade livres", cor = COR.ouro },
+	})
+	secao(colDir, umaColuna and 4 or 2, "💰", "Aventura", Color3.fromRGB(200, 160, 60), {
+		{ id = "velocidade", icone = "👟", nome = "Velocidade de movimento" },
+		{ id = "ouro", icone = "💰", nome = "Ouro extra", cor = COR.ouro },
+		{ id = "xp", icone = "📘", nome = "XP extra", cor = Color3.fromRGB(90, 210, 255) },
+		{ id = "nivel", icone = "🏅", nome = "Nível", cor = COR.ouro },
+		{ id = "fase", icone = "🗺️", nome = "Fase atual" },
+	})
+end
+
+-- desenho na janela (popup)
+local corpo = novo("Frame", janela, {
+	Position = UDim2.fromOffset(12, 68),
+	Size = UDim2.new(1, -24, 1, -80),
+	BackgroundTransparency = 1,
 })
-secao(colEsq, 2, "🛡️", "Defesa", Color3.fromRGB(80, 140, 220), {
-	{ id = "vida", icone = "❤️", nome = "Vida máxima", cor = Color3.fromRGB(255, 110, 110) },
-	{ id = "regen", icone = "💚", nome = "Regeneração (fora de combate)", cor = Color3.fromRGB(120, 230, 140) },
-	{ id = "armadura", icone = "🛡️", nome = "Armadura", cor = Color3.fromRGB(150, 200, 255) },
-	{ id = "reducao", icone = "🧱", nome = "Dano reduzido (fase atual)", cor = Color3.fromRGB(150, 200, 255) },
-	{ id = "resFogo", icone = "🔥", nome = "Resistência a fogo", cor = EL.fogo.cor },
-	{ id = "resGelo", icone = "❄️", nome = "Resistência a gelo", cor = EL.gelo.cor },
-	{ id = "resRaio", icone = "⚡", nome = "Resistência a raio", cor = EL.raio.cor },
-	{ id = "resVeneno", icone = "☠️", nome = "Resistência a veneno", cor = Color3.fromRGB(150, 230, 90) },
-})
-local secaoMagia = secao(colDir, 1, "✨", "Magia", EL.arcano.cor, {
-	{ id = "poder", icone = "🔮", nome = "Poder mágico", cor = EL.arcano.cor },
-	{ id = "elemFogo", icone = "🔥", nome = "Dano de fogo", cor = EL.fogo.cor },
-	{ id = "elemGelo", icone = "❄️", nome = "Dano de gelo", cor = EL.gelo.cor },
-	{ id = "elemRaio", icone = "⚡", nome = "Dano de raio", cor = EL.raio.cor },
-	{ id = "recarga", icone = "⏳", nome = "Recarga das magias", cor = Color3.fromRGB(170, 230, 255) },
-	{ id = "critMagia", icone = "🎯", nome = "Crítico das magias", cor = COR.ouro },
-	{ id = "eco", icone = "🔁", nome = "Chance de eco", cor = EL.arcano.cor },
-	{ id = "pontos", icone = "⭐", nome = "Pontos de habilidade livres", cor = COR.ouro },
-})
-secao(colDir, 2, "💰", "Aventura", Color3.fromRGB(200, 160, 60), {
-	{ id = "velocidade", icone = "👟", nome = "Velocidade de movimento" },
-	{ id = "ouro", icone = "💰", nome = "Ouro extra", cor = COR.ouro },
-	{ id = "xp", icone = "📘", nome = "XP extra", cor = Color3.fromRGB(90, 210, 255) },
-	{ id = "nivel", icone = "🏅", nome = "Nível", cor = COR.ouro },
-	{ id = "fase", icone = "🗺️", nome = "Fase atual" },
-})
+desenharSecoes(corpo, false)
 
 local function definir(id, texto, apagado)
-	local l = linhas[id]
-	if l then
-		l.valor.Text = texto
-		l.valor.TextTransparency = apagado and 0.5 or 0
+	for _, valor in ipairs(linhas[id] or {}) do
+		if valor.Parent then
+			valor.Text = texto
+			valor.TextTransparency = apagado and 0.5 or 0
+		end
 	end
 end
 
@@ -384,7 +394,7 @@ local function atualizar()
 		definir("elemGelo", "+" .. pct(arcano + valorPassiva("frioCortante", "bonusElem")))
 		definir("elemRaio", "+" .. pct(arcano + valorPassiva("sobrecarga", "bonusElem")))
 		local red = math.min(valorPassiva("menteRapida", "reducao"), Hab.ReducaoRecargaMax)
-		definir("recarga", "-" .. pct(red), red <= 0)
+		definir("recarga", red > 0 and ("-" .. pct(red)) or "0%", red <= 0)
 		definir("critMagia", pct(math.min(critico + valorPassiva("maestria", "critMagia"), 0.9), 1))
 		definir("eco", pct(valorPassiva("ecoArcano", "eco")), valorPassiva("ecoArcano", "eco") <= 0)
 		definir("pontos", tostring(estado.pontosHabilidade or 0))
@@ -393,7 +403,6 @@ local function atualizar()
 			definir(id, "—", true)
 		end
 	end
-	secaoMagia.Visible = true
 
 	-- Aventura
 	definir("velocidade", string.format("%.0f", s.velocidade or Config.Heroi.Velocidade))
@@ -418,9 +427,74 @@ end
 fechar.Activated:Connect(fecharFicha)
 fundo.Activated:Connect(fecharFicha)
 
+------------------------------------------------------------------------
+-- Ficha dentro da mochila: a mochila (Hud, Jessica) tem um Frame "LugarFicha".
+-- Desenhamos as seções lá; se a mochila for refeita, desenhamos de novo.
+------------------------------------------------------------------------
+local lugarAtual = nil
+local function encaixar(lugar)
+	if lugarAtual == lugar then
+		return
+	end
+	lugarAtual = lugar
+	-- largura 0 = ainda não foi medido: trata como largo
+	local function largo()
+		local x = lugar.AbsoluteSize.X
+		return x == 0 or x >= 420
+	end
+	local function desenhar()
+		local velho = lugar:FindFirstChild("FichaAtributos")
+		if velho then
+			velho:Destroy()
+		end
+		local corpoMochila = novo("Frame", lugar, {
+			Name = "FichaAtributos",
+			Size = UDim2.fromScale(1, 1),
+			BackgroundTransparency = 1,
+		})
+		desenharSecoes(corpoMochila, not largo())
+		atualizar()
+	end
+	desenhar()
+	-- se mudar de largura (uma ou duas colunas), redesenha
+	local largaAntes = largo()
+	lugar:GetPropertyChangedSignal("AbsoluteSize"):Connect(function()
+		local larga = largo()
+		if larga ~= largaAntes and lugar.AbsoluteSize.X > 0 then
+			largaAntes = larga
+			desenhar()
+		end
+	end)
+end
+task.spawn(function()
+	local janelas = playerGui:WaitForChild("Janelas")
+	local achado = janelas:FindFirstChild("LugarFicha", true)
+	if achado and achado:IsA("GuiObject") then
+		encaixar(achado)
+	end
+	janelas.DescendantAdded:Connect(function(d)
+		if d.Name == "LugarFicha" and d:IsA("GuiObject") then
+			encaixar(d)
+		end
+	end)
+end)
+
+-- Abre a mochila (se ela já tem a ficha) ou a janela da ficha
+local function abrirFichaOuMochila()
+	local hud = playerGui:FindFirstChild("Hud")
+	if lugarAtual and lugarAtual.Parent and hud then
+		hud:SetAttribute("AbrirAba", "mochila:atributos")
+		task.defer(function()
+			hud:SetAttribute("AbrirAba", nil)
+		end)
+	else
+		abrir()
+	end
+end
+
 evEstado.OnClientEvent:Connect(function(e)
 	estado = e
-	if gui.Enabled then
+	if gui.Enabled or (lugarAtual and lugarAtual.Parent) then
 		atualizar()
 	end
 end)
@@ -445,7 +519,7 @@ UserInputService.InputBegan:Connect(function(input, processado)
 	params.FilterDescendantsInstances = { char }
 	local raio = cam:ScreenPointToRay(input.Position.X, input.Position.Y)
 	if workspace:Raycast(raio.Origin, raio.Direction * 300, params) then
-		abrir()
+		abrirFichaOuMochila()
 	end
 end)
 
@@ -487,7 +561,7 @@ task.spawn(function()
 		if gui.Enabled then
 			fecharFicha()
 		else
-			abrir()
+			abrirFichaOuMochila()
 		end
 	end)
 end)

@@ -128,7 +128,8 @@ local function corRamo(ramoId)
 end
 
 ------------------------------------------------------------------------
--- Barra de magias (embaixo, no meio): ícone, recarga e brilho ao lançar
+-- Barra de magias (embaixo, no meio): moldura dourada, ícones grandes com
+-- a cor do elemento, recarga descendo e borda girando quando está pronta
 ------------------------------------------------------------------------
 local guiBarra = novo("ScreenGui", playerGui, {
 	Name = "BarraMagias",
@@ -137,34 +138,57 @@ local guiBarra = novo("ScreenGui", playerGui, {
 	DisplayOrder = 2,
 	Enabled = false,
 })
+local TAM = 64
 local barra = novo("Frame", guiBarra, {
 	AnchorPoint = Vector2.new(0.5, 1),
-	Position = UDim2.new(0.5, 0, 1, -12),
-	Size = UDim2.fromOffset(Dados.SlotsBarra * 66 + 16, 78),
-	BackgroundColor3 = COR.painel,
-	BackgroundTransparency = 0.15,
+	Position = UDim2.new(0.5, 0, 1, -10),
+	Size = UDim2.fromOffset(Dados.SlotsBarra * (TAM + 8) + 16, TAM + 22),
+	BackgroundColor3 = Color3.fromRGB(26, 18, 34),
+	BackgroundTransparency = 0.08,
 })
-canto(barra, 14)
-contorno(barra, COR.dourado, 2)
-degrade(barra)
+canto(barra, 18)
+degrade(barra, Color3.fromRGB(255, 235, 255), Color3.fromRGB(120, 100, 130))
+local bordaBarra = contorno(barra, Color3.new(1, 1, 1), 3)
+local gradBordaBarra = novo("UIGradient", bordaBarra, {
+	Color = ColorSequence.new({
+		ColorSequenceKeypoint.new(0, COR.dourado),
+		ColorSequenceKeypoint.new(0.5, Color3.fromRGB(255, 250, 210)),
+		ColorSequenceKeypoint.new(1, COR.dourado),
+	}),
+})
+-- etiqueta "MAGIAS" presa na moldura
+local etiqueta = rotulo(barra, {
+	AnchorPoint = Vector2.new(0, 0.5),
+	Position = UDim2.fromOffset(16, 0),
+	Size = UDim2.fromOffset(92, 20),
+	Text = "✨ MAGIAS",
+	TextSize = 13,
+	BackgroundTransparency = 0,
+	BackgroundColor3 = Color3.fromRGB(125, 60, 210),
+	TextStrokeTransparency = 0,
+	ZIndex = 8,
+})
+canto(etiqueta, 10)
+contorno(etiqueta, COR.ouro, 1.5)
 local listaBarra = novo("Frame", barra, {
-	Position = UDim2.fromOffset(8, 8),
-	Size = UDim2.new(1, -16, 1, -16),
+	Position = UDim2.fromOffset(8, 12),
+	Size = UDim2.new(1, -16, 1, -18),
 	BackgroundTransparency = 1,
 })
 novo("UIListLayout", listaBarra, {
 	FillDirection = Enum.FillDirection.Horizontal,
-	Padding = UDim.new(0, 6),
+	HorizontalAlignment = Enum.HorizontalAlignment.Center,
+	Padding = UDim.new(0, 8),
 	VerticalAlignment = Enum.VerticalAlignment.Center,
 	SortOrder = Enum.SortOrder.LayoutOrder,
 })
 -- aviso de pontos para gastar (em cima da barra)
 local avisoPontos = rotulo(barra, {
 	AnchorPoint = Vector2.new(0.5, 1),
-	Position = UDim2.new(0.5, 0, 0, -4),
-	Size = UDim2.fromOffset(280, 26),
+	Position = UDim2.new(0.5, 0, 0, -8),
+	Size = UDim2.fromOffset(300, 26),
 	Text = "",
-	TextSize = 18,
+	TextSize = 19,
 	TextColor3 = COR.ouro,
 	TextStrokeTransparency = 0,
 	Visible = false,
@@ -178,82 +202,143 @@ TweenService
 	)
 	:Play()
 
+local ICONE_ELEM = { gelo = "❄️", raio = "⚡", fogo = "🔥", arcano = "🔮" }
+
 local slots = {}
 for i = 1, Dados.SlotsBarra do
 	local s = novo("Frame", listaBarra, {
 		Name = "Slot" .. i,
 		LayoutOrder = i,
-		Size = UDim2.fromOffset(60, 60),
-		BackgroundColor3 = COR.painel2,
+		Size = UDim2.fromOffset(TAM, TAM),
+		BackgroundColor3 = Color3.fromRGB(18, 14, 22),
 	})
-	canto(s, 12)
-	local borda = contorno(s, COR.borda, 2.5)
-	local fundoCor = novo("Frame", s, {
-		Size = UDim2.fromScale(1, 1),
+	canto(s, 14)
+	-- aura atrás do espaço (pulsa quando a magia está pronta)
+	local aura = novo("Frame", s, {
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.fromScale(0.5, 0.5),
+		Size = UDim2.new(1, 14, 1, 14),
 		BackgroundColor3 = COR.cinza,
-		BackgroundTransparency = 0.55,
+		BackgroundTransparency = 1,
+		ZIndex = 0,
 	})
-	canto(fundoCor, 12)
-	degrade(fundoCor, Color3.new(1, 1, 1), Color3.fromRGB(90, 80, 80))
-	local icone = rotulo(s, { Size = UDim2.fromScale(1, 1), Text = "", TextSize = 30, ZIndex = 2 })
+	canto(aura, 20)
+	local borda = contorno(s, Color3.new(1, 1, 1), 3)
+	local gradBorda = novo("UIGradient", borda, {})
+	local fundoCor = novo("Frame", s, {
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.fromScale(0.5, 0.5),
+		Size = UDim2.new(1, -6, 1, -6),
+		BackgroundColor3 = Color3.new(1, 1, 1),
+		BackgroundTransparency = 0.1,
+		ZIndex = 1,
+	})
+	canto(fundoCor, 11)
+	local gradFundo = novo("UIGradient", fundoCor, { Rotation = 50 })
+	-- brilho de vidro na metade de cima
+	local vidro = novo("Frame", fundoCor, {
+		Size = UDim2.fromScale(1, 0.48),
+		BackgroundColor3 = Color3.new(1, 1, 1),
+		BackgroundTransparency = 0.8,
+		ZIndex = 2,
+	})
+	canto(vidro, 11)
+	local icone = rotulo(s, { Size = UDim2.fromScale(1, 1), Text = "", TextSize = 36, ZIndex = 3 })
 	-- sombra da recarga: desce de cima para baixo
 	local sombra = novo("Frame", s, {
 		AnchorPoint = Vector2.new(0, 1),
 		Position = UDim2.fromScale(0, 1),
 		Size = UDim2.fromScale(1, 0),
-		BackgroundColor3 = Color3.new(0, 0, 0),
-		BackgroundTransparency = 0.4,
-		ZIndex = 3,
+		BackgroundColor3 = Color3.fromRGB(8, 4, 16),
+		BackgroundTransparency = 0.3,
+		ZIndex = 4,
 	})
-	canto(sombra, 12)
-	local tempo = rotulo(s, { Size = UDim2.fromScale(1, 1), Text = "", TextSize = 20, ZIndex = 4 })
-	local nv = rotulo(s, {
-		AnchorPoint = Vector2.new(1, 1),
-		Position = UDim2.new(1, -3, 1, -1),
-		Size = UDim2.fromOffset(30, 14),
+	canto(sombra, 14)
+	local tempo = rotulo(s, {
+		Size = UDim2.fromScale(1, 1),
 		Text = "",
-		TextSize = 11,
-		TextXAlignment = Enum.TextXAlignment.Right,
+		TextSize = 22,
+		TextStrokeTransparency = 0,
 		ZIndex = 5,
 	})
+	local nv = rotulo(s, {
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.fromScale(0.5, 1),
+		Size = UDim2.fromOffset(34, 15),
+		Text = "",
+		TextSize = 11,
+		BackgroundTransparency = 0,
+		BackgroundColor3 = Color3.fromRGB(28, 20, 34),
+		ZIndex = 6,
+	})
+	canto(nv, 7)
+	local bordaNv = contorno(nv, COR.dourado, 1.2)
 	local prio = rotulo(s, {
-		Position = UDim2.fromOffset(4, 1),
+		Position = UDim2.fromOffset(4, 2),
 		Size = UDim2.fromOffset(14, 14),
 		Text = tostring(i),
 		TextSize = 11,
 		TextColor3 = COR.fraco,
 		TextXAlignment = Enum.TextXAlignment.Left,
-		ZIndex = 5,
+		ZIndex = 6,
+	})
+	local elem = rotulo(s, {
+		AnchorPoint = Vector2.new(1, 0),
+		Position = UDim2.new(1, -2, 0, 1),
+		Size = UDim2.fromOffset(16, 16),
+		Text = "",
+		TextSize = 11,
+		ZIndex = 6,
 	})
 	local escala = novo("UIScale", s)
 	slots[i] = {
 		frame = s,
+		aura = aura,
 		borda = borda,
+		gradBorda = gradBorda,
 		fundo = fundoCor,
+		gradFundo = gradFundo,
 		icone = icone,
 		sombra = sombra,
 		tempo = tempo,
 		nv = nv,
+		bordaNv = bordaNv,
 		prio = prio,
+		elem = elem,
 		escala = escala,
 		id = nil,
+		recarregando = false,
 	}
 end
 
 local function piscarSlot(id)
 	for _, sl in ipairs(slots) do
 		if sl.id == id then
-			sl.escala.Scale = 1.25
-			TweenService:Create(sl.escala, TweenInfo.new(0.25, Enum.EasingStyle.Back), { Scale = 1 }):Play()
+			sl.escala.Scale = 1.28
+			TweenService:Create(sl.escala, TweenInfo.new(0.3, Enum.EasingStyle.Back), { Scale = 1 }):Play()
 			local flash = novo("Frame", sl.frame, {
 				Size = UDim2.fromScale(1, 1),
 				BackgroundColor3 = Color3.new(1, 1, 1),
-				BackgroundTransparency = 0.2,
-				ZIndex = 6,
+				BackgroundTransparency = 0.1,
+				ZIndex = 7,
 			})
-			canto(flash, 12)
-			TweenService:Create(flash, TweenInfo.new(0.3), { BackgroundTransparency = 1 }):Play()
-			Debris:AddItem(flash, 0.35)
+			canto(flash, 14)
+			TweenService:Create(flash, TweenInfo.new(0.35), { BackgroundTransparency = 1 }):Play()
+			Debris:AddItem(flash, 0.4)
+			-- anel saindo do espaço
+			local anel = novo("Frame", sl.frame, {
+				AnchorPoint = Vector2.new(0.5, 0.5),
+				Position = UDim2.fromScale(0.5, 0.5),
+				Size = UDim2.fromScale(1, 1),
+				BackgroundTransparency = 1,
+				ZIndex = 7,
+			})
+			canto(anel, 20)
+			local st = contorno(anel, sl.gradFundo.Color.Keypoints[1].Value, 3)
+			TweenService:Create(anel, TweenInfo.new(0.4, Enum.EasingStyle.Quad), { Size = UDim2.fromScale(1.7, 1.7) })
+				:Play()
+			TweenService:Create(st, TweenInfo.new(0.4), { Transparency = 1 }):Play()
+			Debris:AddItem(anel, 0.45)
 		end
 	end
 end
@@ -271,20 +356,35 @@ local function atualizarBarra()
 		sl.id = id
 		if h then
 			local cor = corRamo(h.ramo)
+			local suprema = h.tipo == "suprema"
 			sl.icone.Text = h.icone
-			sl.borda.Color = h.tipo == "suprema" and COR.ouro or cor
-			sl.borda.Thickness = h.tipo == "suprema" and 3.5 or 2.5
-			sl.fundo.BackgroundColor3 = cor
-			sl.fundo.BackgroundTransparency = 0.5
-			sl.nv.Text = "Nv" .. nivelHab(id)
+			sl.elem.Text = ICONE_ELEM[h.ramo] or ""
+			sl.gradFundo.Color =
+				ColorSequence.new(cor:Lerp(Color3.new(1, 1, 1), 0.45), cor:Lerp(Color3.new(0, 0, 0), 0.45))
+			sl.fundo.BackgroundTransparency = 0
+			local claro = suprema and Color3.fromRGB(255, 250, 200) or Color3.new(1, 1, 1)
+			local base = suprema and COR.ouro or cor
+			sl.gradBorda.Color = ColorSequence.new({
+				ColorSequenceKeypoint.new(0, base),
+				ColorSequenceKeypoint.new(0.45, claro),
+				ColorSequenceKeypoint.new(0.55, claro),
+				ColorSequenceKeypoint.new(1, base),
+			})
+			sl.borda.Thickness = suprema and 4 or 3
+			sl.aura.BackgroundColor3 = suprema and COR.ouro or cor
+			sl.nv.Text = "Nv " .. nivelHab(id)
+			sl.bordaNv.Color = suprema and COR.ouro or cor
 		else
 			sl.icone.Text = ""
-			sl.borda.Color = COR.borda
+			sl.elem.Text = ""
+			sl.gradFundo.Color = ColorSequence.new(Color3.fromRGB(70, 60, 70), Color3.fromRGB(30, 24, 30))
+			sl.fundo.BackgroundTransparency = 0.4
+			sl.gradBorda.Color = ColorSequence.new(COR.borda, COR.borda)
 			sl.borda.Thickness = 2
-			sl.fundo.BackgroundColor3 = COR.cinza
-			sl.fundo.BackgroundTransparency = 0.7
+			sl.aura.BackgroundTransparency = 1
 			sl.nv.Text = ""
 		end
+		sl.nv.Visible = h ~= nil
 	end
 	local pts = estado.pontosHabilidade or 0
 	avisoPontos.Visible = pts > 0
@@ -296,6 +396,7 @@ RunService.RenderStepped:Connect(function()
 		return
 	end
 	local agora = os.clock()
+	gradBordaBarra.Offset = Vector2.new(math.sin(agora * 0.8) * 0.6, 0)
 	for _, sl in ipairs(slots) do
 		local fim = sl.id and fimRecarga[sl.id]
 		if fim and fim > agora then
@@ -303,9 +404,23 @@ RunService.RenderStepped:Connect(function()
 			local frac = resta / math.max(0.01, duracaoRecarga[sl.id] or resta)
 			sl.sombra.Size = UDim2.fromScale(1, math.clamp(frac, 0, 1))
 			sl.tempo.Text = resta >= 10 and tostring(math.ceil(resta)) or string.format("%.1f", resta)
+			sl.icone.TextTransparency = 0.35
+			sl.aura.BackgroundTransparency = 1
+			sl.recarregando = true
 		else
 			sl.sombra.Size = UDim2.fromScale(1, 0)
 			sl.tempo.Text = ""
+			sl.icone.TextTransparency = 0
+			if sl.id then
+				-- pronta: borda gira e a aura pulsa
+				sl.gradBorda.Rotation = (agora * 160) % 360
+				sl.aura.BackgroundTransparency = 0.6 + math.sin(agora * 5) * 0.15
+				if sl.recarregando then
+					sl.recarregando = false
+					sl.escala.Scale = 1.15
+					TweenService:Create(sl.escala, TweenInfo.new(0.25, Enum.EasingStyle.Back), { Scale = 1 }):Play()
+				end
+			end
 		end
 	end
 end)
@@ -329,6 +444,7 @@ local cabecalhos = {}
 local miniBarra = {}
 local construida = nil -- id da classe cuja árvore está desenhada
 local confirmarReset = 0
+local niveisAntes = nil -- para animar a habilidade que acabou de subir
 
 local raizArvore = novo("Frame", pagina, {
 	Name = "ArvoreMagias",
@@ -373,8 +489,8 @@ local brilhoPilula = TweenService:Create(
 	{ Scale = 1.08 }
 )
 rotulo(topo, {
-	Position = UDim2.fromOffset(180, 0),
-	Size = UDim2.new(1, -360, 1, 0),
+	Position = UDim2.fromOffset(192, 0),
+	Size = UDim2.new(1, -372, 1, 0),
 	Text = "1 ponto por nível. As magias da barra saem sozinhas quando a recarga acaba.",
 	TextSize = 12,
 	Font = FONTE_TEXTO,
@@ -411,7 +527,7 @@ canto(painelDetalhe, 12)
 contorno(painelDetalhe, COR.dourado, 2)
 degrade(painelDetalhe, Color3.new(1, 1, 1), Color3.fromRGB(150, 135, 125))
 
-local CAB, LINHA, NO = 30, 66, 54
+local CAB, LINHA, NO = 34, 70, 52
 local colunas = novo("Frame", areaArvore, {
 	Position = UDim2.fromOffset(6, 4),
 	Size = UDim2.new(1, -12, 0, CAB + 4 * LINHA),
@@ -449,15 +565,51 @@ end
 -- Painel de detalhes
 do
 	local p = painelDetalhe
+	-- raios girando atrás do ícone, na cor do elemento
+	detalhe.raios = novo("Frame", p, {
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.fromOffset(42, 42),
+		Size = UDim2.fromOffset(124, 124),
+		BackgroundTransparency = 1,
+		ZIndex = 1,
+	})
+	detalhe.listaRaios = {}
+	for i = 1, 6 do
+		local r = novo("Frame", detalhe.raios, {
+			AnchorPoint = Vector2.new(0.5, 0.5),
+			Position = UDim2.fromScale(0.5, 0.5),
+			Size = UDim2.new(0, 18, 1, 0),
+			Rotation = i * 30,
+			BackgroundColor3 = COR.ouro,
+			BackgroundTransparency = 0.15,
+			BorderSizePixel = 0,
+			ZIndex = 1,
+		})
+		novo("UIGradient", r, {
+			Rotation = 90,
+			Transparency = NumberSequence.new({
+				NumberSequenceKeypoint.new(0, 1),
+				NumberSequenceKeypoint.new(0.22, 0.15),
+				NumberSequenceKeypoint.new(0.5, 0),
+				NumberSequenceKeypoint.new(0.78, 0.15),
+				NumberSequenceKeypoint.new(1, 1),
+			}),
+		})
+		table.insert(detalhe.listaRaios, r)
+	end
+	TweenService:Create(detalhe.raios, TweenInfo.new(14, Enum.EasingStyle.Linear, Enum.EasingDirection.In, -1), {
+		Rotation = 360,
+	}):Play()
 	detalhe.iconeFundo = novo("Frame", p, {
 		Position = UDim2.fromOffset(10, 10),
 		Size = UDim2.fromOffset(64, 64),
-		BackgroundColor3 = COR.cinza,
+		BackgroundColor3 = Color3.new(1, 1, 1),
+		ZIndex = 2,
 	})
-	canto(detalhe.iconeFundo, 14)
+	canto(detalhe.iconeFundo, 16)
 	detalhe.iconeBorda = contorno(detalhe.iconeFundo, COR.dourado, 3)
-	degrade(detalhe.iconeFundo)
-	detalhe.icone = rotulo(detalhe.iconeFundo, { Size = UDim2.fromScale(1, 1), Text = "", TextSize = 36 })
+	detalhe.iconeGrad = novo("UIGradient", detalhe.iconeFundo, { Rotation = 45 })
+	detalhe.icone = rotulo(detalhe.iconeFundo, { Size = UDim2.fromScale(1, 1), Text = "", TextSize = 38, ZIndex = 3 })
 	detalhe.nome = rotulo(p, {
 		Position = UDim2.fromOffset(82, 8),
 		Size = UDim2.new(1, -90, 0, 26),
@@ -554,107 +706,185 @@ local function selecionar(id)
 end
 
 -- Monta os nós da árvore da classe (uma vez por classe)
+local giros = {} -- gradientes que giram (bordas das supremas e linhas acesas)
 local function construir(arvore)
 	for _, filho in ipairs(colunas:GetChildren()) do
 		filho:Destroy()
 	end
-	nos, ligacoes, cabecalhos = {}, {}, {}
+	nos, ligacoes, cabecalhos, giros = {}, {}, {}, {}
 	local nRamos = #arvore.ramos
+	local cols = {}
 	for ci, ramo in ipairs(arvore.ramos) do
 		local col = novo("Frame", colunas, {
-			Position = UDim2.new((ci - 1) / nRamos, 2, 0, 0),
-			Size = UDim2.new(1 / nRamos, -4, 1, 0),
+			Position = UDim2.new((ci - 1) / nRamos, 3, 0, 0),
+			Size = UDim2.new(1 / nRamos, -6, 1, 0),
 			BackgroundColor3 = ramo.cor,
-			BackgroundTransparency = 0.9,
+			BackgroundTransparency = 0.55,
+			ClipsDescendants = false,
 		})
-		canto(col, 10)
-		local cab = rotulo(col, {
-			Size = UDim2.new(1, 0, 0, CAB - 4),
+		cols[ramo.id] = col
+		canto(col, 12)
+		contorno(col, ramo.cor:Lerp(Color3.new(0, 0, 0), 0.35), 1.5).Transparency = 0.3
+		-- a cor do elemento vai sumindo para o escuro
+		novo("UIGradient", col, {
+			Rotation = 90,
+			Color = ColorSequence.new(ramo.cor:Lerp(Color3.new(1, 1, 1), 0.2), Color3.fromRGB(20, 14, 24)),
+			Transparency = NumberSequence.new(0.1, 0.35),
+		})
+		-- símbolo grande do elemento ao fundo (marca d'água)
+		rotulo(col, {
+			AnchorPoint = Vector2.new(0.5, 0.5),
+			Position = UDim2.fromScale(0.5, 0.58),
+			Size = UDim2.fromScale(1, 0.6),
+			Text = ramo.icone,
+			TextSize = 110,
+			TextTransparency = 0.86,
+			TextStrokeTransparency = 1,
+			ZIndex = 1,
+		})
+		-- faixa do título do ramo
+		local faixaRamo = novo("Frame", col, {
+			AnchorPoint = Vector2.new(0.5, 0),
+			Position = UDim2.new(0.5, 0, 0, 3),
+			Size = UDim2.new(1, -8, 0, CAB - 8),
+			BackgroundColor3 = ramo.cor:Lerp(Color3.new(0, 0, 0), 0.25),
+			ZIndex = 2,
+		})
+		canto(faixaRamo, 9)
+		contorno(faixaRamo, ramo.cor:Lerp(Color3.new(1, 1, 1), 0.5), 1.5)
+		degrade(faixaRamo, Color3.new(1, 1, 1), Color3.fromRGB(120, 110, 120))
+		local cab = rotulo(faixaRamo, {
+			Size = UDim2.fromScale(1, 1),
 			Text = ramo.icone .. " " .. ramo.nome,
 			TextSize = 15,
-			TextColor3 = ramo.cor:Lerp(Color3.new(1, 1, 1), 0.3),
+			TextColor3 = Color3.new(1, 1, 1),
 			TextStrokeTransparency = 0,
+			TextStrokeColor3 = ramo.cor:Lerp(Color3.new(0, 0, 0), 0.75),
+			ZIndex = 3,
 		})
 		cabecalhos[ramo.id] = cab
-		-- traço vertical ligando os nós do ramo
+		-- linha brilhante ligando os nós do ramo (acende quando o nó de baixo libera)
 		for linha = 1, 3 do
+			local y = CAB + (linha - 1) * LINHA + NO - 2
+			local alto = LINHA - NO + 4
+			local brilhoLig = novo("Frame", col, {
+				AnchorPoint = Vector2.new(0.5, 0),
+				Position = UDim2.new(0.5, 0, 0, y),
+				Size = UDim2.fromOffset(14, alto),
+				BackgroundColor3 = ramo.cor,
+				BackgroundTransparency = 1,
+				BorderSizePixel = 0,
+				ZIndex = 2,
+			})
+			canto(brilhoLig, 7)
 			local lig = novo("Frame", col, {
 				AnchorPoint = Vector2.new(0.5, 0),
-				Position = UDim2.new(0.5, 0, 0, CAB + (linha - 1) * LINHA + NO),
-				Size = UDim2.fromOffset(5, LINHA - NO),
-				BackgroundColor3 = COR.cinza,
+				Position = UDim2.new(0.5, 0, 0, y),
+				Size = UDim2.fromOffset(6, alto),
+				BackgroundColor3 = Color3.new(1, 1, 1),
 				BorderSizePixel = 0,
+				ZIndex = 2,
 			})
-			ligacoes[ramo.id .. linha] = lig
+			canto(lig, 3)
+			local gradLig = novo("UIGradient", lig, { Rotation = 90 })
+			ligacoes[ramo.id .. linha] = { linha = lig, brilho = brilhoLig, grad = gradLig, cor = ramo.cor }
 		end
 	end
 	for _, h in ipairs(arvore.lista) do
-		local ci = 1
-		for i, r in ipairs(arvore.ramos) do
-			if r.id == h.ramo then
-				ci = i
-			end
-		end
-		local col = colunas:GetChildren()[ci]
+		local col = cols[h.ramo]
 		local cor = corRamo(h.ramo)
-		-- brilho pulsando atrás (quando dá para aprender)
-		local brilho = novo("Frame", col, {
-			AnchorPoint = Vector2.new(0.5, 0),
-			Position = UDim2.new(0.5, 0, 0, CAB + (h.linha - 1) * LINHA - 4),
-			Size = UDim2.fromOffset(NO + 8, NO + 8),
-			BackgroundColor3 = COR.ouro,
-			BackgroundTransparency = 0.5,
-			Visible = false,
+		local redondo = h.tipo == "passiva"
+		local raioCanto = redondo and NO / 2 or 14
+		local yNo = CAB + (h.linha - 1) * LINHA
+		-- auréola atrás do nó (acende quando aprendido / pulsa quando dá para aprender)
+		local halo = novo("Frame", col, {
+			AnchorPoint = Vector2.new(0.5, 0.5),
+			Position = UDim2.new(0.5, 0, 0, yNo + NO / 2),
+			Size = UDim2.fromOffset(NO + 16, NO + 16),
+			BackgroundColor3 = cor,
+			BackgroundTransparency = 1,
+			ZIndex = 2,
 		})
-		canto(brilho, 16)
+		canto(halo, raioCanto + 8)
+		local brilho = novo("Frame", col, {
+			AnchorPoint = Vector2.new(0.5, 0.5),
+			Position = UDim2.new(0.5, 0, 0, yNo + NO / 2),
+			Size = UDim2.fromOffset(NO + 10, NO + 10),
+			BackgroundColor3 = COR.ouro,
+			BackgroundTransparency = 0.45,
+			Visible = false,
+			ZIndex = 2,
+		})
+		canto(brilho, raioCanto + 5)
 		TweenService:Create(
 			brilho,
-			TweenInfo.new(0.8, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
-			{ BackgroundTransparency = 0.85, Size = UDim2.fromOffset(NO + 14, NO + 14) }
+			TweenInfo.new(0.7, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
+			{ BackgroundTransparency = 0.9, Size = UDim2.fromOffset(NO + 20, NO + 20) }
 		):Play()
 		local b = novo("TextButton", col, {
 			Name = "No_" .. h.id,
 			AnchorPoint = Vector2.new(0.5, 0),
-			Position = UDim2.new(0.5, 0, 0, CAB + (h.linha - 1) * LINHA),
+			Position = UDim2.new(0.5, 0, 0, yNo),
 			Size = UDim2.fromOffset(NO, NO),
-			BackgroundColor3 = cor,
+			BackgroundColor3 = Color3.new(1, 1, 1),
 			Text = "",
-			AutoButtonColor = true,
-			ZIndex = 2,
+			AutoButtonColor = false,
+			ZIndex = 3,
 		})
-		canto(b, h.tipo == "passiva" and NO / 2 or 12) -- passivas redondas, ativas quadradas
-		local borda = contorno(b, h.tipo == "suprema" and COR.ouro or cor:Lerp(Color3.new(0, 0, 0), 0.3), 2.5)
-		local grad = degrade(b, Color3.new(1, 1, 1), Color3.fromRGB(110, 100, 100))
-		local ic = rotulo(b, { Size = UDim2.fromScale(1, 1), Text = h.icone, TextSize = 28, ZIndex = 3 })
-		local nv = rotulo(b, {
-			AnchorPoint = Vector2.new(0.5, 0.5),
-			Position = UDim2.new(0.5, 0, 1, -1),
-			Size = UDim2.fromOffset(40, 16),
-			BackgroundTransparency = 0,
-			BackgroundColor3 = COR.painel,
-			Text = "0/" .. h.max,
-			TextSize = 11,
+		canto(b, raioCanto)
+		local borda = contorno(b, Color3.new(1, 1, 1), h.tipo == "suprema" and 3.5 or 3)
+		local gradBorda = novo("UIGradient", borda, {})
+		if h.tipo == "suprema" then
+			table.insert(giros, gradBorda)
+		end
+		local grad = novo("UIGradient", b, { Rotation = 45 })
+		-- vidro na metade de cima
+		local vidro = novo("Frame", b, {
+			Size = UDim2.fromScale(1, 0.5),
+			BackgroundColor3 = Color3.new(1, 1, 1),
+			BackgroundTransparency = 0.78,
 			ZIndex = 4,
 		})
+		canto(vidro, raioCanto)
+		local ic = rotulo(b, { Size = UDim2.fromScale(1, 1), Text = h.icone, TextSize = 30, ZIndex = 5 })
+		local nv = rotulo(b, {
+			AnchorPoint = Vector2.new(0.5, 0.5),
+			Position = UDim2.fromScale(0.5, 1),
+			Size = UDim2.fromOffset(40, 16),
+			BackgroundTransparency = 0,
+			BackgroundColor3 = Color3.fromRGB(26, 18, 30),
+			Text = "0/" .. h.max,
+			TextSize = 11,
+			ZIndex = 6,
+		})
 		canto(nv, 8)
+		local bordaNv = contorno(nv, cor, 1.2)
 		local cadeado = rotulo(b, {
 			AnchorPoint = Vector2.new(1, 0),
-			Position = UDim2.new(1, 2, 0, -4),
-			Size = UDim2.fromOffset(20, 20),
+			Position = UDim2.new(1, 4, 0, -6),
+			Size = UDim2.fromOffset(22, 22),
 			Text = "🔒",
-			TextSize = 14,
-			ZIndex = 5,
+			TextSize = 15,
+			ZIndex = 7,
 		})
 		local estrela = h.tipo == "suprema"
 				and rotulo(b, {
-					Position = UDim2.fromOffset(-6, -6),
-					Size = UDim2.fromOffset(20, 20),
+					Position = UDim2.fromOffset(-8, -8),
+					Size = UDim2.fromOffset(22, 22),
 					Text = "★",
-					TextSize = 18,
+					TextSize = 20,
 					TextColor3 = COR.ouro,
-					ZIndex = 5,
+					TextStrokeTransparency = 0,
+					ZIndex = 7,
 				})
 			or nil
+		local escala = novo("UIScale", b)
+		b.MouseEnter:Connect(function()
+			TweenService:Create(escala, TweenInfo.new(0.12), { Scale = 1.08 }):Play()
+		end)
+		b.MouseLeave:Connect(function()
+			TweenService:Create(escala, TweenInfo.new(0.12), { Scale = 1 }):Play()
+		end)
 		b.Activated:Connect(function()
 			selecionar(h.id)
 		end)
@@ -662,17 +892,101 @@ local function construir(arvore)
 			hab = h,
 			botao = b,
 			borda = borda,
+			gradBorda = gradBorda,
 			grad = grad,
 			icone = ic,
 			nv = nv,
+			bordaNv = bordaNv,
 			cadeado = cadeado,
 			brilho = brilho,
+			halo = halo,
 			estrela = estrela,
+			escala = escala,
+			coluna = col,
+			centro = UDim2.new(0.5, 0, 0, yNo + NO / 2),
 		}
 	end
 	construida = arvore.classe
 	selecionada = selecionada and nos[selecionada] and selecionada or arvore.lista[1].id
 end
+
+-- Animação ao aprender: explosão de faíscas da cor do elemento, anel e "+1"
+local function festejar(id, nivelNovo)
+	local no = nos[id]
+	if not no then
+		return
+	end
+	local cor = corRamo(no.hab.ramo)
+	no.escala.Scale = 1.45
+	TweenService:Create(no.escala, TweenInfo.new(0.45, Enum.EasingStyle.Elastic), { Scale = 1 }):Play()
+	for i = 1, 14 do
+		local ang = i / 14 * math.pi * 2 + math.random() * 0.3
+		local dist = 46 + math.random() * 26
+		local f = novo("Frame", no.coluna, {
+			AnchorPoint = Vector2.new(0.5, 0.5),
+			Position = no.centro,
+			Size = UDim2.fromOffset(9, 9),
+			Rotation = math.deg(ang),
+			BackgroundColor3 = i % 3 == 0 and Color3.new(1, 1, 1) or cor,
+			ZIndex = 9,
+		})
+		canto(f, 3)
+		TweenService:Create(f, TweenInfo.new(0.55, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+			Position = no.centro + UDim2.fromOffset(math.cos(ang) * dist, math.sin(ang) * dist),
+			Size = UDim2.fromOffset(2, 2),
+			BackgroundTransparency = 1,
+		}):Play()
+		Debris:AddItem(f, 0.6)
+	end
+	local anel = novo("Frame", no.coluna, {
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = no.centro,
+		Size = UDim2.fromOffset(NO, NO),
+		BackgroundTransparency = 1,
+		ZIndex = 9,
+	})
+	canto(anel, 60)
+	local st = contorno(anel, cor:Lerp(Color3.new(1, 1, 1), 0.3), 4)
+	TweenService
+		:Create(anel, TweenInfo.new(0.5, Enum.EasingStyle.Quad), { Size = UDim2.fromOffset(NO * 2.3, NO * 2.3) })
+		:Play()
+	TweenService:Create(st, TweenInfo.new(0.5), { Transparency = 1, Thickness = 1 }):Play()
+	Debris:AddItem(anel, 0.55)
+	local txt = rotulo(no.coluna, {
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = no.centro,
+		Size = UDim2.fromOffset(120, 30),
+		Text = nivelNovo == 1 and "NOVA!" or ("+1  Nv " .. nivelNovo),
+		TextSize = 22,
+		TextColor3 = cor:Lerp(Color3.new(1, 1, 1), 0.35),
+		TextStrokeTransparency = 0,
+		ZIndex = 10,
+	})
+	local esc = novo("UIScale", txt, { Scale = 0.4 })
+	TweenService:Create(esc, TweenInfo.new(0.3, Enum.EasingStyle.Back), { Scale = 1.15 }):Play()
+	TweenService:Create(txt, TweenInfo.new(0.9, Enum.EasingStyle.Quad), {
+		Position = no.centro - UDim2.fromOffset(0, 48),
+		TextTransparency = 1,
+		TextStrokeTransparency = 1,
+	}):Play()
+	Debris:AddItem(txt, 0.95)
+end
+
+-- gira as bordas das supremas e faz o brilho correr nas linhas acesas
+RunService.RenderStepped:Connect(function()
+	if not (pagina.Visible and conteudo.Visible) then
+		return
+	end
+	local t = os.clock()
+	for _, g in ipairs(giros) do
+		g.Rotation = (t * 120) % 360
+	end
+	for _, l in pairs(ligacoes) do
+		if l.acesa then
+			l.grad.Offset = Vector2.new(0, ((t * 1.2) % 2) - 1)
+		end
+	end
+end)
 
 local function motivoBloqueio(h)
 	local niveis = estado.habilidades or {}
@@ -706,6 +1020,14 @@ atualizarArvore = function()
 	end
 	local niveis = estado.habilidades or {}
 	local pontos = estado.pontosHabilidade or 0
+	if niveisAntes then
+		for id, n in pairs(niveis) do
+			if n > (niveisAntes[id] or 0) then
+				festejar(id, n)
+			end
+		end
+	end
+	niveisAntes = table.clone(niveis)
 	txtPontos.Text = "✨ Pontos: " .. pontos
 	if pontos > 0 then
 		brilhoPilula:Play()
@@ -735,22 +1057,35 @@ atualizarArvore = function()
 		no.cadeado.Visible = bloqueio ~= nil
 		no.brilho.Visible = pode
 		local cor = corRamo(h.ramo)
+		local suprema = h.tipo == "suprema"
+		local branco = Color3.new(1, 1, 1)
 		if bloqueio then
-			no.botao.BackgroundColor3 = COR.cinza
-			no.icone.TextTransparency = 0.6
+			no.grad.Color = ColorSequence.new(Color3.fromRGB(110, 100, 105), Color3.fromRGB(45, 38, 44))
+			no.icone.TextTransparency = 0.55
+			no.gradBorda.Color = ColorSequence.new(Color3.fromRGB(90, 80, 85), Color3.fromRGB(60, 52, 58))
+			no.halo.BackgroundTransparency = 1
 		elseif n == 0 then
-			no.botao.BackgroundColor3 = cor:Lerp(COR.cinza, 0.55)
-			no.icone.TextTransparency = 0.15
+			local apagada = cor:Lerp(COR.cinza, 0.5)
+			no.grad.Color = ColorSequence.new(apagada:Lerp(branco, 0.3), apagada:Lerp(Color3.new(0, 0, 0), 0.4))
+			no.icone.TextTransparency = 0.1
+			no.gradBorda.Color = ColorSequence.new(apagada, apagada:Lerp(branco, 0.3))
+			no.halo.BackgroundTransparency = 1
 		else
-			no.botao.BackgroundColor3 = cor
+			no.grad.Color = ColorSequence.new(cor:Lerp(branco, 0.5), cor:Lerp(Color3.new(0, 0, 0), 0.35))
 			no.icone.TextTransparency = 0
+			local base = suprema and COR.ouro or cor:Lerp(branco, 0.2)
+			no.gradBorda.Color = ColorSequence.new({
+				ColorSequenceKeypoint.new(0, base),
+				ColorSequenceKeypoint.new(0.5, branco),
+				ColorSequenceKeypoint.new(1, base),
+			})
+			no.halo.BackgroundTransparency = n >= h.max and 0.45 or 0.7
 		end
 		if id == selecionada then
-			no.borda.Color = Color3.new(1, 1, 1)
-			no.borda.Thickness = 3.5
+			no.gradBorda.Color = ColorSequence.new(branco, Color3.fromRGB(255, 240, 180))
+			no.borda.Thickness = 4.5
 		else
-			no.borda.Color = h.tipo == "suprema" and COR.ouro or cor:Lerp(Color3.new(0, 0, 0), 0.3)
-			no.borda.Thickness = 2.5
+			no.borda.Thickness = suprema and 3.5 or 3
 		end
 	end
 	-- traços: acendem quando o nó de baixo já está liberado
@@ -763,7 +1098,19 @@ atualizarArvore = function()
 					liberado = motivoBloqueio(h) == nil
 				end
 			end
-			lig.BackgroundColor3 = liberado and ramo.cor or COR.cinza
+			lig.acesa = liberado
+			if liberado then
+				lig.grad.Color = ColorSequence.new({
+					ColorSequenceKeypoint.new(0, ramo.cor),
+					ColorSequenceKeypoint.new(0.5, Color3.new(1, 1, 1)),
+					ColorSequenceKeypoint.new(1, ramo.cor),
+				})
+				lig.brilho.BackgroundTransparency = 0.65
+			else
+				lig.grad.Color = ColorSequence.new(COR.cinza, COR.cinza)
+				lig.grad.Offset = Vector2.zero
+				lig.brilho.BackgroundTransparency = 1
+			end
 		end
 	end
 	-- mini barra
@@ -782,7 +1129,10 @@ atualizarArvore = function()
 	local n = niveis[h.id] or 0
 	local cor = corRamo(h.ramo)
 	detalhe.icone.Text = h.icone
-	detalhe.iconeFundo.BackgroundColor3 = cor
+	detalhe.iconeGrad.Color = ColorSequence.new(cor:Lerp(Color3.new(1, 1, 1), 0.5), cor:Lerp(Color3.new(0, 0, 0), 0.35))
+	for _, r in ipairs(detalhe.listaRaios) do
+		r.BackgroundColor3 = h.tipo == "suprema" and COR.ouro or cor
+	end
 	detalhe.iconeBorda.Color = h.tipo == "suprema" and COR.ouro or Color3.new(1, 1, 1)
 	detalhe.nome.Text = h.nome
 	local nomeTipo = h.tipo == "suprema" and "★ SUPREMA" or (h.tipo == "ativa" and "ATIVA" or "PASSIVA")
@@ -843,18 +1193,7 @@ end
 -- Botões
 detalhe.aprender.Activated:Connect(function()
 	if selecionada then
-		evHab:FireServer("aprender", selecionada)
-		local no = nos[selecionada]
-		if
-			no
-			and estado
-			and Dados.podeAprender(estado.habilidades, estado.pontosHabilidade, estado.classe, selecionada)
-		then
-			-- pulinho no nó
-			local esc = no.botao:FindFirstChildOfClass("UIScale") or novo("UIScale", no.botao)
-			esc.Scale = 1.35
-			TweenService:Create(esc, TweenInfo.new(0.3, Enum.EasingStyle.Back), { Scale = 1 }):Play()
-		end
+		evHab:FireServer("aprender", selecionada) -- a animação sai quando o servidor confirma
 	end
 end)
 detalhe.equipar.Activated:Connect(function()
