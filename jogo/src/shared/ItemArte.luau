@@ -1977,6 +1977,172 @@ local function modeloPronto(...)
 	return c
 end
 
+------------------------------------------------------------------------
+-- Peças anime feitas no Blender (modelos/gerar_itens_anime.py → itens_anime.fbx, importado em
+-- Arte.Equipamentos.itensAnime). Cada conjunto ("katanaA", "elmoC"...) tem um cubinho "_ref" na
+-- origem; as outras peças ficam na posição relativa a ele. Formato A = tiers 1-3, B = 4-6, C = 7-9.
+------------------------------------------------------------------------
+local cacheAnime = {}
+-- Correção de eixos do importador, descoberta sozinha: a lâmina da katana aponta para cima
+-- e a joia do peitoral fica na frente. Devolve um CFrame (no espaço do cubo _ref) com Y = cima, -Z = frente.
+local ajusteImport = nil
+local function eixoDominante(v)
+	local ax, ay, az = math.abs(v.X), math.abs(v.Y), math.abs(v.Z)
+	if ax >= ay and ax >= az then
+		return Vector3.new(math.sign(v.X), 0, 0)
+	elseif ay >= az then
+		return Vector3.new(0, math.sign(v.Y), 0)
+	end
+	return Vector3.new(0, 0, math.sign(v.Z))
+end
+local function calcularAjuste(pasta)
+	if ajusteImport then
+		return ajusteImport
+	end
+	local function achar(nome)
+		for _, d in ipairs(pasta:GetDescendants()) do
+			if d:IsA("BasePart") and d.Name == nome then
+				return d
+			end
+		end
+		return nil
+	end
+	local refK, laminaK = achar("katanaA_ref"), achar("katanaA_lamina")
+	local refA, joia = achar("armaduraA_ref"), achar("armaduraA_joia")
+	if not (refK and laminaK and refA and joia) then
+		ajusteImport = CFrame.new()
+		return ajusteImport
+	end
+	local cima = eixoDominante(refK.CFrame:PointToObjectSpace(laminaK.Position))
+	local f = refA.CFrame:PointToObjectSpace(joia.Position)
+	local frente = eixoDominante(f - cima * f:Dot(cima))
+	local z = -frente
+	local x = cima:Cross(z)
+	ajusteImport = CFrame.fromMatrix(Vector3.zero, x, cima, z)
+	return ajusteImport
+end
+local function pecasAnime(conjunto)
+	if cacheAnime[conjunto] ~= nil then
+		return cacheAnime[conjunto]
+	end
+	local arte = ReplicatedStorage:FindFirstChild("Arte")
+	local equip = arte and arte:FindFirstChild("Equipamentos")
+	local pasta = equip and equip:FindFirstChild("itensAnime")
+	if not pasta then
+		return false -- ainda não importado (não guarda no cache: pode chegar depois)
+	end
+	local ref, pecas = nil, {}
+	for _, d in ipairs(pasta:GetDescendants()) do
+		if d:IsA("BasePart") then
+			local conj, nome = string.match(d.Name, "^(%w+)_(%w+)$")
+			if conj == conjunto then
+				if nome == "ref" then
+					ref = d
+				else
+					pecas[nome] = d
+				end
+			end
+		end
+	end
+	local achou = ref and next(pecas) and { ref = ref, pecas = pecas, ajuste = calcularAjuste(pasta) } or false
+	cacheAnime[conjunto] = achou
+	return achou
+end
+
+local function formaDoTier(ri)
+	return ri <= 3 and "A" or (ri <= 6 and "B" or "C")
+end
+
+-- Monta um conjunto no item. tamanho = escala em "unidades do Blender"; cores(nome) devolve
+-- cor, material e se brilha (peças que brilham continuam neon até no corpo).
+local function montarAnime(m, conjunto, tamanho, cf, cores, espelhar)
+	local dados = pecasAnime(conjunto)
+	if not dados then
+		return false
+	end
+	local ref = dados.ref
+	local fator = tamanho / (ref.Size.X / 0.05) -- o cubo de referência tem 0,05 no Blender
+	local base = ref.CFrame * dados.ajuste
+	local maior, nucleo = 0, nil
+	for nome, p in pairs(dados.pecas) do
+		local copias = { CFrame.new() }
+		if espelhar and espelhar[nome] then
+			table.insert(copias, CFrame.Angles(0, math.pi, 0))
+		end
+		for _, giro in ipairs(copias) do
+			local c = p:Clone()
+			for _, d in ipairs(c:GetChildren()) do
+				d:Destroy()
+			end
+			local rel = base:ToObjectSpace(p.CFrame)
+			c.Size = p.Size * fator
+			c.CFrame = cf * giro * CFrame.new(rel.Position * fator) * rel.Rotation
+			c.Anchored = true
+			c.CanCollide = false
+			c.CanQuery = false
+			c.CanTouch = false
+			c.CastShadow = false
+			pcall(function()
+				c.TextureID = ""
+			end)
+			local cor, material, brilha = cores(nome)
+			c.Color = cor
+			c.Material = material
+			if brilha then
+				c:SetAttribute("Brilho", true)
+			end
+			c.Name = nome
+			c.Parent = m
+			if c.Size.Magnitude > maior then
+				maior, nucleo = c.Size.Magnitude, c
+			end
+		end
+	end
+	if nucleo then
+		nucleo.Name = "Nucleo"
+	end
+	return true
+end
+
+-- cores das peças por raridade (estilo anime: cores chapadas fortes, brilho só nos detalhes)
+local function coresAnime(ri, cor)
+	local pal = paleta(ri, cor)
+	local metal, matMetal = metalTier(ri, pal)
+	local brilho = ri >= 3
+	local corBrilho = pal.vazio and BRANCO or cor:Lerp(BRANCO, 0.25)
+	return function(nome)
+		if nome == "fio" or nome == "cristal" or nome == "joia" or nome == "gemas" or nome == "pomo" then
+			if not brilho then
+				return nome == "fio" and ACO or (pal.gema or cor), MAT.Metal, false
+			end
+			return nome == "fio" and corBrilho or (pal.gema or corBrilho), MAT.Neon, true
+		elseif nome == "corda" then
+			return ri >= 4 and corBrilho or BRANCO, ri >= 4 and MAT.Neon or MAT.SmoothPlastic, ri >= 4
+		elseif nome == "lamina" then
+			return ri <= 2 and ACO or (pal.vazio and Color3.fromRGB(30, 26, 40) or cor:Lerp(BRANCO, 0.55)),
+				MAT.Metal,
+				false
+		elseif nome == "cabo" or nome == "pegada" or nome == "faixa" or nome == "fitas" then
+			return pal.vazio and PRETO or (ri <= 2 and Color3.fromRGB(60, 40, 30) or cor:Lerp(PRETO, 0.65)),
+				MAT.Fabric,
+				false
+		elseif nome == "haste" or nome == "corpo" then
+			if ri <= 2 then
+				return MADEIRA, MAT.Wood, false
+			end
+			return pal.vazio and pal.corpo or cor:Lerp(PRETO, 0.35), MAT.Metal, false
+		elseif nome == "peito" or nome == "ombro" or nome == "casco" then
+			return pal.vazio and pal.corpo or (ri <= 2 and FERRO or cor:Lerp(PRETO, 0.2)),
+				pal.cristal and MAT.Glass or MAT.Metal,
+				false
+		elseif nome == "asaD" or nome == "asaE" then
+			return pal.vazio and BRANCO or cor:Lerp(BRANCO, 0.5), MAT.Neon, false
+		end
+		-- guarda, placas, gola, cabeça, anel, abas, crista, espinhos, lâminas, placa
+		return metal, matMetal, false
+	end
+end
+
 -- Guerreiro: uma katana por raridade (a lâmina aponta para +Y e o cabo fica embaixo)
 -- (escolhidas pela cor de cada raridade: cinza, verde, azul, roxo, laranja, vermelho, ciano, ouro, preto)
 local KATANA = {
@@ -1991,6 +2157,12 @@ local KATANA = {
 	"VoidKatana",
 }
 local function espadaPronta(m, ri, cor)
+	local diagonal = CFrame.Angles(0, 0, math.rad(-45))
+	if montarAnime(m, "katana" .. formaDoTier(ri), 1 + ri * 0.03, diagonal, coresAnime(ri, cor)) then
+		m:SetAttribute("Pomo", (diagonal * CFrame.new(0, -1.42, 0)).Position)
+		enfeitesTier(m, ri, paleta(ri, cor), diagonal * CFrame.new(0, 0.9, 0), 0.8)
+		return
+	end
 	local k = modeloPronto("packKatanas", KATANA[ri])
 	if not k or not k:IsA("BasePart") then
 		espada(m, ri, cor)
@@ -2076,6 +2248,11 @@ end
 
 -- Caçador: arco dourado pronto no Divino (o resto continua desenhado, com a cor de cada tier)
 local function arcoPronto(m, ri, cor)
+	local diagonal = CFrame.Angles(0, 0, math.rad(-45))
+	if montarAnime(m, "arco" .. formaDoTier(ri), 1.05 + ri * 0.02, diagonal, coresAnime(ri, cor)) then
+		enfeitesTier(m, ri, paleta(ri, cor), diagonal, 1.0)
+		return
+	end
 	if ri == 8 then
 		local base = CFrame.Angles(0, 0, math.rad(-45))
 		local ok = encaixarPronto(
@@ -2095,6 +2272,18 @@ end
 -- Mago: cajado de raio ciano no Imortal e cetro do rei no Divino
 local function cajadoPronto(m, ri, cor)
 	local base = CFrame.Angles(0, 0, math.rad(-45))
+	if
+		montarAnime(
+			m,
+			"cajado" .. formaDoTier(ri),
+			0.95 + ri * 0.02,
+			base * CFrame.new(0, -1.6, 0),
+			coresAnime(ri, cor)
+		)
+	then
+		enfeitesTier(m, ri, paleta(ri, cor), base * CFrame.new(0, 3.2, 0), 0.9)
+		return
+	end
 	local obj
 	if ri == 7 then
 		obj = modeloPronto("cajadoRaio", "MysticalStaffOfCyanLightningMagic")
@@ -2116,6 +2305,21 @@ local function cajadoPronto(m, ri, cor)
 	cajado(m, ri, cor)
 end
 
+-- Guerreiro: armadura e elmo anime (Blender); sem a importação, usa os desenhados
+local function armaduraPronta(m, ri, cor)
+	local espelho = { ombro = true, espinhos = true }
+	if
+		not montarAnime(m, "armadura" .. formaDoTier(ri), 1.45, CFrame.new(0, -0.45, 0), coresAnime(ri, cor), espelho)
+	then
+		armadura(m, ri, cor)
+	end
+end
+local function elmoPronto(m, ri, cor)
+	if not montarAnime(m, "elmo" .. formaDoTier(ri), 1.9, CFrame.new(0, 0.2, 0.1), coresAnime(ri, cor)) then
+		elmo(m, ri, cor)
+	end
+end
+
 local DESENHO_CLASSE = {
 	cacador = { arma = arcoPronto, armaSec = aljava, elmo = capuz, armadura = couro },
 	mago = { arma = cajadoPronto, armaSec = grimorio, elmo = chapeuMago, armadura = tunica },
@@ -2124,8 +2328,8 @@ local DESENHO_CLASSE = {
 local DESENHO = {
 	arma = espadaPronta,
 	armaSec = escudo,
-	elmo = elmo,
-	armadura = armadura,
+	elmo = elmoPronto,
+	armadura = armaduraPronta,
 	luvas = luvas,
 	calca = calca,
 	botas = botas,
@@ -2443,7 +2647,7 @@ local function criarNoCorpo(slot, ri, cor, conjunto, classe)
 	-- No corpo o cenário tem bloom: peça grande de neon vira um borrão de luz e esconde a forma.
 	-- Lá ela vira metal na mesma cor (forte e legível); o neon fica só nos detalhes pequenos.
 	for _, p in ipairs(m:GetDescendants()) do
-		if p:IsA("BasePart") and p.Material == MAT.Neon then
+		if p:IsA("BasePart") and p.Material == MAT.Neon and not p:GetAttribute("Brilho") then
 			local maior = math.max(p.Size.X, p.Size.Y, p.Size.Z)
 			local area = p.Size.X * p.Size.Y + p.Size.Y * p.Size.Z + p.Size.X * p.Size.Z
 			local h, s, v = p.Color:ToHSV()
