@@ -19,6 +19,7 @@ local Debris = game:GetService("Debris")
 local Lighting = game:GetService("Lighting")
 
 local Animacoes = require(script.Parent:WaitForChild("Animacoes"))
+local VFX = require(script.Parent:WaitForChild("VFX"))
 
 local EfeitosMagia = {}
 
@@ -424,6 +425,8 @@ local function raioDoCeu(pos, grosso)
 			Animacoes.relampago(base + Vector3.new(0, 0.3, 0), fim + Vector3.new(0, 0.3, 0), RAIO_AZUL, 0.2, 0.18)
 		end)
 	end
+	VFX.estouro("Golpes/GiganticCrush", base + Vector3.new(0, 1, 0), { escala = 0.7 * e })
+	VFX.estouro("Raio/raioLegal", base + Vector3.new(0, 1.5, 0), { escala = 3 * e, mult = 4 })
 	local queimado = disco(base, 2.6 * e, Color3.fromRGB(30, 25, 35), 0.35, Enum.Material.SmoothPlastic)
 	tw(queimado, 1.6, { Transparency = 1 }, Enum.EasingStyle.Linear)
 	Debris:AddItem(queimado, 1.7)
@@ -432,6 +435,7 @@ end
 -- Explosão de fogo (bola de fogo, meteoro, morte em chamas)
 local function explosaoFogo(pos, raio, forte)
 	local base = chao(pos)
+	VFX.colocar("Fogo/MeteorSpawn", base + Vector3.new(0, 0.5, 0), { escala = raio / (forte and 5 or 8), tempo = 0.35 })
 	local centro = base + Vector3.new(0, raio * 0.35, 0)
 	Animacoes.clarao(centro, FOGO_CLARO, raio * 1.2, 0.22, raio * 3)
 	local bola = peca(Vector3.one * 2, FOGO, Enum.PartType.Ball)
@@ -486,6 +490,53 @@ local function explosaoFogo(pos, raio, forte)
 	tw(queimado, 2.2, { Transparency = 1 }, Enum.EasingStyle.Linear)
 	Debris:AddItem(brasa, 1.3)
 	Debris:AddItem(queimado, 2.3)
+end
+
+-- Efeito pronto (Arte.VFX) brotando do chão: apoia no chão, cresce com mola e some
+local function brotar(caminho, base, tamanho, vida, giro)
+	local m0 = VFX.achar(caminho)
+	if not m0 then
+		return nil
+	end
+	local _, tam0
+	if m0:IsA("Model") then
+		_, tam0 = m0:GetBoundingBox()
+	else
+		tam0 = m0.Size
+	end
+	local escala = tamanho / math.max(tam0.X, tam0.Z, 0.1)
+	local m = VFX.colocar(caminho, CFrame.new(base) * CFrame.Angles(0, giro or math.random() * 6.28, 0), {
+		escala = escala,
+		tempo = vida,
+	})
+	if not m then
+		return nil
+	end
+	-- encosta a base no chão
+	local cf, t = m:GetBoundingBox()
+	m:PivotTo(m:GetPivot() + Vector3.new(0, base.Y - (cf.Position.Y - t.Y / 2) - 0.3, 0))
+	local final = m:GetScale()
+	local pecas = {}
+	for _, d in ipairs(m:GetDescendants()) do
+		if d:IsA("BasePart") then
+			table.insert(pecas, { d, d.Transparency })
+		end
+	end
+	Animacoes.durante(0.18, function(a)
+		local e = 1 + 2.70158 * (a - 1) ^ 3 + 1.70158 * (a - 1) ^ 2
+		m:ScaleTo(math.max(0.01, final * e))
+	end)
+	task.delay(vida, function()
+		if not m.Parent then
+			return
+		end
+		local cfm = m:GetBoundingBox()
+		for _, par in ipairs(pecas) do
+			tw(par[1], 0.25, { Transparency = 1 })
+		end
+		estilhacos(cfm.Position, GELO_CLARO, 6, 18, Enum.Material.Glass, 0.5)
+	end)
+	return m
 end
 
 ------------------------------------------------------------------------
@@ -545,6 +596,8 @@ function E.lancaGelo(d)
 			cristal(cf, 1.6 + math.random() * 1.4, 0.55, 0, 0.5)
 		end
 		estilhacos(para, GELO_CLARO, 8, 16, Enum.Material.Glass, 0.35)
+		brotar("Gelo/icespike", base, 7, 0.7)
+		VFX.estouro("Gelo/TorsoIce", para, { mult = 2 })
 		jorrar(para, 16, {
 			Texture = TEX.faisca,
 			Color = ColorSequence.new(BRANCO, GELO),
@@ -588,6 +641,8 @@ function E.novaGelo(d)
 			cristal(cf, 2 + anelN * 0.9 + math.random() * 1.5, 0.7 + anelN * 0.15, anelN * 0.06, 1.1)
 		end
 	end
+	-- formação de espinhos de gelo (efeito pronto)
+	brotar("Gelo/icespike", base, raio * 2.1, 1.3)
 	-- neve explodindo para cima
 	jorrar(base + Vector3.new(0, 1, 0), 60, {
 		Texture = TEX.faisca,
@@ -700,6 +755,7 @@ function E.nevasca(d)
 				0.6
 			)
 		end
+		brotar("Gelo/icespike", base, raio * 2.4, 1.2)
 		tw(geada, 0.8, { Transparency = 1 })
 		Debris:AddItem(geada, 0.9)
 	end)
@@ -719,6 +775,8 @@ function E.correnteRaio(d)
 			Animacoes.clarao(p, BRANCO, 4, 0.2, 14)
 			Animacoes.anel(CFrame.lookAt(p, a) * CFrame.Angles(-math.pi / 2, 0, 0), RAIO, 3, 0.25, 0.5)
 			faiscasEletricas(p, 16, 22)
+			VFX.estouro("Raio/raioLegal", p, { escala = 2, mult = 3 })
+			VFX.estouro("Golpes/BasicHit", p, { anexo = "Attachment", cor = RAIO })
 		end)
 		anterior = p
 	end
@@ -835,9 +893,13 @@ function E.bolaFogo(d)
 	local tempo = d.tempo or 0.4
 	Animacoes.anel(CFrame.lookAt(de, para) * CFrame.Angles(-math.pi / 2, 0, 0), FOGO, 3, 0.3, 0.6)
 	local nucleo, casca, chamas, fumaca = bolaDeFogo(2)
+	local jutsu = VFX.colocar("Fogo/FireballJutsu", CFrame.lookAt(de, para), { escala = 0.6, tempo = tempo })
 	Animacoes.durante(tempo, function(a)
 		local p = de:Lerp(para, a) + Vector3.new(0, math.sin(a * math.pi) * dist * 0.15, 0)
 		nucleo.Position = p
+		if jutsu and jutsu.Parent then
+			jutsu:PivotTo(CFrame.lookAt(p, para))
+		end
 		casca.CFrame = CFrame.new(p) * CFrame.Angles(a * 9, a * 6, 0)
 	end, function()
 		chamas.Enabled = false
@@ -865,6 +927,20 @@ function E.anelChamas(d)
 	tw(brasa, 0.4, { Size = Vector3.new(0.12, raio * 2, raio * 2) }, Enum.EasingStyle.Quart)
 	tw(brasa, 1.4, { Transparency = 1 }, Enum.EasingStyle.Linear)
 	Debris:AddItem(brasa, 1.5)
+	-- corte de fênix (efeito pronto) girando no chão
+	local fenix = VFX.colocar(
+		"Fogo/PheonixSlash",
+		CFrame.new(base + Vector3.new(0, 0.6, 0)),
+		{ escala = raio * 2 / 27, tempo = 0.5 }
+	)
+	if fenix then
+		local cf0 = fenix:GetPivot()
+		Animacoes.durante(0.5, function(a)
+			if fenix.Parent then
+				fenix:PivotTo(cf0 * CFrame.Angles(0, -a * 4, 0))
+			end
+		end)
+	end
 	-- labaredas correndo para fora, girando
 	local n = 22
 	for i = 1, n do
@@ -944,12 +1020,19 @@ function E.meteoro(d)
 	})
 	rastro(pedra, FOGO, 7, 0.7, FOGO_CLARO)
 	local rumo = (base - inicio).Unit
+	local pronto = VFX.colocar("Fogo/Meteor2", CFrame.new(inicio), { escala = 1, tempo = tempo })
+	if pronto then
+		pedra.Transparency = 1
+	end
 	Animacoes.durante(tempo, function(a)
 		local p = inicio:Lerp(base + Vector3.new(0, 2.5, 0), a * a)
 		-- as chamas apontam para trás (o fogo "escorre" pelo caminho)
 		pedra.CFrame = CFrame.lookAt(p, p - rumo) * CFrame.Angles(-math.pi / 2, 0, 0) * CFrame.Angles(0, a * 6, 0)
 		nucleo.Position = p
 		casca.CFrame = CFrame.new(p) * CFrame.Angles(a * 7, a * 4, 0)
+		if pronto and pronto.Parent then
+			pronto:PivotTo(CFrame.lookAt(p, p + rumo))
+		end
 	end, function()
 		chamas.Enabled = false
 		fumaca.Enabled = false
@@ -961,6 +1044,10 @@ function E.meteoro(d)
 		flash(BRANCO, 0.75, 0.6)
 		tremer(2.4, 0.7)
 		explosaoFogo(base + Vector3.new(0, 1, 0), raio, true)
+		if pronto then
+			pronto:Destroy()
+		end
+		VFX.estouro("Golpes/GiganticCrush", base + Vector3.new(0, 2, 0), { escala = 1.6 })
 		local cupula = peca(Vector3.one * 3, FOGO_CLARO, Enum.PartType.Ball)
 		cupula.Position = base
 		cupula.Transparency = 0

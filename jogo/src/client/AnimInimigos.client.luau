@@ -11,6 +11,7 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Animacoes = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Animacoes"))
+local VFX = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("VFX"))
 
 local player = Players.LocalPlayer
 local pasta = workspace:WaitForChild("Monstros")
@@ -328,6 +329,7 @@ local function morteComum(m, cor)
 	if not raiz then
 		return
 	end
+	VFX.estouro("Golpes/BasicHit", raiz.Position, { anexo = "KnockbackParticle" })
 	local c = clonar(m)
 	esconder(m)
 	if not c or not c.PrimaryPart then
@@ -499,6 +501,7 @@ local function morteChefe(m, cor)
 		c:Destroy()
 		-- explosão final enorme
 		Animacoes.clarao(pos, BRANCO, 30, 0.7, 80)
+		VFX.estouro("Golpes/GiganticCrush", pos, { escala = 3 })
 		Animacoes.clarao(pos, cor, 22, 0.9)
 		Animacoes.brilhos(pos, cor, 120, 45)
 		Animacoes.brilhos(pos, BRANCO, 60, 30)
@@ -539,6 +542,12 @@ local function apanhou(m, chefe, forte)
 		{ 0.32, {}, "volta" },
 	})
 	Animacoes.tocar(m, cl, "apanhou")
+	-- impacto pronto (estilo anime) no peito do inimigo
+	VFX.estouro(
+		"Golpes/BasicHit",
+		raiz.Position,
+		{ anexo = forte and "AttachmentBig" or "Attachment", escala = chefe and 2 or 1 }
+	)
 end
 
 ------------------------------------------------------------------------
@@ -557,6 +566,7 @@ local function poseChefe(m, valor)
 	end
 	local pos = raiz.Position
 	if nome == "rugido" then
+		VFX.estouro("Golpes/GiganticCrush", pos, { escala = 2, cor = ROXO })
 		for i = 0, 2 do
 			task.delay(i * 0.18, function()
 				Animacoes.anel(pos - Vector3.new(0, 3, 0), ROXO, 18 + i * 6, 0.6, 1.2)
@@ -567,6 +577,7 @@ local function poseChefe(m, valor)
 	elseif nome == "repulsao" then
 		Animacoes.brilhos(pos, ROXO, 20, 6)
 	elseif nome == "repulsaoSolta" then
+		VFX.estouro("Golpes/GiganticCrush", pos, { escala = 2.5, cor = ROXO })
 		Animacoes.clarao(pos, BRANCO, 10, 0.3, 40)
 		Animacoes.anel(CFrame.new(pos) * CFrame.Angles(math.rad(90), 0, 0), ROXO, 16, 0.4, 1)
 	elseif nome == "esferas" then

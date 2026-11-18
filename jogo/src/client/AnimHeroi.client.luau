@@ -9,6 +9,7 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Animacoes = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Animacoes"))
+local VFX = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("VFX"))
 local remotes = ReplicatedStorage:WaitForChild("Remotes")
 local evDano = remotes:WaitForChild("Dano")
 
@@ -486,6 +487,17 @@ local function golpeGuerreiro(alvo, critico)
 			Animacoes.anel(chao(raiz, hum) + Vector3.new(0, 0.2, 0), cor, 9, 0.4, 0.6)
 		end)
 	end
+	if typeof(alvo) == "Vector3" then
+		task.delay(0.08, function()
+			local olhar = CFrame.lookAt(alvo, raiz.Position)
+			if critico then
+				VFX.estouro("Golpes/HEAVYPunchGenshinpack", olhar, { anexo = "ParticleA", mult = 0.3 })
+				VFX.estouro("Golpes/GiganticCrush", olhar, { escala = 0.6 })
+			else
+				VFX.estouro("Golpes/SlashGenshinPack", olhar, { anexo = "ParticleA", mult = 2 })
+			end
+		end)
+	end
 	if critico then
 		task.delay(0.1, function()
 			if typeof(alvo) == "Vector3" then
@@ -539,6 +551,7 @@ local function feiticoMago(alvo, critico)
 		if mao then
 			Animacoes.clarao(mao, cor, 3, 0.25, 10)
 			Animacoes.brilhos(mao, cor, 10, 10)
+			VFX.estouro("Golpes/Parryburst", mao, { escala = 0.5, cor = cor })
 		end
 	end)
 end
@@ -583,6 +596,12 @@ local function conjurar(id, alvo)
 			Animacoes.relampago(mao, mao + raiz.CFrame.LookVector * 6, cor, 0.15, 0.2)
 		end
 	end)
+	-- supremas: aura de poder em volta do herói
+	local AURAS = { nevasca = "Auras/Mystic", tempestade = "Auras/SSJ", meteoro = "Auras/Kaioken" }
+	if AURAS[id] then
+		VFX.grudar(AURAS[id], raiz, (m.canal or 0.6) + 0.6, { deslocamento = Vector3.new(0, -1, 0) })
+		VFX.estouro("Auras/SSJCharge", raiz.Position, { mult = 1.5 })
+	end
 	-- canalização longa: pulsos de energia enquanto segura a pose
 	if m.canal then
 		task.spawn(function()
