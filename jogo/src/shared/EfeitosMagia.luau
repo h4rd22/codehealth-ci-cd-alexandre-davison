@@ -6,6 +6,11 @@
 --   Raio:  correntes elétricas saltando, raios do céu com estalos no chão, tempestade escura
 --   Fogo:  bola de fogo com fumaça, onda de chamas, meteoro gigante com cratera
 -- Tudo com partículas, trilhas, Beams, tremida de câmera e flash de tela.
+--
+-- Usado pelo Habilidades.client (Jorge):
+--   EfeitosMagia.tocar(id, dados) -> true se desenhou   (ids: veja a tabela E abaixo)
+--   EfeitosMagia.iniciarStatus()   gelo/raio/fogo nos inimigos (CongeladoAte, LentoAte, AtordoadoAte, QueimaAte)
+--   EfeitosMagia.pasta (Folder), .tw, .tremer, .anunciar(texto, cor), .flash
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -22,7 +27,6 @@ local BRANCO = Color3.new(1, 1, 1)
 
 local GELO = Color3.fromRGB(120, 215, 255)
 local GELO_CLARO = Color3.fromRGB(215, 248, 255)
-local GELO_FUNDO = Color3.fromRGB(40, 120, 230)
 local RAIO = Color3.fromRGB(255, 232, 80)
 local RAIO_CLARO = Color3.fromRGB(255, 255, 215)
 local RAIO_AZUL = Color3.fromRGB(150, 210, 255)
@@ -51,8 +55,15 @@ local function tw(o, tempo, props, estilo, direcao)
 	return t
 end
 
+-- Pasta dos efeitos das magias (o Habilidades.client também põe os números de dano aqui)
+local pastaFx
 local function pasta()
-	return Animacoes.pastaFx()
+	if not pastaFx or not pastaFx.Parent then
+		pastaFx = workspace:FindFirstChild("FxMagias") or Instance.new("Folder")
+		pastaFx.Name = "FxMagias"
+		pastaFx.Parent = workspace
+	end
+	return pastaFx
 end
 
 local function peca(tam, cor, forma, material)
@@ -221,6 +232,54 @@ local function corDoMundo(props, duracao, entrada)
 		Debris:AddItem(cc, 0.7)
 	end)
 	return cc
+end
+
+-- Faixa grande na tela com o nome da suprema
+local faixa, contornoFaixa, escalaFaixa
+local function anunciar(texto, cor)
+	local player = Players.LocalPlayer
+	if not player then
+		return
+	end
+	if not faixa or not faixa.Parent then
+		local gui = Instance.new("ScreenGui")
+		gui.Name = "FxMagiasTela"
+		gui.ResetOnSpawn = false
+		gui.IgnoreGuiInset = true
+		gui.DisplayOrder = 4
+		gui.Parent = player:WaitForChild("PlayerGui")
+		faixa = Instance.new("TextLabel")
+		faixa.AnchorPoint = Vector2.new(0.5, 0.5)
+		faixa.Position = UDim2.fromScale(0.5, 0.24)
+		faixa.Size = UDim2.new(0.8, 0, 0, 60)
+		faixa.BackgroundTransparency = 1
+		faixa.Font = Enum.Font.FredokaOne
+		faixa.TextSize = 46
+		faixa.Text = ""
+		faixa.TextTransparency = 1
+		faixa.Parent = gui
+		contornoFaixa = Instance.new("UIStroke")
+		contornoFaixa.Thickness = 3.5
+		contornoFaixa.Transparency = 1
+		contornoFaixa.Parent = faixa
+		escalaFaixa = Instance.new("UIScale")
+		escalaFaixa.Parent = faixa
+	end
+	faixa.Text = texto
+	faixa.TextColor3 = cor
+	contornoFaixa.Color = cor:Lerp(Color3.new(0, 0, 0), 0.7)
+	escalaFaixa.Scale = 2.4
+	faixa.Rotation = -4
+	faixa.TextTransparency = 0
+	contornoFaixa.Transparency = 0
+	tw(escalaFaixa, 0.35, { Scale = 1 }, Enum.EasingStyle.Back)
+	tw(faixa, 0.35, { Rotation = 0 }, Enum.EasingStyle.Back)
+	task.delay(1.4, function()
+		if faixa.Text == texto then
+			tw(faixa, 0.4, { TextTransparency = 1 })
+			tw(contornoFaixa, 0.4, { Transparency = 1 })
+		end
+	end)
 end
 
 ------------------------------------------------------------------------
@@ -548,6 +607,7 @@ function E.nevasca(d)
 	local base = chao(d.centro)
 	local raio = d.raio or 13
 	local duracao = d.duracao or 3
+	anunciar("🌀 NEVASCA ETERNA!", GELO)
 	flash(GELO_CLARO, 0.45, 0.5)
 	tremer(0.5, 0.3)
 	corDoMundo({ TintColor = Color3.fromRGB(200, 230, 255), Brightness = 0.05, Saturation = -0.25 }, duracao)
@@ -684,6 +744,7 @@ function E.tempestade(d)
 	local player = Players.LocalPlayer
 	local char = player and player.Character
 	local raiz = char and char:FindFirstChild("HumanoidRootPart")
+	anunciar("⛈️ TEMPESTADE DIVINA!", RAIO)
 	corDoMundo(
 		{ Brightness = -0.15, Contrast = 0.2, Saturation = -0.3, TintColor = Color3.fromRGB(185, 190, 255) },
 		duracao
@@ -854,6 +915,7 @@ function E.meteoro(d)
 	local base = chao(d.centro)
 	local raio = d.raio or 9
 	local tempo = d.tempo or 0.9
+	anunciar("☄️ METEORO INFERNAL!", FOGO)
 	corDoMundo({ TintColor = Color3.fromRGB(255, 205, 180), Contrast = 0.15, Brightness = -0.05 }, tempo + 0.8)
 	-- mira no chão: círculo vermelho piscando
 	Animacoes.circuloMagico(CFrame.new(base + Vector3.new(0, 0.1, 0)), Color3.fromRGB(255, 60, 30), raio, tempo + 0.15)
@@ -978,8 +1040,209 @@ function EfeitosMagia.tocar(id, d)
 	return ok
 end
 
--- Para testes e para outras partes do jogo
+------------------------------------------------------------------------
+-- Estado dos inimigos: congelado, lento, atordoado, queimando
+------------------------------------------------------------------------
+local statusLigado = false
+function EfeitosMagia.iniciarStatus()
+	if statusLigado or not RunService:IsClient() then
+		return
+	end
+	statusLigado = true
+	local player = Players.LocalPlayer
+	local visuais = {}
+
+	local function visualDe(m)
+		local v = visuais[m]
+		if v then
+			return v
+		end
+		local raiz = m.PrimaryPart
+		if not raiz then
+			return nil
+		end
+		local h = Instance.new("Highlight")
+		h.Name = "Elemento"
+		h.FillTransparency = 1
+		h.OutlineTransparency = 1
+		h.DepthMode = Enum.HighlightDepthMode.Occluded
+		h.Parent = m
+		local barraVida = m:FindFirstChild("Barra")
+		local offset = barraVida and barraVida.StudsOffsetWorldSpace or Vector3.new(0, 4, 0)
+		local bb = Instance.new("BillboardGui")
+		bb.Name = "StatusMagia"
+		bb.Size = UDim2.fromOffset(120, 26)
+		bb.StudsOffsetWorldSpace = offset + Vector3.new(0, 1.4, 0)
+		bb.AlwaysOnTop = true
+		bb.MaxDistance = 90
+		bb.Parent = raiz
+		local txt = Instance.new("TextLabel")
+		txt.Size = UDim2.fromScale(1, 1)
+		txt.BackgroundTransparency = 1
+		txt.Font = Enum.Font.FredokaOne
+		txt.TextSize = 20
+		txt.TextColor3 = BRANCO
+		txt.Text = ""
+		txt.Parent = bb
+		local fogo = emissor(raiz, {
+			Name = "Queimando",
+			Texture = TEX.fogo,
+			Color = ColorSequence.new(FOGO_CLARO, FOGO_FUNDO),
+			LightEmission = 1,
+			Size = seq(0, 1.6, 1, 0.2),
+			Transparency = seq(0, 0.1, 1, 1),
+			Lifetime = NumberRange.new(0.35, 0.6),
+			Rate = 30,
+			Speed = NumberRange.new(3, 6),
+			SpreadAngle = Vector2.new(25, 25),
+			EmissionDirection = Enum.NormalId.Top,
+			Enabled = false,
+		})
+		local choque = emissor(raiz, {
+			Name = "Atordoado",
+			Texture = TEX.faisca,
+			Color = ColorSequence.new(BRANCO, RAIO),
+			LightEmission = 1,
+			Size = seq(0, 0.9, 1, 0),
+			Lifetime = NumberRange.new(0.15, 0.3),
+			Rate = 25,
+			Speed = NumberRange.new(4, 8),
+			SpreadAngle = Vector2.new(180, 180),
+			Enabled = false,
+		})
+		v = { highlight = h, texto = txt, fogo = fogo, choque = choque, gelo = nil, proximoEstalo = 0 }
+		visuais[m] = v
+		return v
+	end
+
+	local function atualizarUm(m, v, agora)
+		local congelado = (m:GetAttribute("CongeladoAte") or 0) > agora
+		local atordoado = (m:GetAttribute("AtordoadoAte") or 0) > agora
+		local lento = (m:GetAttribute("LentoAte") or 0) > agora
+		local queimando = (m:GetAttribute("QueimaAte") or 0) > agora
+		local vivoM = (m:GetAttribute("Vida") or 0) > 0
+		local icones = {}
+		if congelado then
+			table.insert(icones, "🧊")
+		elseif lento then
+			table.insert(icones, "❄️")
+		end
+		if atordoado then
+			table.insert(icones, "💫")
+		end
+		if queimando then
+			table.insert(icones, "🔥")
+		end
+		v.texto.Text = vivoM and table.concat(icones, "") or ""
+		v.fogo.Enabled = queimando and vivoM
+		v.choque.Enabled = atordoado and vivoM
+		local hl = v.highlight
+		if congelado then
+			hl.FillColor = Color3.fromRGB(60, 160, 255)
+			hl.FillTransparency = 0.5
+			hl.OutlineColor = GELO_CLARO
+			hl.OutlineTransparency = 0
+		elseif atordoado then
+			hl.FillColor = RAIO
+			hl.FillTransparency = 0.55 + math.random() * 0.3
+			hl.OutlineColor = RAIO_CLARO
+			hl.OutlineTransparency = 0
+			-- faísca pulando no corpo de vez em quando
+			local t = os.clock()
+			if vivoM and t > v.proximoEstalo then
+				v.proximoEstalo = t + 0.3 + math.random() * 0.3
+				local p = m.PrimaryPart.Position
+				Animacoes.relampago(
+					p + Vector3.new(math.random(-1, 1), 1.5, math.random(-1, 1)),
+					p + Vector3.new(math.random(-2, 2), -1, math.random(-2, 2)),
+					RAIO,
+					0.12,
+					0.15
+				)
+			end
+		elseif queimando then
+			hl.FillColor = FOGO
+			hl.FillTransparency = 0.5 + math.random() * 0.3
+			hl.OutlineColor = FOGO_CLARO
+			hl.OutlineTransparency = 0.3
+		elseif lento then
+			hl.FillColor = GELO
+			hl.FillTransparency = 0.8
+			hl.OutlineColor = GELO
+			hl.OutlineTransparency = 0.2
+		else
+			hl.FillTransparency = 1
+			hl.OutlineTransparency = 1
+		end
+		-- bloco de gelo em volta de quem está congelado
+		if congelado and vivoM and not v.gelo then
+			local cf, tam = m:GetBoundingBox()
+			local bloco = peca(tam * 1.1, Color3.fromRGB(110, 190, 255), nil, Enum.Material.Glass)
+			bloco.Transparency = 0.5
+			bloco.CFrame = cf
+			v.gelo = bloco
+			estilhacos(cf.Position, GELO_CLARO, 5, 10, Enum.Material.Glass, 0.3)
+			jorrar(cf.Position, 10, {
+				Texture = TEX.faisca,
+				Color = ColorSequence.new(BRANCO, GELO),
+				LightEmission = 1,
+				Size = seq(0, 0.8, 1, 0),
+				Lifetime = NumberRange.new(0.3, 0.6),
+				Speed = NumberRange.new(4, 8),
+				SpreadAngle = Vector2.new(180, 180),
+			}, 1)
+		elseif (not congelado or not vivoM) and v.gelo then
+			local bloco = v.gelo
+			v.gelo = nil
+			estilhacos(bloco.Position, GELO_CLARO, 8, 16, Enum.Material.Glass, 0.4)
+			tw(bloco, 0.15, { Transparency = 1 })
+			Debris:AddItem(bloco, 0.2)
+		end
+	end
+
+	local acumulado = 0
+	RunService.Heartbeat:Connect(function(dt)
+		acumulado += dt
+		if acumulado < 0.12 then
+			return
+		end
+		acumulado = 0
+		local agora = workspace:GetServerTimeNow()
+		local monstros = workspace:FindFirstChild("Monstros")
+		if not monstros then
+			return
+		end
+		for m, v in pairs(visuais) do
+			if not m.Parent then
+				if v.gelo then
+					v.gelo:Destroy()
+				end
+				visuais[m] = nil
+			end
+		end
+		for _, m in ipairs(monstros:GetChildren()) do
+			if m:GetAttribute("Dono") ~= player.UserId or not m.PrimaryPart then
+				continue
+			end
+			local algum = (m:GetAttribute("CongeladoAte") or 0) > agora
+				or (m:GetAttribute("AtordoadoAte") or 0) > agora
+				or (m:GetAttribute("LentoAte") or 0) > agora
+				or (m:GetAttribute("QueimaAte") or 0) > agora
+			if algum or visuais[m] then
+				local v = visualDe(m)
+				if v then
+					atualizarUm(m, v, agora)
+				end
+			end
+		end
+	end)
+end
+
+-- Para o Habilidades.client e outras partes do jogo
+EfeitosMagia.pasta = RunService:IsClient() and pasta() or nil
+EfeitosMagia.tw = tw
 EfeitosMagia.tremer = tremer
 EfeitosMagia.flash = flash
+EfeitosMagia.anunciar = anunciar
 
 return EfeitosMagia

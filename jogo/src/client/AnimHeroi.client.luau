@@ -643,3 +643,59 @@ evDano.OnClientEvent:Connect(function(tipo, pos, valor, extra, xp)
 		end
 	end
 end)
+
+------------------------------------------------------------------------
+-- Postura de combate quando o herói está parado (o equipamento aparece bem):
+--   Guerreiro: espada pronta na frente · Caçador: arco meio erguido · Mago: cajado à frente
+------------------------------------------------------------------------
+local POSTURAS = {
+	guerreiro = {
+		ombroD = { 38, 0, 14 },
+		cotoveloD = { 28, 0, 0 },
+		ombroE = { 22, 0, -22 },
+		tronco = { 0, -12, 0 },
+		raiz = { -5, 0, 0 },
+	},
+	cacador = {
+		ombroE = { 28, -12, -16 },
+		cotoveloE = { 10, 0, 0 },
+		ombroD = { 12, 0, 12 },
+		tronco = { 0, -18, 0 },
+		pescoco = { 0, 12, 0 },
+	},
+	mago = { ombroD = { 32, 0, 10 }, cotoveloD = { 32, 0, 0 }, ombroE = { 18, 0, -28 }, pescoco = { -5, 0, 0 } },
+}
+local posturaPronta = {}
+for nome, p in pairs(POSTURAS) do
+	posturaPronta[nome] = Animacoes.pose(p)
+end
+
+local function postura(t)
+	local classe = player:GetAttribute("Classe")
+	local base = posturaPronta[classe] or posturaPronta.guerreiro
+	-- respiração: sobe e desce de leve
+	local resp = math.sin(t * 2.4)
+	local p = table.clone(base)
+	p.raiz = (p.raiz or CFrame.identity) * CFrame.new(0, resp * 0.05, 0)
+	p.pescoco = (p.pescoco or CFrame.identity) * CFrame.Angles(math.rad(resp * 1.5), 0, 0)
+	return p
+end
+
+task.spawn(function()
+	local parado = false
+	while true do
+		task.wait(0.15)
+		local char, _, hum = corpo()
+		if char then
+			local agoraParado = hum.MoveDirection.Magnitude < 0.1 and hum.FloorMaterial ~= Enum.Material.Air
+			if agoraParado ~= parado or (agoraParado and not Animacoes.tocando(char, "postura")) then
+				parado = agoraParado
+				if parado then
+					Animacoes.manter(char, "postura", postura, 6)
+				else
+					Animacoes.soltar(char, "postura")
+				end
+			end
+		end
+	end
+end)
