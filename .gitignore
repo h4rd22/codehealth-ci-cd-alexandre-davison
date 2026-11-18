@@ -207,3 +207,6 @@ marimo/_lsp/
 __marimo__/
 
 .studio-trava
+
+# modelos brutos (pesados) ficam fora do git
+modelos/entrada/

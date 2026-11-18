@@ -1807,7 +1807,6 @@ local function numero(pos, texto, cor, tamanho)
 	Debris:AddItem(ancora, 1)
 end
 
-
 evDano.OnClientEvent:Connect(function(tipo, a, b, c, d)
 	if tipo == "magia" then
 		local tocou = false

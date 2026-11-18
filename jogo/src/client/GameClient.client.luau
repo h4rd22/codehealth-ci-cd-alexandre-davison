@@ -656,13 +656,7 @@ evLoot.OnClientEvent:Connect(function(tipo, pos, item, ouro)
 		end
 	end
 	if tipo == "forja" then
-		notificar("🔨 Forjou: " .. item.nome .. " (" .. r.nome .. ")", corTexto)
-		mostrarFaixa("FORJADO: " .. string.upper(r.nome) .. "!", corTexto, 1.6)
-		local char = player.Character
-		local root = char and char:FindFirstChild("HumanoidRootPart")
-		if root then
-			explosao(root.Position, r.cor, 16)
-		end
+		-- a cerimônia da síntese (SinteseFX, do Jorge) já mostra tudo
 	else
 		notificar(item.nome .. " (" .. r.nome .. ")", corTexto)
 	end
