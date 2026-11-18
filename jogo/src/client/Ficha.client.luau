@@ -283,6 +283,7 @@ local function desenharSecoes(corpo, umaColuna)
 		{ id = "multCritico", icone = "💥", nome = "Dano crítico", cor = COR.ouro },
 		{ id = "dps", icone = "📈", nome = "Dano por segundo (básico)", cor = Color3.fromRGB(255, 200, 120) },
 		{ id = "alcance", icone = "🏹", nome = "Alcance" },
+		{ id = "danoChefe", icone = "👹", nome = "Dano contra chefes", cor = Color3.fromRGB(220, 130, 255) },
 	})
 	secao(colEsq, 2, "🛡️", "Defesa", Color3.fromRGB(80, 140, 220), {
 		{ id = "vida", icone = "❤️", nome = "Vida máxima", cor = Color3.fromRGB(255, 110, 110) },
@@ -365,6 +366,7 @@ local function atualizar()
 	definir("critico", pct(critico, 1))
 	definir("multCritico", string.format("x%.1f", multCrit))
 	definir("dps", numero(basico * aps * (1 + critico * (multCrit - 1))))
+	definir("danoChefe", "+" .. pct(s.danoChefe or 0), (s.danoChefe or 0) <= 0)
 	definir("alcance", tostring(s.alcance or 0) .. " m")
 
 	-- Defesa
