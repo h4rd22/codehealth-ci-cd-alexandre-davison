@@ -1639,7 +1639,7 @@ local function podeUsarForja(player)
 	return true
 end
 
-local function forjarItens(player, st, itens)
+local function forjarItens(player, st, itens, automatico)
 	local rar, ri = raridadePorId(itens[1].raridade)
 	local proxima = Config.Raridades[ri + 1]
 	if not rar or rar.forjavel == false or not proxima then
@@ -1672,8 +1672,29 @@ local function forjarItens(player, st, itens)
 	if mesmaClasse == nil then
 		mesmaClasse = Config.SlotsDeClasse[itens[1].slot] and st.classe or false
 	end
-	local novo = criarItem(st, ri + 1, nivel, itens[1].slot, nil, nil, mesmoConjunto, mesmaClasse) -- mesma categoria
+	-- sorte da síntese: +2, +1, mesma ou -1 raridade
+	local total = 0
+	for _, s in ipairs(Config.Forja.Sorte) do
+		total += s.peso
+	end
+	local x, sorte = math.random() * total, Config.Forja.Sorte[2]
+	for _, s in ipairs(Config.Forja.Sorte) do
+		x -= s.peso
+		if x <= 0 then
+			sorte = s
+			break
+		end
+	end
+	local _, riMax = raridadePorId(Config.Forja.MaxResultado)
+	local riNovo = ri + sorte.salto
+	if riNovo > riMax then
+		riNovo = math.min(ri + 1, riMax)
+	end
+	riNovo = math.max(1, riNovo)
+	local novo = criarItem(st, riNovo, nivel, itens[1].slot, nil, nil, mesmoConjunto, mesmaClasse) -- mesma categoria
 	guardarItem(player, novo, nil, "forja")
+	-- a tela faz a cerimônia: nome, raridade nova, quanto pulou (2, 1, 0, -1) e se foi automática
+	evAviso:FireClient(player, "sintese", novo.nome, novo.raridade, riNovo - ri, automatico == true)
 	return novo
 end
 
@@ -1744,7 +1765,7 @@ combinarAutomatico = function(player, st, ateId, mesmoNivel)
 					break
 				end
 			end
-			if not usar or not forjarItens(player, st, usar) then
+			if not usar or not forjarItens(player, st, usar, true) then
 				break
 			end
 			feitas += 1

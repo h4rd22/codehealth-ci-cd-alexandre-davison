@@ -1089,6 +1089,14 @@ Config.Forja = {
 	Quantidade = 3, -- quantos itens entram
 	Custo = { comum = 10, incomum = 30, raro = 90, epico = 250, lendario = 700, mitico = 2000 }, -- ouro por forja (nível 1)
 	CustoCrescimento = 1.06, -- o preço multiplica por isto a cada nível do item
+	-- Síntese com sorte (estilo TBH): o resultado pode pular raridades ou até cair uma
+	Sorte = {
+		{ salto = 2, peso = 8, texto = "SUPER SÍNTESE! +2" },
+		{ salto = 1, peso = 70, texto = "Síntese!" },
+		{ salto = 0, peso = 20, texto = "Mesma raridade..." },
+		{ salto = -1, peso = 2, texto = "Ops! Caiu uma raridade" },
+	},
+	MaxResultado = "imortal", -- a síntese nunca passa do Imortal (Divino e Secreto só de drop)
 }
 -- Preço de uma síntese: depende da raridade e do nível do item mais alto
 function Config.CustoForja(raridadeId, nivel)
