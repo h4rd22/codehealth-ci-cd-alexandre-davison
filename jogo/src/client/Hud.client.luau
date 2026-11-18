@@ -1966,7 +1966,6 @@ local btnVender = botao(detalhe, {
 	BackgroundColor3 = Color3.fromRGB(160, 120, 40),
 	Visible = false,
 })
-
 -- Gravação de atributos (a janela fica em Gravacao.client.luau)
 local btnGravar = botao(detalhe, {
 	Name = "BtnGravar",
@@ -3930,8 +3929,178 @@ evVida.OnClientEvent:Connect(function(vida, maximo)
 		:Play()
 end)
 
+-- Cerimônia ao vestir item raro: clarão na tela, coluna de luz subindo no herói, som e faixa
+local cerimoniaEquipar
+do
+	local SoundService = game:GetService("SoundService")
+	local guiCerimonia = novo(
+		"ScreenGui",
+		player.PlayerGui,
+		{ Name = "CerimoniaEquipar", ResetOnSpawn = false, IgnoreGuiInset = true, DisplayOrder = 30 }
+	)
+	local somForte =
+		novo("Sound", guiCerimonia, { SoundId = "rbxasset://sounds/impact_explosion_03.mp3", Volume = 0.35 })
+	local somLeve = novo("Sound", guiCerimonia, { SoundId = "rbxasset://sounds/volume_slider.ogg", Volume = 0.8 })
+	local function luz3D(cor, ri)
+		local char = player.Character
+		local raiz = char and char:FindFirstChild("HumanoidRootPart")
+		if not raiz then
+			return
+		end
+		local function peca(props)
+			local p = novo("Part", workspace, {
+				Anchored = true,
+				CanCollide = false,
+				CanQuery = false,
+				CanTouch = false,
+				CastShadow = false,
+				Material = Enum.Material.Neon,
+				Color = cor,
+				Shape = Enum.PartType.Cylinder,
+			})
+			for k, v in pairs(props) do
+				p[k] = v
+			end
+			game:GetService("Debris"):AddItem(p, 1.2)
+			return p
+		end
+		local pe = raiz.Position - Vector3.new(0, 2.8, 0)
+		-- coluna de luz subindo
+		local largura = 2.5 + ri * 0.3
+		local coluna = peca({
+			Size = Vector3.new(0.5, largura, largura),
+			CFrame = CFrame.new(pe) * CFrame.Angles(0, 0, math.rad(90)),
+			Transparency = 0.25,
+		})
+		TweenService:Create(coluna, TweenInfo.new(0.5, Enum.EasingStyle.Quad), {
+			Size = Vector3.new(16 + ri * 2, largura * 0.6, largura * 0.6),
+			CFrame = CFrame.new(pe + Vector3.new(0, 8 + ri, 0)) * CFrame.Angles(0, 0, math.rad(90)),
+		}):Play()
+		TweenService:Create(coluna, TweenInfo.new(0.9), { Transparency = 1 }):Play()
+		-- anel no chão se abrindo
+		local anel = peca({
+			Size = Vector3.new(0.2, 2, 2),
+			CFrame = CFrame.new(pe) * CFrame.Angles(0, 0, math.rad(90)),
+			Transparency = 0.15,
+		})
+		TweenService:Create(anel, TweenInfo.new(0.7, Enum.EasingStyle.Quad), {
+			Size = Vector3.new(0.2, 18 + ri * 2, 18 + ri * 2),
+			Transparency = 1,
+		}):Play()
+		-- estouro de brilhos
+		local ancora = peca({ Size = Vector3.new(0.2, 0.2, 0.2), Transparency = 1, CFrame = CFrame.new(raiz.Position) })
+		local fx = novo("ParticleEmitter", ancora, {
+			Texture = "rbxasset://textures/particles/sparkles_main.dds",
+			Color = ColorSequence.new(Color3.new(1, 1, 1), cor),
+			LightEmission = 1,
+			Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.9), NumberSequenceKeypoint.new(1, 0) }),
+			Lifetime = NumberRange.new(0.5, 0.9),
+			Speed = NumberRange.new(12, 22),
+			SpreadAngle = Vector2.new(180, 180),
+			Rate = 0,
+		})
+		fx:Emit(20 + ri * 6)
+	end
+	cerimoniaEquipar = function(item, ri)
+		local r = raridade(item.raridade)
+		local cor = r.corBorda or r.cor
+		luz3D(cor, ri)
+		if ri >= 5 then
+			somForte.PlaybackSpeed = ri >= 8 and 0.8 or 1.1
+			SoundService:PlayLocalSound(somForte)
+		else
+			somLeve.PlaybackSpeed = 0.8
+			SoundService:PlayLocalSound(somLeve)
+		end
+		if ri < 4 then
+			return
+		end
+		-- clarão na cor da raridade
+		local clarao = novo("Frame", guiCerimonia, {
+			Size = UDim2.fromScale(1, 1),
+			BackgroundColor3 = cor,
+			BackgroundTransparency = 0.55,
+			BorderSizePixel = 0,
+		})
+		TweenService:Create(clarao, TweenInfo.new(0.45), { BackgroundTransparency = 1 }):Play()
+		game:GetService("Debris"):AddItem(clarao, 0.5)
+		-- faixa grande no meio da tela
+		local faixa = novo("Frame", guiCerimonia, {
+			AnchorPoint = Vector2.new(0.5, 0.5),
+			Position = UDim2.fromScale(0.5, 0.3),
+			Size = UDim2.new(1, 0, 0, 74),
+			BackgroundColor3 = Color3.new(0, 0, 0),
+			BackgroundTransparency = 0.25,
+			BorderSizePixel = 0,
+		})
+		novo("UIGradient", faixa, {
+			Color = ColorSequence.new({
+				ColorSequenceKeypoint.new(0, Color3.new(0, 0, 0)),
+				ColorSequenceKeypoint.new(0.5, cor:Lerp(Color3.new(0, 0, 0), 0.35)),
+				ColorSequenceKeypoint.new(1, Color3.new(0, 0, 0)),
+			}),
+			Transparency = NumberSequence.new({
+				NumberSequenceKeypoint.new(0, 1),
+				NumberSequenceKeypoint.new(0.2, 0),
+				NumberSequenceKeypoint.new(0.8, 0),
+				NumberSequenceKeypoint.new(1, 1),
+			}),
+		})
+		local escala = novo("UIScale", faixa, { Scale = 0.3 })
+		local titulo = rotulo(faixa, {
+			Size = UDim2.new(1, 0, 0, 44),
+			Text = "✦ VESTIU " .. string.upper(r.nome) .. "! ✦",
+			TextSize = 38,
+			TextColor3 = cor:Lerp(Color3.new(1, 1, 1), 0.35),
+		})
+		local nomeItem = rotulo(faixa, {
+			Position = UDim2.fromOffset(0, 44),
+			Size = UDim2.new(1, 0, 0, 26),
+			Text = item.nome,
+			TextSize = 20,
+		})
+		cintilar(faixa, 8)
+		TweenService:Create(escala, TweenInfo.new(0.35, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1 })
+			:Play()
+		task.delay(1.6, function()
+			TweenService:Create(faixa, TweenInfo.new(0.4), { BackgroundTransparency = 1 }):Play()
+			TweenService:Create(titulo, TweenInfo.new(0.4), { TextTransparency = 1 }):Play()
+			TweenService:Create(nomeItem, TweenInfo.new(0.4), { TextTransparency = 1 }):Play()
+			for _, c in ipairs({ titulo, nomeItem }) do
+				local traco = c:FindFirstChild("ContornoTexto")
+				if traco then
+					TweenService:Create(traco, TweenInfo.new(0.4), { Transparency = 1 }):Play()
+				end
+			end
+			task.wait(0.45)
+			faixa:Destroy()
+		end)
+	end
+end
+local equipadoAntes = nil
+
 evEstado.OnClientEvent:Connect(function(novoEstado)
 	estado = novoEstado
+	-- algo novo foi vestido? mostra a cerimônia do item mais raro que entrou
+	if equipadoAntes then
+		local melhor, melhorRi = nil, 0
+		for slot, id in pairs(estado.equipado or {}) do
+			if id ~= equipadoAntes[slot] then
+				local it = itemPorId(id)
+				local riIt = 0
+				if it then
+					_, riIt = raridade(it.raridade)
+				end
+				if it and riIt > melhorRi then
+					melhor, melhorRi = it, riIt
+				end
+			end
+		end
+		if melhor and melhorRi >= 3 then
+			cerimoniaEquipar(melhor, melhorRi)
+		end
+	end
+	equipadoAntes = table.clone(estado.equipado or {})
 	if ouroAntes and estado.ouro > ouroAntes then
 		moeda.Size = UDim2.fromOffset(28, 28)
 		TweenService:Create(moeda, TweenInfo.new(0.2), { Size = UDim2.fromOffset(22, 22) }):Play()

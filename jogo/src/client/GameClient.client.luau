@@ -647,8 +647,13 @@ evLoot.OnClientEvent:Connect(function(tipo, pos, item, ouro)
 		return
 	end
 	if pos then
-		feixe(pos, r.cor, ri >= 4)
-		itemPulando(pos, item, corTexto, ri)
+		-- efeito novo do drop (EfeitosDrop do Henrique); se faltar ou der erro, usa o antigo
+		local ok, efeitos = pcall(require, ReplicatedStorage.Shared:FindFirstChild("EfeitosDrop"))
+		local tocou = ok and efeitos and select(2, pcall(efeitos.tocar, pos, item, ri, corTexto)) == true
+		if not tocou then
+			feixe(pos, r.cor, ri >= 4)
+			itemPulando(pos, item, corTexto, ri)
+		end
 	end
 	if tipo == "forja" then
 		notificar("🔨 Forjou: " .. item.nome .. " (" .. r.nome .. ")", corTexto)

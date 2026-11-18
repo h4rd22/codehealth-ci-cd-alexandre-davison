@@ -1958,11 +1958,13 @@ end
 ------------------------------------------------------------------------
 -- Modelos prontos (pacotes grátis em ReplicatedStorage.Arte.Equipamentos, sem scripts)
 ------------------------------------------------------------------------
-local function modeloPronto(pacote, nome)
+-- modeloPronto("pacote", "sub", ..., "nome"): caminho dentro de Arte.Equipamentos; devolve uma cópia sem scripts
+local function modeloPronto(...)
 	local arte = ReplicatedStorage:FindFirstChild("Arte")
-	local equip = arte and arte:FindFirstChild("Equipamentos")
-	local pasta = equip and equip:FindFirstChild(pacote)
-	local o = pasta and pasta:FindFirstChild(nome)
+	local o = arte and arte:FindFirstChild("Equipamentos")
+	for _, nome in ipairs({ ... }) do
+		o = o and o:FindFirstChild(nome)
+	end
 	if not o then
 		return nil
 	end
@@ -1976,14 +1978,15 @@ local function modeloPronto(pacote, nome)
 end
 
 -- Guerreiro: uma katana por raridade (a lâmina aponta para +Y e o cabo fica embaixo)
+-- (escolhidas pela cor de cada raridade: cinza, verde, azul, roxo, laranja, vermelho, ciano, ouro, preto)
 local KATANA = {
 	"TrainingKatana",
-	"IronKatana",
+	"VenomKatana",
 	"AzureKatana",
 	"ShadowKatana",
 	"FlameKatana",
-	"CrimsonKatana",
-	"FrostKatana",
+	"DragonKatana",
+	"CrystalKatana",
 	"GoldenKatana",
 	"VoidKatana",
 }
@@ -2015,9 +2018,107 @@ local function espadaPronta(m, ri, cor)
 	enfeitesTier(m, ri, pal, base * CFrame.new(0, 0.9, 0), 0.8)
 end
 
+-- Coloca um modelo pronto (peça, modelo ou ferramenta) no item: o lado comprido fica em Y,
+-- com o tamanho pedido e o centro no lugar dado. Devolve a peça principal (ou nil).
+local function encaixarPronto(m, obj, comprimento, cf)
+	if not obj then
+		return nil
+	end
+	local grupo = Instance.new("Model")
+	if obj:IsA("BasePart") then
+		obj.Parent = grupo
+	else
+		for _, d in ipairs(obj:GetDescendants()) do
+			if d:IsA("BasePart") then
+				d.Parent = grupo
+			end
+		end
+		obj:Destroy()
+	end
+	local partes = grupo:GetChildren()
+	if #partes == 0 then
+		return nil
+	end
+	-- a peça maior manda na orientação: o lado comprido dela vira o Y do item
+	local maior = partes[1]
+	for _, p in ipairs(partes) do
+		if p:IsA("BasePart") and p.Size.Magnitude > maior.Size.Magnitude then
+			maior = p
+		end
+	end
+	local sz = maior.Size
+	local giro = CFrame.new()
+	if sz.X > sz.Y and sz.X >= sz.Z then
+		giro = CFrame.Angles(0, 0, math.rad(-90))
+	elseif sz.Z > sz.Y then
+		giro = CFrame.Angles(math.rad(90), 0, 0)
+	end
+	local caixa, tam = grupo:GetBoundingBox()
+	grupo.WorldPivot = CFrame.new(caixa.Position) * maior.CFrame.Rotation * giro
+	grupo:ScaleTo(comprimento / math.max(tam.X, tam.Y, tam.Z))
+	grupo:PivotTo(cf)
+	local principal
+	for _, p in ipairs(partes) do
+		p.Anchored = true
+		p.CanCollide = false
+		p.CanQuery = false
+		p.CanTouch = false
+		p.CastShadow = false
+		if not principal or p.Size.Magnitude > principal.Size.Magnitude then
+			principal = p
+		end
+		p.Parent = m
+	end
+	grupo:Destroy()
+	principal.Name = "Nucleo"
+	return principal
+end
+
+-- Caçador: arco dourado pronto no Divino (o resto continua desenhado, com a cor de cada tier)
+local function arcoPronto(m, ri, cor)
+	if ri == 8 then
+		local base = CFrame.Angles(0, 0, math.rad(-45))
+		local ok = encaixarPronto(
+			m,
+			modeloPronto("arcoDourado", "OrnateGoldenBow"),
+			6.4,
+			base * CFrame.Angles(0, math.rad(90), 0)
+		)
+		if ok then
+			enfeitesTier(m, ri, paleta(ri, cor), base, 1.0)
+			return
+		end
+	end
+	arco(m, ri, cor)
+end
+
+-- Mago: cajado de raio ciano no Imortal e cetro do rei no Divino
+local function cajadoPronto(m, ri, cor)
+	local base = CFrame.Angles(0, 0, math.rad(-45))
+	local obj
+	if ri == 7 then
+		obj = modeloPronto("cajadoRaio", "MysticalStaffOfCyanLightningMagic")
+	elseif ri == 8 then
+		obj = modeloPronto("packArmasArmaduras", "Fantasy Weapons & Armor Pack", "kingscepter")
+	end
+	if obj and encaixarPronto(m, obj, 5.6, base * CFrame.new(0, 0.3, 0)) then
+		local topo = base * CFrame.new(0, 2.85, 0)
+		animar(
+			bola(m, 0.9, topo, ri == 7 and Color3.fromRGB(90, 255, 240) or OURO, MAT.Neon),
+			topo,
+			Vector3.yAxis,
+			0,
+			0.12
+		)
+		enfeitesTier(m, ri, paleta(ri, cor), topo, 0.9)
+		return
+	end
+	cajado(m, ri, cor)
+end
+
 local DESENHO_CLASSE = {
-	cacador = { arma = arco, armaSec = aljava, elmo = capuz, armadura = couro },
-	mago = { arma = cajado, armaSec = grimorio, elmo = chapeuMago, armadura = tunica },
+	cacador = { arma = arcoPronto, armaSec = aljava, elmo = capuz, armadura = couro },
+	mago = { arma = cajadoPronto, armaSec = grimorio, elmo = chapeuMago, armadura = tunica },
 }
 
 local DESENHO = {
@@ -2266,12 +2367,15 @@ local function efeitosNoCorpo(m, ri, cor, slot)
 	end
 	local secreto = ri >= 9
 	local corFx = secreto and Color3.fromRGB(235, 235, 255) or cor
-	local luz = Instance.new("PointLight")
-	luz.Color = corFx
-	luz.Range = 4 + ri
-	luz.Brightness = slot == "arma" and 1.6 or 0.8
-	luz.Shadows = false
-	luz.Parent = nucleo
+	-- só a arma acende luz (várias luzes juntas deixavam o herói todo branco)
+	if slot == "arma" then
+		local luz = Instance.new("PointLight")
+		luz.Color = corFx
+		luz.Range = 6
+		luz.Brightness = 0.7
+		luz.Shadows = false
+		luz.Parent = nucleo
+	end
 	if ri < 5 or (slot ~= "arma" and ri < 6) then
 		return
 	end
@@ -2327,15 +2431,29 @@ local function efeitosNoCorpo(m, ri, cor, slot)
 	end
 end
 
--- Modelo para vestir: nos acessórios e peças pequenas tira os enfeites flutuantes
-local SEM_ENFEITE =
-	{ luvas = true, calca = true, colar = true, broche = true, cinto = true, bracelete = true, brinco = true }
+-- Modelo para vestir no corpo (mais limpo que o ícone)
 local function criarNoCorpo(slot, ri, cor, conjunto, classe)
 	local m = ItemArte.criar(slot, ri, cor, conjunto, classe)
-	if SEM_ENFEITE[slot] then
-		for _, p in ipairs(m:GetChildren()) do
-			if p:GetAttribute("Enfeite") then
-				p:Destroy()
+	-- os enfeites flutuantes (anéis, cristais, auréolas) ficam só no ícone; no corpo poluíam demais
+	for _, p in ipairs(m:GetChildren()) do
+		if p:GetAttribute("Enfeite") then
+			p:Destroy()
+		end
+	end
+	-- No corpo o cenário tem bloom: peça grande de neon vira um borrão de luz e esconde a forma.
+	-- Lá ela vira metal na mesma cor (forte e legível); o neon fica só nos detalhes pequenos.
+	for _, p in ipairs(m:GetDescendants()) do
+		if p:IsA("BasePart") and p.Material == MAT.Neon then
+			local maior = math.max(p.Size.X, p.Size.Y, p.Size.Z)
+			local area = p.Size.X * p.Size.Y + p.Size.Y * p.Size.Z + p.Size.X * p.Size.Z
+			local h, s, v = p.Color:ToHSV()
+			if maior > 0.55 or area > 0.6 or s < 0.2 then
+				-- peça grande ou neon branco: metal na mesma cor
+				p.Material = MAT.Metal
+				p.Color = Color3.fromHSV(h, math.min(1, s * 1.15 + 0.1), v * 0.85)
+			else
+				-- detalhe pequeno colorido continua brilhando, só um pouco mais escuro
+				p.Color = Color3.fromHSV(h, s, v * 0.8)
 			end
 		end
 	end
@@ -2480,7 +2598,7 @@ function ItemArte.vestir(char, pasta, slot, ri, cor, conjunto, classe)
 				local m = criarNoCorpo(slot, ri, cor, conjunto, classe)
 				soLado(m, lado)
 				local r15 = mao.Name:find("Hand") ~= nil
-				local s = (r15 and mao.Size.X * 0.95 or 1.05) / 0.85
+				local s = (r15 and mao.Size.X * 0.8 or 0.95) / 0.85
 				m:ScaleTo(s)
 				local alvo = r15 and mao.CFrame * CFrame.new(0, 0.1, 0) or mao.CFrame * CFrame.new(0, -0.62, 0)
 				m:PivotTo(alvo * CFrame.new(-0.95 * lado * s, 0, 0))
@@ -2666,12 +2784,12 @@ end
 -- Auras prontas (estilo anime) usadas do Épico para cima: modelo, se repinta na cor do tier e
 -- quanto da quantidade original de partículas usar (as originais são pesadas)
 local AURA_PRONTA = {
-	[4] = { "SSJ", true, 0.35 },
-	[5] = { "SSJ", true, 0.6 },
-	[6] = { "Kaioken", true, 0.8 },
-	[7] = { "SuperNamekian", true, 0.9 },
-	[8] = { "SSJ3", false, 0.9 },
-	[9] = { "PureMajin", true, 0.9 },
+	[4] = { "SSJ", true, 0.2 },
+	[5] = { "SSJ", true, 0.3 },
+	[6] = { "Kaioken", true, 0.4 },
+	[7] = { "SuperNamekian", true, 0.45 },
+	[8] = { "SSJ3", false, 0.45 },
+	[9] = { "Mystic", true, 0.45 },
 }
 local function auraImportada(pasta, raiz, ri, principal, claro)
 	local cfg = AURA_PRONTA[ri]
@@ -2688,17 +2806,30 @@ local function auraImportada(pasta, raiz, ri, principal, claro)
 			d:Destroy() -- segurança: modelo grátis nunca roda script
 		elseif d:IsA("ParticleEmitter") then
 			d.Rate *= cfg[3]
+			-- menor e mais transparente: a aura enfeita o herói sem esconder a roupa
+			local tam = {}
+			for _, k in ipairs(d.Size.Keypoints) do
+				table.insert(tam, NumberSequenceKeypoint.new(k.Time, k.Value * 0.55, k.Envelope * 0.55))
+			end
+			d.Size = NumberSequence.new(tam)
+			local transp = {}
+			for _, k in ipairs(d.Transparency.Keypoints) do
+				table.insert(transp, NumberSequenceKeypoint.new(k.Time, math.min(1, k.Value + 0.3), k.Envelope))
+			end
+			d.Transparency = NumberSequence.new(transp)
 			if cfg[2] then
 				if ri >= 9 then
-					-- Secreto: fumaça preta (sem brilho) com fio branco
-					d.Color = ColorSequence.new(Color3.fromRGB(10, 8, 16), Color3.fromRGB(70, 60, 100))
-					d.LightEmission = 0
+					-- Secreto: luz branca puxando para roxo escuro (preto opaco virava uma parede)
+					d.Color = ColorSequence.new(Color3.fromRGB(245, 240, 255), Color3.fromRGB(90, 40, 160))
+					d.LightEmission = 0.6
 				else
 					d.Color = ColorSequence.new(claro, principal)
 				end
 			end
 		elseif d:IsA("PointLight") then
 			d.Color = ri >= 9 and Color3.fromRGB(190, 180, 255) or principal
+			d.Brightness = math.min(d.Brightness, 0.8)
+			d.Range = math.min(d.Range, 10)
 		end
 	end
 	p.Name = "AuraRara"
@@ -2781,8 +2912,8 @@ function ItemArte.aura(char, pasta, ri, cor)
 	-- luz em volta do herói
 	local luz = Instance.new("PointLight")
 	luz.Color = secreto and Color3.fromRGB(190, 180, 255) or principal
-	luz.Range = 8 + ri * 1.5
-	luz.Brightness = secreto and 1.4 or 1.5 + (ri - 4) * 0.35
+	luz.Range = 10
+	luz.Brightness = secreto and 0.8 or 0.7 + (ri - 4) * 0.1
 	luz.Shadows = false
 	luz:SetAttribute("AuraRara", true)
 	luz.Parent = tronco
