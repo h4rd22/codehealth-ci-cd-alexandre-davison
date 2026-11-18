@@ -2158,6 +2158,43 @@ local function pecaCorpo(char, r15, r6)
 end
 
 -- Luz e partículas no item vestido (do Épico para cima)
+-- Rastro de luz da arma (aparece no golpe), do Raro para cima: liga o cabo à ponta
+local function rastroArma(m, ri, cor)
+	if ri < 3 then
+		return
+	end
+	local nucleo = m:FindFirstChild("Nucleo") or m:FindFirstChildWhichIsA("BasePart")
+	if not nucleo then
+		return
+	end
+	local cf, tam = m:GetBoundingBox()
+	local eixo = cf.UpVector * tam.Y
+	if tam.X >= tam.Y and tam.X >= tam.Z then
+		eixo = cf.RightVector * tam.X
+	elseif tam.Z >= tam.Y then
+		eixo = cf.LookVector * tam.Z
+	end
+	local a0 = Instance.new("Attachment")
+	a0.Parent = nucleo
+	a0.WorldPosition = cf.Position - eixo * 0.15
+	local a1 = Instance.new("Attachment")
+	a1.Parent = nucleo
+	a1.WorldPosition = cf.Position + eixo * 0.48
+	local t = Instance.new("Trail")
+	t.Attachment0 = a0
+	t.Attachment1 = a1
+	t.Lifetime = ri >= 6 and 0.32 or 0.22
+	t.MinLength = 0.05
+	t.LightEmission = ri >= 9 and 0.3 or 1
+	local claro = ri >= 9 and Color3.fromRGB(235, 235, 255) or cor:Lerp(Color3.new(1, 1, 1), 0.5)
+	t.Color = ColorSequence.new(claro, ri >= 9 and Color3.fromRGB(20, 16, 30) or cor)
+	t.Transparency = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, ri >= 6 and 0.05 or 0.3),
+		NumberSequenceKeypoint.new(1, 1),
+	})
+	t.Parent = nucleo
+end
+
 local function efeitosNoCorpo(m, ri, cor, slot)
 	if ri < 4 then
 		return
@@ -2271,6 +2308,7 @@ function ItemArte.vestir(char, pasta, slot, ri, cor, conjunto, classe)
 					* CFrame.Angles(0, 0, math.rad(45))
 			)
 		end
+		rastroArma(m, ri, cor)
 		soldar(m, mao)
 		efeitosNoCorpo(m, ri, cor, slot)
 		m.Parent = pasta
