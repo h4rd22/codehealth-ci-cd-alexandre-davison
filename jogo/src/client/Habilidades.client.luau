@@ -11,6 +11,16 @@ local Lighting = game:GetService("Lighting")
 
 local Dados = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Habilidades"))
 
+-- Efeitos prontos (partículas) do Henrique: raios no corpo do atordoado, fumaça no congelado
+local VFX
+do
+	local mod = ReplicatedStorage:WaitForChild("Shared"):FindFirstChild("VFX")
+	if mod then
+		local ok, m = pcall(require, mod)
+		VFX = ok and m or nil
+	end
+end
+
 -- Efeitos caprichados das magias: módulo do Henrique (src/shared/EfeitosMagia.luau).
 -- Se ele não tiver o efeito (ou der erro), usa o efeito simples daqui.
 local EfeitosMagia
@@ -1947,6 +1957,19 @@ RunService.Heartbeat:Connect(function(dt)
 					else
 						hl.FillTransparency = 1
 						hl.OutlineTransparency = 1
+					end
+					-- partículas prontas (VFX do Henrique), uma vez por efeito novo
+					if VFX and vivoM then
+						local fimAtordoado = m:GetAttribute("AtordoadoAte") or 0
+						if atordoado and fimAtordoado > (v.raioAte or 0) then
+							v.raioAte = fimAtordoado
+							pcall(VFX.corpo, "Raio/Electrocuted", m, fimAtordoado - agora)
+						end
+						local fimCongelado = m:GetAttribute("CongeladoAte") or 0
+						if congelado and fimCongelado > (v.geloAte or 0) then
+							v.geloAte = fimCongelado
+							pcall(VFX.grudar, "Gelo/TorsoIce", m.PrimaryPart, fimCongelado - agora)
+						end
 					end
 					-- bloco de gelo em volta de quem está congelado
 					if congelado and vivoM and not v.gelo then
