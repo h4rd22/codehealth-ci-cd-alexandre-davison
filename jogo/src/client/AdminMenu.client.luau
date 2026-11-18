@@ -58,7 +58,7 @@ local abrir = novo("TextButton", gui, {
 	Size = UDim2.fromOffset(110, 30),
 	BackgroundColor3 = Color3.fromRGB(170, 40, 35),
 	Font = FONTE,
-	Text = "🛠 ADMIN",
+	Text = "ADMIN",
 	TextSize = 16,
 	TextColor3 = Color3.new(1, 1, 1),
 })
@@ -80,7 +80,7 @@ novo("TextLabel", painel, {
 	Size = UDim2.new(1, 0, 0, 34),
 	BackgroundColor3 = Color3.fromRGB(170, 40, 35),
 	Font = FONTE,
-	Text = "🛠 MENU ADMIN (testes)",
+	Text = "MENU ADMIN (testes)",
 	TextSize = 18,
 	TextColor3 = Color3.new(1, 1, 1),
 })
@@ -171,7 +171,7 @@ local function botao(pai, texto, cor, aoClicar)
 end
 
 -- Progresso ------------------------------------------------------------
-local s = secao("📈 Progresso")
+local s = secao("Progresso")
 botao(s, "+1 nível", nil, function()
 	pedir("subirNivel", 1)
 end)
@@ -201,7 +201,7 @@ botao(s, "+5 pontos hab.", Color3.fromRGB(110, 60, 170), function()
 end)
 
 -- Fases ----------------------------------------------------------------
-s = secao("🗺 Fases")
+s = secao("Fases")
 local faseEscolhida = 1
 local rotFase
 local function nomeFase()
@@ -233,7 +233,7 @@ botao(s, "Matar horda", Color3.fromRGB(170, 60, 40), function()
 end)
 
 -- Combate --------------------------------------------------------------
-s = secao("⚔ Combate")
+s = secao("Combate")
 botao(s, "Curar", Color3.fromRGB(60, 130, 60), function()
 	pedir("curar")
 end)
@@ -247,7 +247,7 @@ for _, mult in ipairs({ 1, 10, 100 }) do
 end
 
 -- Itens ----------------------------------------------------------------
-s = secao("🎒 Itens")
+s = secao("Itens")
 local raridadeIdx = 5
 local rotRar
 local function pintarRaridade()
@@ -271,7 +271,7 @@ botao(s, "10 aleatórios", nil, function()
 end)
 for _, slot in ipairs(Config.Slots) do
 	if not slot.especial then
-		botao(s, slot.icone .. " " .. slot.nome, Color3.fromRGB(70, 90, 140), function()
+		botao(s, slot.nome, Color3.fromRGB(70, 90, 140), function()
 			pedir("item", slot.id, raridadeIdx)
 		end)
 	end
@@ -295,9 +295,9 @@ botao(s, "Ver drop", nil, function()
 end)
 
 -- Classe e avatares ----------------------------------------------------
-s = secao("🎭 Classe e avatares")
+s = secao("Classe e avatares")
 for _, c in ipairs(Config.Classes) do
-	botao(s, c.icone .. " " .. c.nome, c.cor:Lerp(Color3.new(0, 0, 0), 0.35), function()
+	botao(s, c.nome, c.cor:Lerp(Color3.new(0, 0, 0), 0.35), function()
 		pedir("classe", c.id)
 	end)
 end
@@ -311,7 +311,7 @@ botao(s, "Todos avatares", nil, function()
 end)
 
 -- Recomeçar ------------------------------------------------------------
-s = secao("♻ Recomeçar")
+s = secao("Recomeçar")
 local confirmar = false
 botao(s, "Resetar tudo", Color3.fromRGB(170, 40, 35), function(b)
 	if not confirmar then

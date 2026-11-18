@@ -172,7 +172,7 @@ local etiqueta = rotulo(barra, {
 	AnchorPoint = Vector2.new(0, 0.5),
 	Position = UDim2.fromOffset(16, 0),
 	Size = UDim2.fromOffset(92, 20),
-	Text = "✨ MAGIAS",
+	Text = "MAGIAS",
 	TextSize = 13,
 	BackgroundTransparency = 0,
 	BackgroundColor3 = Color3.fromRGB(125, 60, 210),
@@ -213,7 +213,7 @@ TweenService
 	)
 	:Play()
 
-local ICONE_ELEM = { gelo = "❄️", raio = "⚡", fogo = "🔥", arcano = "🔮" }
+local E = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("EstiloUI"))
 
 local slots = {}
 for i = 1, Dados.SlotsBarra do
@@ -368,8 +368,8 @@ local function atualizarBarra()
 		if h then
 			local cor = corRamo(h.ramo)
 			local suprema = h.tipo == "suprema"
-			sl.icone.Text = h.icone
-			sl.elem.Text = ICONE_ELEM[h.ramo] or ""
+			E.imagemNoTexto(sl.icone, E.iconeMagia(h))
+			E.imagemNoTexto(sl.elem, E.iconeElemento(h.ramo), 1)
 			sl.gradFundo.Color =
 				ColorSequence.new(cor:Lerp(Color3.new(1, 1, 1), 0.45), cor:Lerp(Color3.new(0, 0, 0), 0.45))
 			sl.fundo.BackgroundTransparency = 0
@@ -386,8 +386,8 @@ local function atualizarBarra()
 			sl.nv.Text = "Nv " .. nivelHab(id)
 			sl.bordaNv.Color = suprema and COR.ouro or cor
 		else
-			sl.icone.Text = ""
-			sl.elem.Text = ""
+			E.imagemNoTexto(sl.icone, nil)
+			E.imagemNoTexto(sl.elem, nil)
 			sl.gradFundo.Color = ColorSequence.new(Color3.fromRGB(70, 60, 70), Color3.fromRGB(30, 24, 30))
 			sl.fundo.BackgroundTransparency = 0.4
 			sl.gradBorda.Color = ColorSequence.new(COR.borda, COR.borda)
@@ -399,7 +399,7 @@ local function atualizarBarra()
 	end
 	local pts = estado.pontosHabilidade or 0
 	avisoPontos.Visible = pts > 0
-	avisoPontos.Text = pts == 1 and "✨ 1 ponto de habilidade!" or ("✨ " .. pts .. " pontos de habilidade!")
+	avisoPontos.Text = pts == 1 and "1 ponto de habilidade!" or ("" .. pts .. " pontos de habilidade!")
 end
 
 RunService.RenderStepped:Connect(function()
@@ -488,7 +488,7 @@ contorno(pilulaPontos, COR.ouro, 2)
 degrade(pilulaPontos, Color3.fromRGB(255, 230, 255), Color3.fromRGB(150, 110, 170))
 local txtPontos = rotulo(pilulaPontos, {
 	Size = UDim2.fromScale(1, 1),
-	Text = "✨ Pontos: 0",
+	Text = "Pontos: 0",
 	TextSize = 19,
 	TextColor3 = COR.ouro,
 	TextStrokeTransparency = 0,
@@ -747,7 +747,7 @@ local function construir(arvore)
 			AnchorPoint = Vector2.new(0.5, 0.5),
 			Position = UDim2.fromScale(0.5, 0.58),
 			Size = UDim2.fromScale(1, 0.6),
-			Text = ramo.icone,
+			Text = "",
 			TextSize = 110,
 			TextTransparency = 0.86,
 			TextStrokeTransparency = 1,
@@ -766,7 +766,7 @@ local function construir(arvore)
 		degrade(faixaRamo, Color3.new(1, 1, 1), Color3.fromRGB(120, 110, 120))
 		local cab = rotulo(faixaRamo, {
 			Size = UDim2.fromScale(1, 1),
-			Text = ramo.icone .. " " .. ramo.nome,
+			Text = ramo.nome,
 			TextSize = 15,
 			TextColor3 = Color3.new(1, 1, 1),
 			TextStrokeTransparency = 0,
@@ -857,7 +857,8 @@ local function construir(arvore)
 			ZIndex = 4,
 		})
 		canto(vidro, raioCanto)
-		local ic = rotulo(b, { Size = UDim2.fromScale(1, 1), Text = h.icone, TextSize = 30, ZIndex = 5 })
+		local ic = rotulo(b, { Size = UDim2.fromScale(1, 1), Text = "", TextSize = 30, ZIndex = 5 })
+		E.imagemNoTexto(ic, E.iconeMagia(h), 0.72)
 		local nv = rotulo(b, {
 			AnchorPoint = Vector2.new(0.5, 0.5),
 			Position = UDim2.fromScale(0.5, 1),
@@ -874,21 +875,23 @@ local function construir(arvore)
 			AnchorPoint = Vector2.new(1, 0),
 			Position = UDim2.new(1, 4, 0, -6),
 			Size = UDim2.fromOffset(22, 22),
-			Text = "🔒",
+			Text = "",
 			TextSize = 15,
 			ZIndex = 7,
 		})
+		E.imagemNoTexto(cadeado, E.ICONES.cadeado, 1)
 		local estrela = h.tipo == "suprema"
 				and rotulo(b, {
 					Position = UDim2.fromOffset(-8, -8),
 					Size = UDim2.fromOffset(22, 22),
-					Text = "★",
+					Text = "",
 					TextSize = 20,
-					TextColor3 = COR.ouro,
-					TextStrokeTransparency = 0,
 					ZIndex = 7,
 				})
 			or nil
+		if estrela then
+			E.imagemNoTexto(estrela, E.ICONES.estrela, 1)
+		end
 		local escala = novo("UIScale", b)
 		b.MouseEnter:Connect(function()
 			TweenService:Create(escala, TweenInfo.new(0.12), { Scale = 1.08 }):Play()
@@ -1002,10 +1005,10 @@ end)
 local function motivoBloqueio(h)
 	local niveis = estado.habilidades or {}
 	if h.requer > 0 and Dados.gastos(niveis, h.ramo) < h.requer then
-		return string.format("🔒 Gaste %d pontos em %s (tem %d)", h.requer, h.ramo, Dados.gastos(niveis, h.ramo))
+		return string.format("Gaste %d pontos em %s (tem %d)", h.requer, h.ramo, Dados.gastos(niveis, h.ramo))
 	end
 	if h.requerTotal and Dados.gastos(niveis) < h.requerTotal then
-		return string.format("🔒 Gaste %d pontos na árvore (tem %d)", h.requerTotal, Dados.gastos(niveis))
+		return string.format("Gaste %d pontos na árvore (tem %d)", h.requerTotal, Dados.gastos(niveis))
 	end
 	return nil
 end
@@ -1019,7 +1022,7 @@ atualizarArvore = function()
 		conteudo.Visible = false
 		semArvore.Visible = true
 		local nomeClasse = estado.classe and (estado.classe:sub(1, 1):upper() .. estado.classe:sub(2)) or "herói"
-		semArvore.Text = "✨ As habilidades do "
+		semArvore.Text = "As habilidades do "
 			.. nomeClasse
 			.. " chegam em breve!\nPor enquanto só o Mago tem a árvore de magias."
 		return
@@ -1039,7 +1042,7 @@ atualizarArvore = function()
 		end
 	end
 	niveisAntes = table.clone(niveis)
-	txtPontos.Text = "✨ Pontos: " .. pontos
+	txtPontos.Text = "Pontos: " .. pontos
 	if pontos > 0 then
 		brilhoPilula:Play()
 	else
@@ -1056,7 +1059,7 @@ atualizarArvore = function()
 
 	for _, ramo in ipairs(arvore.ramos) do
 		local g = Dados.gastos(niveis, ramo.id)
-		cabecalhos[ramo.id].Text = ramo.icone .. " " .. ramo.nome .. (g > 0 and ("  " .. g) or "")
+		cabecalhos[ramo.id].Text = ramo.nome .. (g > 0 and ("  " .. g) or "")
 	end
 	for id, no in pairs(nos) do
 		local h = no.hab
@@ -1128,7 +1131,7 @@ atualizarArvore = function()
 	local lista = estado.barraHab or {}
 	for i, b in ipairs(miniBarra) do
 		local h = lista[i] and Dados.PorId[lista[i]]
-		b.Text = h and h.icone or "·"
+		E.imagemNoTexto(b, h and E.iconeMagia(h) or nil)
 		b.BackgroundColor3 = h and corRamo(h.ramo):Lerp(COR.painel, 0.35) or COR.painel2
 	end
 
@@ -1139,14 +1142,14 @@ atualizarArvore = function()
 	end
 	local n = niveis[h.id] or 0
 	local cor = corRamo(h.ramo)
-	detalhe.icone.Text = h.icone
+	E.imagemNoTexto(detalhe.icone, E.iconeMagia(h), 0.75)
 	detalhe.iconeGrad.Color = ColorSequence.new(cor:Lerp(Color3.new(1, 1, 1), 0.5), cor:Lerp(Color3.new(0, 0, 0), 0.35))
 	for _, r in ipairs(detalhe.listaRaios) do
 		r.BackgroundColor3 = h.tipo == "suprema" and COR.ouro or cor
 	end
 	detalhe.iconeBorda.Color = h.tipo == "suprema" and COR.ouro or Color3.new(1, 1, 1)
 	detalhe.nome.Text = h.nome
-	local nomeTipo = h.tipo == "suprema" and "★ SUPREMA" or (h.tipo == "ativa" and "ATIVA" or "PASSIVA")
+	local nomeTipo = h.tipo == "suprema" and "SUPREMA" or (h.tipo == "ativa" and "ATIVA" or "PASSIVA")
 	detalhe.tipo.Text = nomeTipo .. " · " .. (Dados.Elementos[h.ramo] and Dados.Elementos[h.ramo].nome or "")
 	detalhe.tipo.TextColor3 = cor:Lerp(Color3.new(1, 1, 1), 0.25)
 	detalhe.nivel.Text = "Nível " .. n .. " / " .. h.max
@@ -1154,13 +1157,13 @@ atualizarArvore = function()
 	if n > 0 and n < h.max then
 		detalhe.prox.Text = "Próximo nível: " .. Dados.descricao(h, n + 1)
 	elseif n >= h.max then
-		detalhe.prox.Text = "⭐ Nível máximo!"
+		detalhe.prox.Text = "Nível máximo!"
 	else
 		detalhe.prox.Text = ""
 	end
 	local info = {}
 	if h.recarga then
-		local textoRecarga = string.format("⏱ Recarga: %.1fs", Dados.valor(h, "recarga", math.max(1, n)))
+		local textoRecarga = string.format("Recarga: %.1fs", Dados.valor(h, "recarga", math.max(1, n)))
 		table.insert(info, (string.gsub(textoRecarga, "%.0s", "s")))
 	end
 	local bloqueio = motivoBloqueio(h)
@@ -1172,10 +1175,7 @@ atualizarArvore = function()
 
 	local pode, motivo = Dados.podeAprender(niveis, pontos, estado.classe, h.id)
 	detalhe.aprender.Text = pode and (n == 0 and "Aprender (1 ponto)" or "Subir nível (1 ponto)")
-		or (
-			motivo == "Nível máximo" and "⭐ Máximo"
-			or (motivo == "Sem pontos" and "Sem pontos" or "🔒 Bloqueada")
-		)
+		or (motivo == "Nível máximo" and "Máximo" or (motivo == "Sem pontos" and "Sem pontos" or "Bloqueada"))
 	detalhe.aprender.BackgroundColor3 = pode and COR.verde or COR.cinza
 	detalhe.aprender.AutoButtonColor = pode
 
@@ -1752,9 +1752,9 @@ end
 
 -- faixa grande na tela quando sai uma suprema
 local SUPREMAS = {
-	nevasca = { "🌀 NEVASCA ETERNA!", COR_GELO },
-	tempestade = { "⛈️ TEMPESTADE DIVINA!", COR_RAIO },
-	meteoro = { "☄️ METEORO INFERNAL!", COR_FOGO },
+	nevasca = { "NEVASCA ETERNA!", COR_GELO },
+	tempestade = { "TEMPESTADE DIVINA!", COR_RAIO },
+	meteoro = { "METEORO INFERNAL!", COR_FOGO },
 }
 
 Efeito.explosaoMorte = function(d)
@@ -1821,7 +1821,7 @@ evDano.OnClientEvent:Connect(function(tipo, a, b, c, d)
 		if not tocou and f and type(b) == "table" then
 			f(b)
 		elseif a == "eco" and type(b) == "table" then
-			numero(b.pos + Vector3.new(0, 3, 0), "✨ ECO! " .. tostring(b.nome), Dados.Elementos.arcano.cor, 26)
+			numero(b.pos + Vector3.new(0, 3, 0), "ECO! " .. tostring(b.nome), Dados.Elementos.arcano.cor, 26)
 		end
 		piscarSlot(a)
 	elseif tipo == "recarga" then
@@ -1912,17 +1912,17 @@ RunService.Heartbeat:Connect(function(dt)
 				if v then
 					local icones = {}
 					if congelado then
-						table.insert(icones, "🧊")
+						table.insert(icones, "CONGELADO")
 					elseif lento then
-						table.insert(icones, "❄️")
+						table.insert(icones, "LENTO")
 					end
 					if atordoado then
-						table.insert(icones, "💫")
+						table.insert(icones, "TONTO")
 					end
 					if queimando then
-						table.insert(icones, "🔥")
+						table.insert(icones, "QUEIMANDO")
 					end
-					v.texto.Text = vivoM and table.concat(icones, "") or ""
+					v.texto.Text = vivoM and table.concat(icones, " · ") or ""
 					v.fogo.Enabled = queimando and vivoM
 					local hl = v.highlight
 					if congelado then

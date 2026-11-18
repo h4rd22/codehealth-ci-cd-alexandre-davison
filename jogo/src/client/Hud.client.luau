@@ -661,6 +661,7 @@ local caixaOuro = novo("Frame", gui, {
 })
 canto(caixaOuro, 999)
 contorno(caixaOuro, E.cor.tinta, 3)
+E.sombra(caixaOuro, 3)
 local moeda = E.icone(caixaOuro, "moeda", {
 	AnchorPoint = Vector2.new(0.5, 0.5),
 	Position = UDim2.fromOffset(4, 17),
@@ -734,7 +735,12 @@ local painelFase = novo("TextButton", gui, {
 })
 canto(painelFase, 10)
 contorno(painelFase, E.cor.tinta, 3)
-E.volume(painelFase, 0.22)
+painelFase.BackgroundColor3 = E.cor.painelTopo
+novo("UIGradient", painelFase, {
+	Rotation = 90,
+	Color = ColorSequence.new(Color3.new(1, 1, 1), Color3.fromRGB(150, 150, 165)),
+})
+E.sombra(painelFase, 5)
 E.ligarEstados(painelFase)
 local escFase = escalaTela(painelFase)
 
@@ -797,66 +803,81 @@ local menu = novo("Frame", gui, {
 	Name = "MenuLateral",
 	AnchorPoint = Vector2.new(0, 1),
 	Position = UDim2.new(0, 14, 1, -14),
-	Size = UDim2.fromOffset(3 * 66 - 6, 2 * 68 - 6),
+	Size = UDim2.fromOffset(3 * 70 - 10, 2 * 74 - 14),
 	BackgroundTransparency = 1,
 })
 escalaTela(menu)
 novo("UIGridLayout", menu, {
 	CellSize = UDim2.fromOffset(60, 60),
-	CellPadding = UDim2.fromOffset(6, 8),
+	CellPadding = UDim2.fromOffset(10, 14),
 	SortOrder = Enum.SortOrder.LayoutOrder,
 })
 
 local botoesMenu, bolinhas = {}, {}
-local function botaoMenu(ordem, id, icone, nome)
+local function botaoMenu(ordem, id, icone, nome, cor)
 	local b = novo("TextButton", menu, {
 		Name = "Menu_" .. id,
 		LayoutOrder = ordem,
 		Size = UDim2.fromOffset(60, 60),
-		BackgroundColor3 = E.cor.painel,
+		BackgroundColor3 = cor,
 		BorderSizePixel = 0,
 		Text = "",
 		AutoButtonColor = false,
+		ZIndex = 2,
 	})
-	canto(b, 12)
+	canto(b, 14)
 	contorno(b, E.cor.tinta, 3)
-	E.volume(b, 0.25)
+	E.bala(b)
+	E.sombra(b, 4)
 	E.ligarEstados(b)
+	-- brilho em arco no alto do ladrilho (reflexo de bala)
+	local reflexo = novo("Frame", b, {
+		Name = "Reflexo",
+		AnchorPoint = Vector2.new(0.5, 0),
+		Position = UDim2.new(0.5, 0, 0, 4),
+		Size = UDim2.new(1, -12, 0, 10),
+		BackgroundColor3 = Color3.new(1, 1, 1),
+		BackgroundTransparency = 0.7,
+		BorderSizePixel = 0,
+		ZIndex = 3,
+	})
+	canto(reflexo, 999)
 	E.icone(b, icone, {
 		AnchorPoint = Vector2.new(0.5, 0.5),
-		Position = UDim2.fromScale(0.5, 0.42),
-		Size = UDim2.fromOffset(44, 44),
-		ZIndex = 2,
+		Position = UDim2.fromScale(0.5, 0.36),
+		Size = UDim2.fromOffset(52, 52),
+		ZIndex = 4,
 	})
 	-- nome numa plaquinha de tinta presa na borda de baixo
 	local placa = novo("Frame", b, {
 		Name = "Placa",
 		AnchorPoint = Vector2.new(0.5, 0.5),
-		Position = UDim2.new(0.5, 0, 1, -2),
-		Size = UDim2.fromOffset(58, 16),
+		Position = UDim2.new(0.5, 0, 1, -4),
+		Size = UDim2.fromOffset(62, 18),
 		BackgroundColor3 = E.cor.tinta,
 		BorderSizePixel = 0,
-		ZIndex = 3,
+		ZIndex = 5,
 	})
 	canto(placa, 999)
 	local t = E.titulo(placa, {
 		Size = UDim2.fromScale(1, 1),
 		Text = nome,
-		TextSize = 12,
+		TextSize = 13,
 		TextColor3 = E.cor.papel,
-		ZIndex = 4,
+		ZIndex = 6,
 	})
 	t.ContornoTexto.Enabled = false
 	bolinhas[id] = bolinha(b)
 	botoesMenu[id] = b
 	return b
 end
-botaoMenu(1, "mochila", "mochila", "Mochila")
-botaoMenu(2, "forja", "bigorna", "Forja")
-botaoMenu(3, "habilidades", "livroMagico", "Magias")
-botaoMenu(4, "ovos", "ovo", "Ovos")
-botaoMenu(5, "treino", "treino", "Treino")
-botaoMenu(6, "avatar", "tinta", "Avatar")
+-- cada janela tem a sua cor (fica fácil achar de olho)
+botaoMenu(1, "mochila", "mochila", "Mochila", Color3.fromRGB(240, 150, 70))
+botaoMenu(2, "forja", "bigorna", "Forja", Color3.fromRGB(120, 140, 220))
+botaoMenu(3, "habilidades", "livroMagico", "Magias", Color3.fromRGB(170, 110, 240))
+botaoMenu(4, "ovos", "ovo", "Ovos", Color3.fromRGB(110, 200, 150))
+botaoMenu(5, "treino", "treino", "Treino", Color3.fromRGB(236, 96, 110))
+botaoMenu(6, "avatar", "tinta", "Avatar", Color3.fromRGB(250, 196, 80))
 
 ------------------------------------------------------------------------
 -- Botão AUTO (embaixo à direita)
@@ -871,6 +892,7 @@ do
 		Text = "AUTO",
 		TextXAlignment = Enum.TextXAlignment.Left,
 	}, "principal")
+	E.sombra(btnAuto, 4)
 	escalaTela(btnAuto)
 	local raio = E.iconeNoBotao(btnAuto, "energia", 34)
 	local pad = btnAuto:FindFirstChildOfClass("UIPadding")
@@ -949,14 +971,12 @@ local function criarJanela(titulo)
 		BackgroundTransparency = 0.6,
 		BorderSizePixel = 0,
 	})
-	local lbl = E.titulo(topo, {
-		Position = UDim2.fromOffset(18, 0),
-		Size = UDim2.new(1, -80, 1, 0),
-		Text = titulo,
-		TextSize = 24,
-		TextColor3 = E.cor.papel,
-		TextXAlignment = Enum.TextXAlignment.Left,
-	})
+	local fita, lbl = E.faixaTitulo(j, titulo)
+	lbl:GetPropertyChangedSignal("Visible"):Connect(function()
+		fita.Visible = lbl.Visible
+	end)
+	-- o conteúdo do cabeçalho começa depois da faixa
+	novo("UIPadding", topo, { PaddingLeft = UDim.new(0, 236) })
 	local fechar = E.fechar(j, {
 		AnchorPoint = Vector2.new(0.5, 0.5),
 		Position = UDim2.new(1, -8, 0, 8),
@@ -998,6 +1018,7 @@ fundoEscuro.Activated:Connect(fecharJanelas)
 local jMenu, corpoMenu, topoMenu, fecharMenu, lblTituloMenu = criarJanela("Menu")
 fecharMenu.Activated:Connect(fecharJanelas)
 lblTituloMenu.Visible = false
+topoMenu.UIPadding.PaddingLeft = UDim.new(0, 0) -- (sem faixa de título: as abas começam na esquerda)
 
 local abas = novo(
 	"Frame",

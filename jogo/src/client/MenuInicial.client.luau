@@ -270,7 +270,7 @@ local function criarMenu()
 		contorno(faixa, OURO, 2)
 		texto(faixa, {
 			Size = UDim2.fromScale(1, 1),
-			Text = classe.icone .. "  " .. maiusculo(classe.nome),
+			Text = maiusculo(classe.nome),
 			TextSize = 30,
 			ZIndex = 4,
 		})
@@ -323,10 +323,10 @@ local function criarMenu()
 
 		-- estrelas dos atributos
 		local atributos = {
-			{ "❤ Vida", classe.notas.vida },
-			{ "⚔ Dano", classe.notas.dano },
-			{ "🎯 Alcance", classe.notas.alcance },
-			{ "⚡ Velocidade", classe.notas.velocidade },
+			{ "Vida", classe.notas.vida },
+			{ "Dano", classe.notas.dano },
+			{ "Alcance", classe.notas.alcance },
+			{ "Velocidade", classe.notas.velocidade },
 		}
 		for i, at in ipairs(atributos) do
 			local y = 0.56 + (i - 1) * 0.052
@@ -389,7 +389,7 @@ local function criarMenu()
 			Size = UDim2.fromScale(0.6, 0.07),
 			BackgroundTransparency = 0,
 			BackgroundColor3 = Color3.fromRGB(70, 175, 70),
-			Text = "✔ ESCOLHIDO",
+			Text = "ESCOLHIDO",
 			TextSize = 18,
 			Visible = false,
 			ZIndex = 11,

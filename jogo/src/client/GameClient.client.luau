@@ -639,7 +639,7 @@ evLoot.OnClientEvent:Connect(function(tipo, pos, item, ouro)
 	local r, ri = raridade(item.raridade)
 	local corTexto = r.corBorda or r.cor -- itens pretos (Secreto) usam a borda clara
 	if tipo == "vendido" then
-		notificar("💰 Vendido: " .. item.nome .. " (+" .. ouro .. ")", Color3.fromRGB(200, 185, 150))
+		notificar("Vendido: " .. item.nome .. " (+" .. ouro .. ")", Color3.fromRGB(200, 185, 150))
 		return
 	end
 	if tipo == "cheio" then
@@ -684,8 +684,8 @@ evAviso.OnClientEvent:Connect(function(tipo, a, b)
 	elseif tipo == "avatar" then
 		local r = raridade(b)
 		local cor = r.corBorda or r.cor
-		mostrarFaixa("🎭 AVATAR OBTIDO! " .. a .. " (" .. r.nome .. ")", cor, 3.5)
-		notificar("🎭 Novo avatar: " .. a .. " — veja no menu Avatar", cor)
+		mostrarFaixa("AVATAR OBTIDO! " .. a .. " (" .. r.nome .. ")", cor, 3.5)
+		notificar("Novo avatar: " .. a .. " — veja no menu Avatar", cor)
 		tremer(1.4, 0.6)
 		local char = player.Character
 		local root = char and char:FindFirstChild("HumanoidRootPart")
@@ -693,30 +693,27 @@ evAviso.OnClientEvent:Connect(function(tipo, a, b)
 			explosao(root.Position, cor, 40)
 		end
 	elseif tipo == "horda" then
-		mostrarFaixa("⚔ HORDA À FRENTE! ⚔", Color3.fromRGB(255, 90, 70), 1.4)
+		mostrarFaixa("HORDA À FRENTE!", Color3.fromRGB(255, 90, 70), 1.4)
 		tremer(0.5, 0.25)
 	elseif tipo == "joia" then
-		notificar("💎 Joia: " .. a .. "!", b)
+		notificar("Joia: " .. a .. "!", b)
 		local char = player.Character
 		local root = char and char:FindFirstChild("HumanoidRootPart")
 		if root then
 			explosao(root.Position + Vector3.new(0, 2, 0), b, 14)
 		end
 	elseif tipo == "joiaEncaixada" then
-		notificar("💎 Joia encaixada em " .. a, b)
+		notificar("Joia encaixada em " .. a, b)
 	elseif tipo == "joiaFundida" then
-		mostrarFaixa("💎 FUSÃO! " .. a, b, 1.8)
+		mostrarFaixa("FUSÃO! " .. a, b, 1.8)
 		tremer(0.6, 0.3)
 	elseif tipo == "classeErrada" then
-		notificar("✖ " .. a .. " é só para " .. b .. " (use na síntese)", Color3.fromRGB(255, 110, 110))
+		notificar(a .. " é só para " .. b .. " (use na síntese)", Color3.fromRGB(255, 110, 110))
 	elseif tipo == "avatarRepetido" then
-		notificar("🎭 Avatar repetido (" .. a .. ") virou +" .. b .. " ouro", Color3.fromRGB(255, 205, 70))
+		notificar("Avatar repetido (" .. a .. ") virou +" .. b .. " ouro", Color3.fromRGB(255, 205, 70))
 	elseif tipo == "bauEstagio" then
-		notificar(
-			"📦 Baú de tesouro de estágio " .. b .. " obtido! +" .. a .. " ouro",
-			Color3.fromRGB(255, 210, 90)
-		)
-		mostrarFaixa("📦 BAÚ DE ESTÁGIO! +" .. a .. " OURO", Color3.fromRGB(255, 210, 90), 1.6)
+		notificar("Baú de tesouro de estágio " .. b .. " obtido! +" .. a .. " ouro", Color3.fromRGB(255, 210, 90))
+		mostrarFaixa("BAÚ DE ESTÁGIO! +" .. a .. " OURO", Color3.fromRGB(255, 210, 90), 1.6)
 	elseif tipo == "equipouRaro" then
 		local r = raridade(b)
 		local cor = r.corBorda or r.cor
@@ -759,7 +756,7 @@ evAviso.OnClientEvent:Connect(function(tipo, a, b)
 			explosao(root.Position, cor, 30)
 		end
 	elseif tipo == "repetir" then
-		notificar("🔁 Fase " .. a .. " de novo (repetindo)", Color3.fromRGB(150, 230, 160))
+		notificar("Fase " .. a .. " de novo (repetindo)", Color3.fromRGB(150, 230, 160))
 	elseif tipo == "habilidade" then
 		mostrarFaixa(string.upper(a), Color3.fromRGB(200, 120, 255), 1.4)
 	elseif tipo == "empurrao" then
@@ -783,25 +780,25 @@ evAviso.OnClientEvent:Connect(function(tipo, a, b)
 		tremer(1.2, 0.6)
 	elseif tipo == "forjaAuto" then
 		if a > 0 then
-			notificar("⚒ Forja automática: " .. a .. " combinação(ões)", Color3.fromRGB(255, 170, 80))
+			notificar("Forja automática: " .. a .. " combinação(ões)", Color3.fromRGB(255, 170, 80))
 		else
-			notificar("⚒ Nada para combinar agora", Color3.fromRGB(180, 175, 200))
+			notificar("Nada para combinar agora", Color3.fromRGB(180, 175, 200))
 		end
 	elseif tipo == "alquimia" then
-		notificar("🪙 Alquimia: +" .. a .. " ouro", Color3.fromRGB(255, 205, 70))
+		notificar("Alquimia: +" .. a .. " ouro", Color3.fromRGB(255, 205, 70))
 		mostrarFaixa("+" .. a .. " OURO!", Color3.fromRGB(255, 210, 80), 1.2)
 		if (b or 0) > 0 then
-			notificar("📜 +" .. b .. " Pergaminho(s) de Gravação", Color3.fromRGB(240, 220, 160))
+			notificar("+" .. b .. " Pergaminho(s) de Gravação", Color3.fromRGB(240, 220, 160))
 		end
 	elseif tipo == "pergaminho" then
-		notificar("📜 +" .. a .. " Pergaminho(s) de Gravação", Color3.fromRGB(240, 220, 160))
+		notificar("+" .. a .. " Pergaminho(s) de Gravação", Color3.fromRGB(240, 220, 160))
 		local char = player.Character
 		local root = char and char:FindFirstChild("HumanoidRootPart")
 		if root then
 			explosao(root.Position + Vector3.new(0, 2, 0), Color3.fromRGB(255, 230, 170), 10)
 		end
 	elseif tipo == "gravacaoSemRecurso" then
-		notificar("✒ Precisa de " .. a .. " ouro e " .. b .. " pergaminho(s)", Color3.fromRGB(255, 110, 110))
+		notificar("Precisa de " .. a .. " ouro e " .. b .. " pergaminho(s)", Color3.fromRGB(255, 110, 110))
 	elseif tipo == "bau" then
 		notificar("Baú do chefe: +" .. a .. " ouro", Color3.fromRGB(255, 205, 70))
 	end

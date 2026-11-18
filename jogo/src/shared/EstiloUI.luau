@@ -36,7 +36,8 @@ E.cor = {
 	sakura = Color3.fromRGB(238, 92, 120),
 	ceu = Color3.fromRGB(96, 196, 246),
 	-- derivadas (não são cores novas: são as de cima mais claras/escuras)
-	painelClaro = Color3.fromRGB(52, 49, 80),
+	painelClaro = Color3.fromRGB(58, 54, 96),
+	painelTopo = Color3.fromRGB(60, 52, 112), -- topo do degradê dos painéis (índigo)
 	painelFundo = Color3.fromRGB(26, 24, 42),
 	papelFraco = Color3.fromRGB(184, 176, 204),
 	ouroEscuro = Color3.fromRGB(150, 104, 30),
@@ -99,7 +100,51 @@ E.ICONES = {
 	tinta = "rbxassetid://17368490346",
 	olho = "rbxassetid://15403401665",
 	casa = "rbxassetid://15403180857",
+	-- magias (grátis, Creator Store)
+	magiaGelo = "rbxassetid://125884111771213",
+	magiaRaio = "rbxassetid://81061308210160",
+	magiaFogo = "rbxassetid://15207511801",
+	magiaArcano = "rbxassetid://2624609025",
 }
+
+-- Magias: um ícone por elemento (alguns golpes têm o seu)
+E.ICONE_ELEMENTO = { gelo = "magiaGelo", raio = "magiaRaio", fogo = "magiaFogo", arcano = "magiaArcano" }
+E.ICONE_MAGIA = { meteoro = "fogo", tempestade = "energia", furiaTrovao = "energia", explosaoMorte = "caveira" }
+function E.iconeMagia(h: any): string
+	local nome = (h and (E.ICONE_MAGIA[h.id] or E.ICONE_ELEMENTO[h.ramo])) or "estrela"
+	return E.ICONES[nome] or E.ICONES.estrela
+end
+function E.iconeElemento(ramo: string?): string
+	return E.ICONES[E.ICONE_ELEMENTO[ramo or ""] or ""] or E.ICONES.estrela
+end
+
+-- Põe uma imagem no meio de um TextLabel que antes mostrava um emoji.
+-- imagem = nil esconde. A transparência do texto passa para a imagem.
+function E.imagemNoTexto(t: TextLabel | TextButton, imagem: string?, escala: number?)
+	t.Text = ""
+	local img = t:FindFirstChild("Img") :: ImageLabel?
+	if not img then
+		local novaImg = E.novo("ImageLabel", t, {
+			Name = "Img",
+			AnchorPoint = Vector2.new(0.5, 0.5),
+			Position = UDim2.fromScale(0.5, 0.5),
+			Size = UDim2.fromScale(escala or 0.78, escala or 0.78),
+			SizeConstraint = Enum.SizeConstraint.RelativeYY,
+			BackgroundTransparency = 1,
+			ScaleType = Enum.ScaleType.Fit,
+			ZIndex = t.ZIndex,
+		})
+		t:GetPropertyChangedSignal("TextTransparency"):Connect(function()
+			novaImg.ImageTransparency = t.TextTransparency
+		end)
+		novaImg.ImageTransparency = t.TextTransparency
+		img = novaImg
+	end
+	local i = img :: ImageLabel
+	i.Image = imagem or ""
+	i.Visible = imagem ~= nil
+	return i
+end
 
 -- Ícone de cada coisa do Config (classes, treinos, atributos) pelo id
 E.ICONE_DE = {
@@ -168,6 +213,84 @@ function E.volume(o: Instance, forca: number?)
 	})
 end
 
+-- "Bala": degradê com brilho em cima e uma borda escura embaixo (o botão parece
+-- ter espessura, como um botão de verdade). Respeita os cantos arredondados.
+function E.bala(o: Instance)
+	local velho = o:FindFirstChild("Volume")
+	if velho then
+		velho:Destroy()
+	end
+	return novo("UIGradient", o, {
+		Name = "Volume",
+		Rotation = 90,
+		Color = ColorSequence.new({
+			ColorSequenceKeypoint.new(0, Color3.new(1, 1, 1)),
+			ColorSequenceKeypoint.new(0.45, Color3.fromRGB(236, 236, 236)),
+			ColorSequenceKeypoint.new(0.8, Color3.fromRGB(214, 214, 214)),
+			ColorSequenceKeypoint.new(0.83, Color3.fromRGB(150, 150, 150)),
+			ColorSequenceKeypoint.new(1, Color3.fromRGB(140, 140, 140)),
+		}),
+	})
+end
+
+-- Sombra dura (estilo adesivo/anime): cópia escura do contorno, um pouco para baixo
+function E.sombra(o: GuiObject, dist: number?, raio: number?)
+	if o.ZIndex <= 0 or o:FindFirstChild("Sombra") then
+		return nil
+	end
+	local d = dist or 4
+	local sb = novo("Frame", o, {
+		Name = "Sombra",
+		Position = UDim2.fromOffset(d - 3, d - 1),
+		Size = UDim2.new(1, 6, 1, 4),
+		BackgroundColor3 = Color3.new(0, 0, 0),
+		BackgroundTransparency = 0.55,
+		BorderSizePixel = 0,
+		ZIndex = o.ZIndex - 1,
+	})
+	local c = o:FindFirstChildOfClass("UICorner")
+	E.canto(sb, raio or (c and c.CornerRadius.Offset + 2) or 12)
+	return sb
+end
+
+-- Faixa de título dourada que sai do canto de cima à esquerda (janelas)
+function E.faixaTitulo(pai: Instance, texto: string, largura: number?): (Frame, TextLabel)
+	local fita = novo("Frame", pai, {
+		Name = "FaixaTitulo",
+		Position = UDim2.fromOffset(-10, -14),
+		Size = UDim2.fromOffset(largura or 230, 44),
+		Rotation = -2,
+		BackgroundColor3 = C.ouro,
+		BorderSizePixel = 0,
+		ZIndex = 8,
+	})
+	E.canto(fita, 8)
+	E.traco(fita, C.tinta, 3)
+	novo("UIGradient", fita, {
+		Name = "Volume",
+		Rotation = 90,
+		Color = ColorSequence.new({
+			ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 244, 196)),
+			ColorSequenceKeypoint.new(0.5, Color3.fromRGB(255, 214, 110)),
+			ColorSequenceKeypoint.new(0.8, Color3.fromRGB(240, 176, 60)),
+			ColorSequenceKeypoint.new(0.83, Color3.fromRGB(190, 124, 36)),
+			ColorSequenceKeypoint.new(1, Color3.fromRGB(180, 116, 32)),
+		}),
+	})
+	E.sombra(fita, 4)
+	local t = E.titulo(fita, {
+		Position = UDim2.fromOffset(14, -2),
+		Size = UDim2.new(1, -24, 1, 0),
+		Text = texto,
+		TextSize = 24,
+		TextColor3 = C.papel,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		ZIndex = 9,
+	})
+	E.tracoTexto(t, 2.5)
+	return fita, t
+end
+
 -- Ícone: ImageLabel de um dos ícones acima (ou de uma imagem qualquer)
 function E.icone(pai: Instance, nome: string, props: { [string]: any }?): ImageLabel
 	local img = novo("ImageLabel", pai, {
@@ -218,7 +341,15 @@ function E.painel(pai: Instance, props: { [string]: any }?, semFilete: boolean?)
 	end
 	E.canto(f, 10)
 	E.traco(f, C.tinta, 3)
-	E.volume(f, 0.22)
+	novo("UIGradient", f, {
+		Name = "Volume",
+		Rotation = 90,
+		Color = ColorSequence.new(Color3.new(1, 1, 1), Color3.fromRGB(150, 150, 165)),
+	})
+	if f.BackgroundColor3 == C.painel then
+		f.BackgroundColor3 = C.painelTopo
+	end
+	E.sombra(f, 5)
 	if not semFilete then
 		local fil = novo("Frame", f, {
 			Name = "Filete",
@@ -342,7 +473,7 @@ function E.botao(pai: Instance, props: { [string]: any }?, tipo: string?): TextB
 	end
 	E.canto(b, 8)
 	E.traco(b, C.tinta, 2.5)
-	E.volume(b, 0.2)
+	E.bala(b)
 	E.tracoTexto(b, 1.5)
 	E.pintarBotao(b, props and props.BackgroundColor3 or cores.fundo, cores.texto)
 	E.ligarEstados(b)
@@ -509,7 +640,7 @@ function E.fechar(pai: Instance, props: { [string]: any }?): TextButton
 	end
 	E.canto(b, 999)
 	E.traco(b, C.tinta, 2.5)
-	E.volume(b, 0.2)
+	E.bala(b)
 	E.pintarBotao(b, C.sakura)
 	for _, rot in ipairs({ 45, -45 }) do
 		local r = novo("Frame", b, {
@@ -519,6 +650,7 @@ function E.fechar(pai: Instance, props: { [string]: any }?): TextButton
 			Rotation = rot,
 			BackgroundColor3 = C.papel,
 			BorderSizePixel = 0,
+			ZIndex = b.ZIndex + 1,
 		})
 		E.canto(r, 2)
 	end

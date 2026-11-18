@@ -140,7 +140,7 @@ contorno(faixa, COR.borda, 3)
 rotulo(faixa, {
 	Position = UDim2.fromOffset(24, 0),
 	Size = UDim2.new(1, -24, 1, 0),
-	Text = "✒ GRAVAÇÃO",
+	Text = "GRAVAÇÃO",
 	TextSize = 22,
 	TextXAlignment = Enum.TextXAlignment.Left,
 	ZIndex = 3,
@@ -284,7 +284,7 @@ local function desenhar()
 	local r, ri = raridadeDe(it.raridade)
 	nomeItem.Text = it.nome .. "  ·  Nv " .. (it.nivel or 1)
 	nomeItem.TextColor3 = r.cor
-	recursos.Text = string.format("📜 %d pergaminho(s)    🪙 %d ouro", estado.pergaminhos or 0, estado.ouro or 0)
+	recursos.Text = string.format("%d pergaminho(s)    %d ouro", estado.pergaminhos or 0, estado.ouro or 0)
 	local grav = it.gravacoes or {}
 	for i, l in ipairs(linhas) do
 		local g = grav[i]
@@ -300,7 +300,7 @@ local function desenhar()
 			l.borda.Color = q.cor
 			l.card.BackgroundColor3 = q.cor:Lerp(COR.painel, 0.75)
 		else
-			l.texto.Text = liberada and "Linha vazia" or "🔒 Grave a linha 壱 antes"
+			l.texto.Text = liberada and "Linha vazia" or "Trancada: grave a linha 壱 antes"
 			l.texto.TextColor3 = COR.fraco
 			l.qual.Text = liberada and "Grave para sortear um atributo" or ""
 			l.qual.TextColor3 = COR.fraco
@@ -309,7 +309,7 @@ local function desenhar()
 		end
 		local pode = liberada and (estado.ouro or 0) >= custoOuro and (estado.pergaminhos or 0) >= custoPerg
 		l.botao.Visible = liberada
-		l.botao.Text = (g and "↻ REGRAVAR" or "✒ GRAVAR") .. "\n🪙 " .. custoOuro .. "  📜 " .. custoPerg
+		l.botao.Text = (g and "REGRAVAR" or "GRAVAR") .. "\n" .. custoOuro .. " ouro · " .. custoPerg .. " perg."
 		l.botao.BackgroundColor3 = pode and (g and Color3.fromRGB(150, 70, 230) or Color3.fromRGB(56, 118, 255))
 			or Color3.fromRGB(78, 74, 108)
 		l.botao.TextTransparency = pode and 0 or 0.35
@@ -391,7 +391,7 @@ evAviso.OnClientEvent:Connect(function(tipo, id, linha, _atributo, _valor, quali
 			AnchorPoint = Vector2.new(0.5, 0.5),
 			Position = UDim2.fromScale(0.5, 0.5),
 			Size = UDim2.fromOffset(360, 70),
-			Text = (idx == 5 and "★ LENDÁRIA! ★" or "PERFEITA!"),
+			Text = (idx == 5 and "LENDÁRIA!" or "PERFEITA!"),
 			TextColor3 = q.cor,
 			TextSize = 44,
 			Rotation = -8,

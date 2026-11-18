@@ -21,20 +21,22 @@ local estado = nil
 ------------------------------------------------------------------------
 -- Cores e ajudantes (estilo do Hud)
 ------------------------------------------------------------------------
+-- (cores e fontes vêm do EstiloUI, a linguagem visual do jogo)
+local E = require(Shared:WaitForChild("EstiloUI"))
 local COR = {
-	painel = Color3.fromRGB(32, 25, 22),
-	painel2 = Color3.fromRGB(52, 39, 31),
-	borda = Color3.fromRGB(110, 78, 48),
-	dourado = Color3.fromRGB(222, 178, 96),
-	texto = Color3.fromRGB(255, 246, 228),
-	fraco = Color3.fromRGB(200, 178, 145),
-	faixa = Color3.fromRGB(150, 34, 30),
-	vermelho = Color3.fromRGB(205, 52, 46),
-	madeira = Color3.fromRGB(104, 60, 34),
-	ouro = Color3.fromRGB(255, 208, 72),
+	painel = E.cor.painel,
+	painel2 = E.cor.painelClaro,
+	borda = E.cor.tinta,
+	dourado = E.cor.ouro,
+	texto = E.cor.papel,
+	fraco = E.cor.papelFraco,
+	faixa = E.cor.painelFundo,
+	vermelho = E.cor.sakura,
+	madeira = E.cor.painelClaro,
+	ouro = E.cor.ouro,
 }
-local FONTE = Enum.Font.FredokaOne
-local FONTE_TEXTO = Enum.Font.GothamMedium
+local FONTE = E.fonteTitulo
+local FONTE_TEXTO = E.fonteTexto
 
 local function novo(classe, pai, props)
 	local o = Instance.new(classe)
@@ -157,7 +159,7 @@ end)
 local titulo = rotulo(topo, {
 	Position = UDim2.fromOffset(68, 6),
 	Size = UDim2.new(1, -130, 0, 26),
-	Text = "📊 Ficha do Herói",
+	Text = "Ficha do Herói",
 	TextSize = 22,
 	TextColor3 = Color3.fromRGB(255, 225, 140),
 	TextXAlignment = Enum.TextXAlignment.Left,
@@ -221,10 +223,15 @@ local function secao(pai, ordem, icone, nomeSecao, cor, itens)
 	})
 	canto(cab, 10)
 	degrade(cab, Color3.new(1, 1, 1), Color3.fromRGB(140, 130, 130))
+	E.icone(cab, icone, {
+		AnchorPoint = Vector2.new(0, 0.5),
+		Position = UDim2.new(0, 6, 0.5, 0),
+		Size = UDim2.fromOffset(26, 26),
+	})
 	rotulo(cab, {
-		Position = UDim2.fromOffset(10, 0),
-		Size = UDim2.new(1, -20, 1, 0),
-		Text = icone .. "  " .. nomeSecao,
+		Position = UDim2.fromOffset(38, 0),
+		Size = UDim2.new(1, -46, 1, 0),
+		Text = nomeSecao,
 		TextSize = 16,
 		TextXAlignment = Enum.TextXAlignment.Left,
 		TextStrokeTransparency = 0,
@@ -236,12 +243,15 @@ local function secao(pai, ordem, icone, nomeSecao, cor, itens)
 			BackgroundColor3 = Color3.new(0, 0, 0),
 			BackgroundTransparency = i % 2 == 0 and 0.85 or 1,
 		})
-		rotulo(l, {
-			Position = UDim2.fromOffset(8, 0),
-			Size = UDim2.fromOffset(22, 22),
-			Text = it.icone,
-			TextSize = 14,
+		local marca = novo("Frame", l, {
+			AnchorPoint = Vector2.new(0.5, 0.5),
+			Position = UDim2.fromOffset(19, 11),
+			Size = UDim2.fromOffset(8, 8),
+			Rotation = 45,
+			BackgroundColor3 = it.cor or COR.fraco,
+			BorderSizePixel = 0,
 		})
+		contorno(marca, E.cor.tinta, 1)
 		rotulo(l, {
 			Position = UDim2.fromOffset(32, 0),
 			Size = UDim2.new(0.62, -32, 1, 0),
@@ -272,44 +282,44 @@ local EL = Hab.Elementos
 local function desenharSecoes(corpo, umaColuna)
 	local colEsq = coluna(corpo, 0, umaColuna and 1 or 0.5)
 	local colDir = umaColuna and colEsq or coluna(corpo, 0.5, 0.5)
-	secao(colEsq, 1, "⚔️", "Ataque", Color3.fromRGB(215, 80, 60), {
-		{ id = "dano", icone = "🗡️", nome = "Dano", cor = Color3.fromRGB(255, 150, 120) },
-		{ id = "danoPct", icone = "📊", nome = "Bônus de dano", cor = Color3.fromRGB(255, 150, 120) },
-		{ id = "danoBasico", icone = "👊", nome = "Dano do ataque básico" },
-		{ id = "aps", icone = "⚡", nome = "Ataques por segundo" },
-		{ id = "velAtaque", icone = "💨", nome = "Velocidade de ataque bônus" },
-		{ id = "critico", icone = "🎯", nome = "Chance de crítico", cor = COR.ouro },
-		{ id = "multCritico", icone = "💥", nome = "Dano crítico", cor = COR.ouro },
-		{ id = "dps", icone = "📈", nome = "Dano por segundo (básico)", cor = Color3.fromRGB(255, 200, 120) },
-		{ id = "alcance", icone = "🏹", nome = "Alcance" },
-		{ id = "danoChefe", icone = "👹", nome = "Dano contra chefes", cor = Color3.fromRGB(220, 130, 255) },
+	secao(colEsq, 1, "espada", "Ataque", Color3.fromRGB(215, 80, 60), {
+		{ id = "dano", icone = "", nome = "Dano", cor = Color3.fromRGB(255, 150, 120) },
+		{ id = "danoPct", icone = "", nome = "Bônus de dano", cor = Color3.fromRGB(255, 150, 120) },
+		{ id = "danoBasico", icone = "", nome = "Dano do ataque básico" },
+		{ id = "aps", icone = "", nome = "Ataques por segundo" },
+		{ id = "velAtaque", icone = "", nome = "Velocidade de ataque bônus" },
+		{ id = "critico", icone = "", nome = "Chance de crítico", cor = COR.ouro },
+		{ id = "multCritico", icone = "", nome = "Dano crítico", cor = COR.ouro },
+		{ id = "dps", icone = "", nome = "Dano por segundo (básico)", cor = Color3.fromRGB(255, 200, 120) },
+		{ id = "alcance", icone = "", nome = "Alcance" },
+		{ id = "danoChefe", icone = "", nome = "Dano contra chefes", cor = Color3.fromRGB(220, 130, 255) },
 	})
-	secao(colEsq, 2, "🛡️", "Defesa", Color3.fromRGB(80, 140, 220), {
-		{ id = "vida", icone = "❤️", nome = "Vida máxima", cor = Color3.fromRGB(255, 110, 110) },
-		{ id = "regen", icone = "💚", nome = "Regeneração (fora de combate)", cor = Color3.fromRGB(120, 230, 140) },
-		{ id = "armadura", icone = "🛡️", nome = "Armadura", cor = Color3.fromRGB(150, 200, 255) },
-		{ id = "reducao", icone = "🧱", nome = "Dano reduzido (fase atual)", cor = Color3.fromRGB(150, 200, 255) },
-		{ id = "resFogo", icone = "🔥", nome = "Resistência a fogo", cor = EL.fogo.cor },
-		{ id = "resGelo", icone = "❄️", nome = "Resistência a gelo", cor = EL.gelo.cor },
-		{ id = "resRaio", icone = "⚡", nome = "Resistência a raio", cor = EL.raio.cor },
-		{ id = "resVeneno", icone = "☠️", nome = "Resistência a veneno", cor = Color3.fromRGB(150, 230, 90) },
+	secao(colEsq, 2, "vida", "Defesa", Color3.fromRGB(80, 140, 220), {
+		{ id = "vida", icone = "", nome = "Vida máxima", cor = Color3.fromRGB(255, 110, 110) },
+		{ id = "regen", icone = "", nome = "Regeneração (fora de combate)", cor = Color3.fromRGB(120, 230, 140) },
+		{ id = "armadura", icone = "", nome = "Armadura", cor = Color3.fromRGB(150, 200, 255) },
+		{ id = "reducao", icone = "", nome = "Dano reduzido (fase atual)", cor = Color3.fromRGB(150, 200, 255) },
+		{ id = "resFogo", icone = "", nome = "Resistência a fogo", cor = EL.fogo.cor },
+		{ id = "resGelo", icone = "", nome = "Resistência a gelo", cor = EL.gelo.cor },
+		{ id = "resRaio", icone = "", nome = "Resistência a raio", cor = EL.raio.cor },
+		{ id = "resVeneno", icone = "", nome = "Resistência a veneno", cor = Color3.fromRGB(150, 230, 90) },
 	})
-	secao(colDir, umaColuna and 3 or 1, "✨", "Magia", EL.arcano.cor, {
-		{ id = "poder", icone = "🔮", nome = "Poder mágico", cor = EL.arcano.cor },
-		{ id = "elemFogo", icone = "🔥", nome = "Dano de fogo", cor = EL.fogo.cor },
-		{ id = "elemGelo", icone = "❄️", nome = "Dano de gelo", cor = EL.gelo.cor },
-		{ id = "elemRaio", icone = "⚡", nome = "Dano de raio", cor = EL.raio.cor },
-		{ id = "recarga", icone = "⏳", nome = "Recarga das magias", cor = Color3.fromRGB(170, 230, 255) },
-		{ id = "critMagia", icone = "🎯", nome = "Crítico das magias", cor = COR.ouro },
-		{ id = "eco", icone = "🔁", nome = "Chance de eco", cor = EL.arcano.cor },
-		{ id = "pontos", icone = "⭐", nome = "Pontos de habilidade livres", cor = COR.ouro },
+	secao(colDir, umaColuna and 3 or 1, "livroMagico", "Magia", EL.arcano.cor, {
+		{ id = "poder", icone = "", nome = "Poder mágico", cor = EL.arcano.cor },
+		{ id = "elemFogo", icone = "", nome = "Dano de fogo", cor = EL.fogo.cor },
+		{ id = "elemGelo", icone = "", nome = "Dano de gelo", cor = EL.gelo.cor },
+		{ id = "elemRaio", icone = "", nome = "Dano de raio", cor = EL.raio.cor },
+		{ id = "recarga", icone = "", nome = "Recarga das magias", cor = Color3.fromRGB(170, 230, 255) },
+		{ id = "critMagia", icone = "", nome = "Crítico das magias", cor = COR.ouro },
+		{ id = "eco", icone = "", nome = "Chance de eco", cor = EL.arcano.cor },
+		{ id = "pontos", icone = "", nome = "Pontos de habilidade livres", cor = COR.ouro },
 	})
-	secao(colDir, umaColuna and 4 or 2, "💰", "Aventura", Color3.fromRGB(200, 160, 60), {
-		{ id = "velocidade", icone = "👟", nome = "Velocidade de movimento" },
-		{ id = "ouro", icone = "💰", nome = "Ouro extra", cor = COR.ouro },
-		{ id = "xp", icone = "📘", nome = "XP extra", cor = Color3.fromRGB(90, 210, 255) },
-		{ id = "nivel", icone = "🏅", nome = "Nível", cor = COR.ouro },
-		{ id = "fase", icone = "🗺️", nome = "Fase atual" },
+	secao(colDir, umaColuna and 4 or 2, "moedas", "Aventura", Color3.fromRGB(200, 160, 60), {
+		{ id = "velocidade", icone = "", nome = "Velocidade de movimento" },
+		{ id = "ouro", icone = "", nome = "Ouro extra", cor = COR.ouro },
+		{ id = "xp", icone = "", nome = "XP extra", cor = Color3.fromRGB(90, 210, 255) },
+		{ id = "nivel", icone = "", nome = "Nível", cor = COR.ouro },
+		{ id = "fase", icone = "", nome = "Fase atual" },
 	})
 end
 
@@ -347,8 +357,8 @@ local function atualizar()
 	end
 	local s = estado.stats
 	local classe = Config.ClassePorId(estado.classe)
-	local nomeClasse = classe and (classe.icone .. " " .. classe.nome) or "Sem classe"
-	titulo.Text = "📊 " .. player.DisplayName
+	local nomeClasse = classe and classe.nome or "Sem classe"
+	titulo.Text = player.DisplayName
 	subtitulo.Text = nomeClasse .. "  ·  Nível " .. (estado.nivel or 1)
 
 	-- Ataque
@@ -512,28 +522,40 @@ task.spawn(function()
 	local b = novo("TextButton", cartao, {
 		Name = "BotaoFicha",
 		AnchorPoint = Vector2.new(0, 0.5),
-		Position = UDim2.new(1, 8, 0.5, 0),
-		Size = UDim2.fromOffset(38, 38),
-		BackgroundColor3 = COR.madeira,
-		Text = "📊",
-		TextSize = 20,
-		Font = FONTE,
-		TextColor3 = COR.texto,
+		Position = UDim2.new(1, 10, 0.5, -4),
+		Size = UDim2.fromOffset(48, 48),
+		BackgroundColor3 = E.cor.ceu,
+		Text = "",
+		AutoButtonColor = false,
 		ZIndex = 5,
 	})
-	canto(b, 19)
-	contorno(b, COR.dourado, 2)
-	degrade(b, Color3.new(1, 1, 1), Color3.fromRGB(150, 130, 120))
-	rotulo(b, {
-		AnchorPoint = Vector2.new(0.5, 0),
-		Position = UDim2.new(0.5, 0, 1, -2),
-		Size = UDim2.fromOffset(50, 14),
-		Text = "Ficha",
-		TextSize = 11,
-		TextColor3 = Color3.fromRGB(255, 225, 150),
-		TextStrokeTransparency = 0.1,
+	canto(b, 12)
+	contorno(b, E.cor.tinta, 3)
+	E.bala(b)
+	E.sombra(b, 4)
+	E.ligarEstados(b)
+	E.icone(b, "ficha", {
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.fromScale(0.5, 0.4),
+		Size = UDim2.fromOffset(38, 38),
 		ZIndex = 6,
 	})
+	local placa = novo("Frame", b, {
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.new(0.5, 0, 1, -3),
+		Size = UDim2.fromOffset(50, 16),
+		BackgroundColor3 = E.cor.tinta,
+		BorderSizePixel = 0,
+		ZIndex = 7,
+	})
+	canto(placa, 999)
+	E.titulo(placa, {
+		Size = UDim2.fromScale(1, 1),
+		Text = "Ficha",
+		TextSize = 12,
+		ZIndex = 8,
+	}).ContornoTexto.Enabled =
+		false
 	b.Activated:Connect(function()
 		if gui.Enabled then
 			fecharFicha()
