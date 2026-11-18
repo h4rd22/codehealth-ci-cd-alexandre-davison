@@ -475,7 +475,7 @@ local AJUSTES = {
 	recrutaKatsuki = { escala = 1.05, cor = Color3.fromRGB(220, 60, 70) },
 	itachu = { escala = 1.1, cor = Color3.fromRGB(230, 50, 60), elite = true },
 	caminhoPen = { escala = 1.15, cor = Color3.fromRGB(240, 140, 60), elite = true },
-	pen = { escala = 2, cor = Color3.fromRGB(190, 90, 255), aura = Color3.fromRGB(180, 90, 255) },
+	pen = { escala = 1.6, cor = Color3.fromRGB(190, 90, 255), aura = Color3.fromRGB(180, 90, 255) },
 }
 
 local function aura(raiz, cor)

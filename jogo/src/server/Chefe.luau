@@ -17,8 +17,7 @@ local VERMELHO = Color3.fromRGB(255, 60, 70)
 local XZ = Vector3.new(1, 0, 1)
 
 local ALTURA_ENTRADA = 22 -- de onde ele desce na entrada
-local ALTURA_FLUTUAR = 1.2
-local VELOCIDADE = 7 -- studs por segundo indo atrás do herói
+local VELOCIDADE = 5 -- studs por segundo indo atrás do herói (passo pesado)
 local DISTANCIA_IDEAL = 9 -- para de chegar perto a essa distância
 
 local function peca(props)
@@ -86,8 +85,9 @@ function Chefe.iniciar(m, ctx)
 	end
 	frente0 = frente0.Unit
 	local rMax = ctx.raioTeleporte or 14
-	local alturaExtra = 0
-	local alturaAtual = ALTURA_ENTRADA
+	local alturaQueda = ALTURA_ENTRADA -- cai do céu e depois fica sempre com os pés no chão
+	local velQueda = 0
+	local pousou = false
 	local angAtual = 0
 	local ocupado = true -- parado (entrada e habilidades); senão vai atrás do herói
 	local movendo = false
@@ -124,14 +124,26 @@ function Chefe.iniciar(m, ctx)
 		end
 		local dif = (angAlvo - angAtual + math.pi) % (2 * math.pi) - math.pi
 		angAtual += dif * math.min(1, dt * 5)
-		local alvoAltura = ALTURA_FLUTUAR + alturaExtra
-		alturaAtual += (alvoAltura - alturaAtual) * math.min(1, dt * (alturaAtual > alvoAltura + 3 and 5 or 3))
-		m:PivotTo(CFrame.new(base + Vector3.new(0, alturaAtual, 0)) * CFrame.Angles(0, -angAtual, 0) * rot0)
+		-- queda da entrada com gravidade (pouso pesado)
+		if alturaQueda > 0 then
+			velQueda += 70 * dt
+			alturaQueda = math.max(0, alturaQueda - velQueda * dt)
+			if alturaQueda == 0 and not pousou then
+				pousou = true
+				pose("pouso")
+			end
+		end
+		-- pés no chão: mede onde fica a sola e encosta no chão da arena
+		local giro = CFrame.Angles(0, -angAtual, 0) * rot0
+		m:PivotTo(CFrame.new(base) * giro)
+		local caixa, tam = m:GetBoundingBox()
+		local sola = caixa.Position.Y - tam.Y / 2
+		m:PivotTo(CFrame.new(base + Vector3.new(0, ctx.chao - sola + alturaQueda, 0)) * giro)
 	end)
 
 	-- Entrada: desce do céu, um raio roxo cai onde ele pousa e ele ruge
 	pose("entrada")
-	task.delay(0.55, function()
+	task.delay(0.75, function()
 		if not ctx.vivo() then
 			return
 		end
@@ -155,7 +167,7 @@ function Chefe.iniciar(m, ctx)
 	end)
 
 	task.spawn(function()
-		task.wait(1.1) -- espera ele pousar
+		task.wait(1.4) -- espera ele pousar
 		if not ctx.vivo() then
 			return
 		end
@@ -179,7 +191,6 @@ function Chefe.iniciar(m, ctx)
 				Size = Vector3.new(0.15, raio * 2, raio * 2),
 				Transparency = 0.35,
 			}):Play()
-			alturaExtra = 2.5
 			task.wait(1.4)
 			if not ctx.vivo() then
 				aviso:Destroy()
@@ -210,7 +221,6 @@ function Chefe.iniciar(m, ctx)
 					ctx.empurrar(dir.Magnitude > 0.1 and dir.Unit or Vector3.new(0, 0, 1), 85)
 				end
 			end
-			alturaExtra = 0
 		end
 
 		-- 2) Esferas Negras

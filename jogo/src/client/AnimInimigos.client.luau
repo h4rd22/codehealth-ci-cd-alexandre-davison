@@ -98,7 +98,7 @@ P.rugido = clipe({
 	{
 		0.25,
 		{ raiz = { 18, 0, 0 }, ombroD = { 30, 0, 115 }, ombroE = { 30, 0, -115 }, pescoco = { 35, 0, 0 } },
-		"volta",
+		"sai",
 	},
 	{
 		1.3,
@@ -150,7 +150,7 @@ P.esferas = clipe({
 local CEU = { ombroD = { 175, 0, 20 }, ombroE = { 175, 0, -20 }, pescoco = { 35, 0, 0 }, raiz = { 10, 0, 0 } }
 P.pregos = clipe({
 	{ 0, {} },
-	{ 0.3, CEU, "volta" },
+	{ 0.3, CEU, "sai" },
 	{ 0.6, { ombroD = { 178, 0, 22 }, ombroE = { 172, 0, -18 }, pescoco = { 38, 0, 0 }, raiz = { 11, 0, 0 } } },
 	{ 0.9, { ombroD = { 172, 0, 18 }, ombroE = { 178, 0, -22 }, pescoco = { 35, 0, 0 }, raiz = { 10, 0, 0 } } },
 	{ 1.4, CEU, "linear" },
@@ -165,6 +165,53 @@ P.pregosSolta = clipe({
 	},
 	{ 0.5, { ombroD = { 55, 0, 15 }, ombroE = { 55, 0, -15 }, raiz = { -22, 0, 0 } }, "linear" },
 	{ 0.85, {}, "suave" },
+})
+P.pouso = clipe({
+	{
+		0,
+		{ raiz = { -24, 0, 0, 0, -1.4, 0 }, ombroD = { 30, 0, 50 }, ombroE = { 30, 0, -50 }, pescoco = { -20, 0, 0 } },
+	},
+	{
+		0.35,
+		{ raiz = { -20, 0, 0, 0, -1.1, 0 }, ombroD = { 25, 0, 45 }, ombroE = { 25, 0, -45 }, pescoco = { -18, 0, 0 } },
+		"linear",
+	},
+	{ 0.8, {}, "suave" },
+})
+-- Golpe do chefe: prepara (puxa o braço e inclina para trás) e desce com peso
+P.golpe = clipe({
+	{ 0, {} },
+	{
+		0.35,
+		{
+			raiz = { 12, -22, 0, 0, 0.25, 0.6 },
+			ombroD = { 165, 0, 30 },
+			ombroE = { 40, 0, -30 },
+			pescoco = { 10, 0, 0 },
+		},
+		"sai",
+	},
+	{
+		0.47,
+		{
+			raiz = { -22, 15, 0, 0, -0.6, -1.4 },
+			ombroD = { 40, 0, -20 },
+			ombroE = { -20, 0, -25 },
+			pescoco = { -15, 0, 0 },
+		},
+		"entra",
+	},
+	{
+		0.7,
+		{
+			raiz = { -20, 14, 0, 0, -0.55, -1.3 },
+			ombroD = { 38, 0, -20 },
+			ombroE = { -18, 0, -25 },
+			pescoco = { -14, 0, 0 },
+		},
+		"linear",
+	},
+	{ 1.1, {}, "suave" },
 })
 P.sumir = clipe({
 	{ 0, {} },
@@ -185,7 +232,7 @@ P.surgir = clipe({
 	{
 		0.25,
 		{ raiz = { 12, 0, 0, 0, 0.3, 0 }, ombroD = { 30, 0, 90 }, ombroE = { 30, 0, -90 }, pescoco = { 15, 0, 0 } },
-		"volta",
+		"sai",
 	},
 	{ 0.7, {}, "suave" },
 })
@@ -213,19 +260,48 @@ local function ameaca(t)
 	})
 end
 
--- Pen flutuando (balanço suave, pernas soltas, olhar de cima); inclina quando anda
-local function flutuarPen(m)
+-- Pen: respira firme parado e anda pesado (sem balanço mole)
+local function corpoChefe(m)
+	local ultimoPasso = 0
 	return function(t)
 		local andando = m:GetAttribute("Movendo") == true
-		local s = math.sin(t * 1.8)
-		local incl = andando and -14 or 0
+		local resp = math.sin(t * 1.6)
+		if not andando then
+			return Animacoes.pose({
+				raiz = { 3 + resp * 1.2, 0, 0, 0, resp * 0.03, 0 },
+				tronco = { resp * 1.5, 0, 0 },
+				pescoco = { -8, 0, 0 },
+				ombroD = { 6, 0, 12 + resp * 1.5 },
+				ombroE = { 6, 0, -12 - resp * 1.5 },
+			})
+		end
+		-- passo: perna vai e volta devagar; o corpo afunda a cada pisada
+		local fase = t * math.pi * 2 * 0.9
+		local s = math.sin(fase)
+		local pisada = math.abs(math.cos(fase))
+		local passo = math.floor(fase / math.pi)
+		if passo ~= ultimoPasso then
+			ultimoPasso = passo
+			local raiz = m.PrimaryPart
+			local char = player.Character
+			local hrp = char and char:FindFirstChild("HumanoidRootPart")
+			if raiz and hrp and (raiz.Position - hrp.Position).Magnitude < 40 then
+				local ok, EM = pcall(require, ReplicatedStorage.Shared:FindFirstChild("EfeitosMagia"))
+				if ok and EM then
+					EM.tremer(0.18, 0.12)
+				end
+				Animacoes.anel(raiz.Position - Vector3.new(0, 4, 0), Color3.fromRGB(150, 120, 170), 4, 0.35, 0.4)
+			end
+		end
 		return Animacoes.pose({
-			raiz = { incl + math.sin(t * 0.9) * 2, 0, math.sin(t * 0.7) * 3, 0, s * 0.35, 0 },
-			pescoco = { -12, math.sin(t * 0.5) * 6, 0 },
-			ombroD = { (andando and -25 or 10) + s * 4, 0, 22 + s * 4 },
-			ombroE = { (andando and -25 or 10) + s * 4, 0, -22 - s * 4 },
-			quadrilD = { -8 + math.sin(t * 1.8 + 0.6) * 6, 0, 4 },
-			quadrilE = { 6 + math.sin(t * 1.8 + 1.4) * 6, 0, -4 },
+			raiz = { -7, s * 4, s * 2.5, 0, -(1 - pisada) * 0.25, 0 },
+			pescoco = { -6, -s * 3, 0 },
+			quadrilD = { s * 28, 0, 0 },
+			quadrilE = { -s * 28, 0, 0 },
+			joelhoD = { math.max(0, -s) * 35, 0, 0 },
+			joelhoE = { math.max(0, s) * 35, 0, 0 },
+			ombroD = { -s * 16, 0, 12 },
+			ombroE = { s * 16, 0, -12 },
 		})
 	end
 end
@@ -559,7 +635,7 @@ local function apanhou(m, chefe, forte)
 			},
 			"sai",
 		},
-		{ 0.32, {}, "volta" },
+		{ 0.32, {}, chefe and "suave" or "volta" },
 	})
 	Animacoes.tocar(m, cl, "apanhou")
 	-- impacto pronto (estilo anime) no peito do inimigo
@@ -596,6 +672,21 @@ local function poseChefe(m, valor)
 		Animacoes.brilhos(pos, ROXO, 50, 30)
 	elseif nome == "repulsao" then
 		Animacoes.brilhos(pos, ROXO, 20, 6)
+	elseif nome == "pouso" then
+		-- pouso pesado: chão racha em anéis, poeira e tremida forte
+		local chao = pos - Vector3.new(0, 4, 0)
+		for i = 0, 2 do
+			task.delay(i * 0.08, function()
+				Animacoes.anel(chao, i == 0 and BRANCO or ROXO, 14 + i * 7, 0.5, 1.5)
+			end)
+		end
+		VFX.estouro("Golpes/GiganticCrush", chao + Vector3.new(0, 1, 0), { escala = 2, cor = ROXO })
+		Animacoes.brilhos(chao, Color3.fromRGB(160, 140, 170), 40, 26)
+		local ok, EM = pcall(require, ReplicatedStorage.Shared:FindFirstChild("EfeitosMagia"))
+		if ok and EM then
+			EM.tremer(1.6, 0.5)
+			EM.flash(Color3.fromRGB(220, 190, 255), 0.3, 0.35)
+		end
 	elseif nome == "repulsaoSolta" then
 		VFX.estouro("Golpes/GiganticCrush", pos, { escala = 2.5, cor = ROXO })
 		Animacoes.clarao(pos, BRANCO, 10, 0.3, 40)
@@ -662,7 +753,23 @@ local function ligar(m)
 		elseif not temRig then
 			return
 		elseif atributo == "Ataque" then
-			Animacoes.tocar(m, C.ataque, "ataque", m:GetAttribute("Chefe") and 0.6 or 1)
+			if m:GetAttribute("Chefe") then
+				Animacoes.tocar(m, P.golpe, "ataque")
+				task.delay(0.45, function()
+					local raiz = m.PrimaryPart
+					if raiz and not mortos[m] then
+						local frente = raiz.Position + raiz.CFrame.LookVector * 4
+						VFX.estouro("Golpes/GiganticCrush", frente, { escala = 1.4, cor = ROXO })
+						Animacoes.anel(frente - Vector3.new(0, 3.5, 0), ROXO, 10, 0.45, 1.2)
+						local ok, EM = pcall(require, ReplicatedStorage.Shared:FindFirstChild("EfeitosMagia"))
+						if ok and EM then
+							EM.tremer(0.9, 0.25)
+						end
+					end
+				end)
+			else
+				Animacoes.tocar(m, C.ataque, "ataque")
+			end
 		elseif atributo == "Correndo" then
 			if m:GetAttribute("Correndo") then
 				Animacoes.manter(m, "correr", corrida, 10)
@@ -678,7 +785,7 @@ local function ligar(m)
 		return
 	end
 	if chefe then
-		Animacoes.manter(m, "flutuar", flutuarPen(m), 3)
+		Animacoes.manter(m, "corpo", corpoChefe(m), 3)
 		poseChefe(m, m:GetAttribute("Pose"))
 	elseif m:GetAttribute("Elite") then
 		Animacoes.manter(m, "ameaca", ameaca, 3)
