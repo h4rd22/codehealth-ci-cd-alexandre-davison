@@ -2156,7 +2156,39 @@ local KATANA = {
 	"GoldenKatana",
 	"VoidKatana",
 }
+-- Katana realista do Blender (texturas PBR) para a família Comum. A origem é a guarda (tsuba),
+-- a lâmina sobe em +Y: mesmo encaixe da espada desenhada.
+local function katanaRealista(m, ri)
+	if ri > 2 then
+		return false
+	end
+	local k = modeloPronto("katanaComum")
+	if not k then
+		return false
+	end
+	k:PivotTo(CFrame.Angles(0, 0, math.rad(-45)))
+	for _, p in ipairs(k:GetDescendants()) do
+		if p:IsA("BasePart") then
+			p.Anchored = true
+			p.CanCollide = false
+			p.CanQuery = false
+			p.CanTouch = false
+			p.CastShadow = false
+			if p.Name == "katana_lamina" then
+				p.Name = "Nucleo"
+			end
+			p.Parent = m
+		end
+	end
+	k:Destroy()
+	m:SetAttribute("Pomo", (CFrame.Angles(0, 0, math.rad(-45)) * CFrame.new(0, -1.42, 0)).Position)
+	return true
+end
+
 local function espadaPronta(m, ri, cor)
+	if katanaRealista(m, ri) then
+		return
+	end
 	local diagonal = CFrame.Angles(0, 0, math.rad(-45))
 	if montarAnime(m, "katana" .. formaDoTier(ri), 1 + ri * 0.03, diagonal, coresAnime(ri, cor)) then
 		m:SetAttribute("Pomo", (diagonal * CFrame.new(0, -1.42, 0)).Position)
