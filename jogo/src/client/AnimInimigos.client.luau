@@ -182,36 +182,44 @@ P.pouso = clipe({
 P.golpe = clipe({
 	{ 0, {} },
 	{
-		0.35,
+		0.3,
 		{
-			raiz = { 12, -22, 0, 0, 0.25, 0.6 },
-			ombroD = { 165, 0, 30 },
-			ombroE = { 40, 0, -30 },
-			pescoco = { 10, 0, 0 },
+			raiz = { 14, -35, 0, 0, 0.3, 0.8 },
+			tronco = { 6, -20, 0 },
+			ombroD = { 170, 0, 25 },
+			ombroE = { 50, 0, -35 },
+			quadrilD = { -20, 0, 0 },
+			pescoco = { 12, 15, 0 },
 		},
 		"sai",
 	},
 	{
-		0.47,
+		0.42,
 		{
-			raiz = { -22, 15, 0, 0, -0.6, -1.4 },
-			ombroD = { 40, 0, -20 },
-			ombroE = { -20, 0, -25 },
-			pescoco = { -15, 0, 0 },
+			raiz = { -26, 35, 0, 0, -0.7, -2 },
+			tronco = { -10, 25, 0 },
+			ombroD = { 35, 0, -25 },
+			ombroE = { -30, 0, -30 },
+			quadrilD = { 35, 0, 0 },
+			quadrilE = { -20, 0, 0 },
+			pescoco = { -18, -10, 0 },
 		},
 		"entra",
 	},
 	{
-		0.7,
+		0.75,
 		{
-			raiz = { -20, 14, 0, 0, -0.55, -1.3 },
-			ombroD = { 38, 0, -20 },
-			ombroE = { -18, 0, -25 },
-			pescoco = { -14, 0, 0 },
+			raiz = { -24, 33, 0, 0, -0.65, -1.9 },
+			tronco = { -9, 24, 0 },
+			ombroD = { 33, 0, -25 },
+			ombroE = { -28, 0, -30 },
+			quadrilD = { 33, 0, 0 },
+			quadrilE = { -18, 0, 0 },
+			pescoco = { -16, -10, 0 },
 		},
 		"linear",
 	},
-	{ 1.1, {}, "suave" },
+	{ 1.15, {}, "suave" },
 })
 P.sumir = clipe({
 	{ 0, {} },
@@ -295,30 +303,28 @@ end
 -- e anda pesado (pernas, joelhos, quadril, braços balançando ao contrário das pernas)
 local function corpoChefe(m)
 	local ultimoPasso = 0
-	local baixoD, baixoE
+	local corrigido = false
 	return function(t)
-		if not baixoD then
-			baixoD = bracoParaBaixo(m, "ombroD", 1)
-			baixoE = bracoParaBaixo(m, "ombroE", -1)
+		if not corrigido then
+			corrigido = true
+			Animacoes.corrigirRepouso(m, "ombroD", bracoParaBaixo(m, "ombroD", 1))
+			Animacoes.corrigirRepouso(m, "ombroE", bracoParaBaixo(m, "ombroE", -1))
 		end
 		local andando = m:GetAttribute("Movendo") == true
-		local resp = math.sin(t * 1.6)
-		local peso = math.sin(t * 0.55) -- o peso passa de uma perna para a outra devagar
+		local resp = math.sin(t * 1.5)
+		local peso = math.sin(t * 0.5) -- o peso passa de uma perna para a outra devagar
 		if not andando then
-			local p = Animacoes.pose({
-				raiz = { 3 + resp * 1.4, peso * 2, peso * 1.5, 0, resp * 0.04, 0 },
-				tronco = { resp * 2, -peso * 2, 0 },
-				pescoco = { -9 + resp * 1.5, peso * 4, 0 },
-				quadrilD = { 0, 0, 3 + peso * 2 },
-				quadrilE = { 0, 0, -3 + peso * 2 },
-				cotoveloD = { 12 + resp * 3, 0, 0 },
-				cotoveloE = { 12 + resp * 3, 0, 0 },
+			return Animacoes.pose({
+				raiz = { 4 + resp * 3, peso * 6, peso * 3, 0, resp * 0.12, 0 },
+				tronco = { resp * 5, -peso * 5, 0 },
+				pescoco = { -10 + resp * 4, peso * 10, 0 },
+				quadrilD = { -resp * 3, 0, 4 + peso * 4 },
+				quadrilE = { -resp * 3, 0, -4 + peso * 4 },
+				ombroD = { 8 + resp * 7, 0, 6 + resp * 4 },
+				ombroE = { 8 + resp * 7, 0, -6 - resp * 4 },
 			})
-			p.ombroD = baixoD * CFrame.Angles(math.rad(4 + resp * 3), 0, math.rad(resp * 2))
-			p.ombroE = baixoE * CFrame.Angles(math.rad(4 + resp * 3), 0, math.rad(-resp * 2))
-			return p
 		end
-		-- passo: perna vai e volta devagar; o corpo afunda a cada pisada
+		-- passo pesado: perna vai e volta, joelho dobra, o corpo afunda a cada pisada
 		local fase = t * math.pi * 2 * 0.9
 		local s = math.sin(fase)
 		local pisada = math.abs(math.cos(fase))
@@ -331,25 +337,22 @@ local function corpoChefe(m)
 			if raiz and hrp and (raiz.Position - hrp.Position).Magnitude < 40 then
 				local ok, EM = pcall(require, ReplicatedStorage.Shared:FindFirstChild("EfeitosMagia"))
 				if ok and EM then
-					EM.tremer(0.18, 0.12)
+					EM.tremer(0.2, 0.12)
 				end
 				Animacoes.anel(raiz.Position - Vector3.new(0, 4, 0), Color3.fromRGB(150, 120, 170), 4, 0.35, 0.4)
 			end
 		end
-		local p = Animacoes.pose({
-			raiz = { -7, s * 4, s * 2.5, 0, -(1 - pisada) * 0.25, 0 },
-			tronco = { -3, -s * 5, 0 },
-			pescoco = { -6, -s * 3, 0 },
-			quadrilD = { s * 28, 0, 0 },
-			quadrilE = { -s * 28, 0, 0 },
-			joelhoD = { math.max(0, -s) * 35, 0, 0 },
-			joelhoE = { math.max(0, s) * 35, 0, 0 },
-			cotoveloD = { 15 + math.max(0, s) * 15, 0, 0 },
-			cotoveloE = { 15 + math.max(0, -s) * 15, 0, 0 },
+		return Animacoes.pose({
+			raiz = { -9, s * 7, s * 4, 0, -(1 - pisada) * 0.35, 0 },
+			tronco = { -4, -s * 8, 0 },
+			pescoco = { -6, -s * 5, 0 },
+			quadrilD = { s * 34, 0, 0 },
+			quadrilE = { -s * 34, 0, 0 },
+			joelhoD = { math.max(0, -s) * 45, 0, 0 },
+			joelhoE = { math.max(0, s) * 45, 0, 0 },
+			ombroD = { -s * 28, 0, 6 },
+			ombroE = { s * 28, 0, -6 },
 		})
-		p.ombroD = baixoD * CFrame.Angles(math.rad(-s * 22), 0, 0)
-		p.ombroE = baixoE * CFrame.Angles(math.rad(s * 22), 0, 0)
-		return p
 	end
 end
 
@@ -689,7 +692,7 @@ local function apanhou(m, chefe, forte)
 	VFX.estouro(
 		"Golpes/BasicHit",
 		raiz.Position,
-		{ anexo = forte and "AttachmentBig" or "Attachment", escala = chefe and 2 or 1 }
+		{ anexo = forte and "AttachmentBig" or "Attachment", escala = 1, mult = chefe and 0.4 or 1 }
 	)
 end
 
@@ -806,7 +809,7 @@ local function ligar(m)
 					local raiz = m.PrimaryPart
 					if raiz and not mortos[m] then
 						local frente = raiz.Position + raiz.CFrame.LookVector * 4
-						VFX.estouro("Golpes/GiganticCrush", frente, { escala = 1.4, cor = ROXO })
+						VFX.estouro("Golpes/GiganticCrush", frente, { escala = 0.7, cor = ROXO, mult = 0.5 })
 						Animacoes.anel(frente - Vector3.new(0, 3.5, 0), ROXO, 10, 0.45, 1.2)
 						local ok, EM = pcall(require, ReplicatedStorage.Shared:FindFirstChild("EfeitosMagia"))
 						if ok and EM then

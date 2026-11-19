@@ -195,7 +195,7 @@ local function atualizar()
 			if not motor.Parent then
 				continue
 			end
-			local off = soma[j]
+			local off = soma[j] or (j.correcao and CFrame.identity)
 			if j.restricao then
 				-- Juntas novas do Roblox (AnimationConstraint): o C0 não pode ser mudado,
 				-- então mexemos no Transform logo depois da animação do Roblox ser aplicada.
@@ -222,6 +222,7 @@ local function atualizar()
 				local novo = CFrame.new(off.Position * escala)
 					* CFrame.new(base.Position)
 					* off.Rotation
+					* (j.correcao or CFrame.identity)
 					* base.Rotation
 				motor.C0 = novo
 				j.escrito = novo
@@ -317,6 +318,16 @@ end
 function Animacoes.tocando(m, nome)
 	local r = rigs[m]
 	return r ~= nil and r.camadas[nome] ~= nil
+end
+
+-- Corrige a pose de repouso de uma junta (ex.: boneco que veio de braços abertos).
+-- As animações passam a funcionar como se o braço já estivesse solto ao lado do corpo.
+function Animacoes.corrigirRepouso(m, junta, cf)
+	local r = Animacoes.rig(m)
+	local j = r and r.juntas[junta]
+	if j then
+		j.correcao = cf
+	end
 end
 
 function Animacoes.esquecer(m)

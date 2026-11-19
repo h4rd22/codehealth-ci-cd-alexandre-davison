@@ -19,7 +19,7 @@ local XZ = Vector3.new(1, 0, 1)
 
 local ALTURA_ENTRADA = 22 -- de onde ele desce na entrada
 local VELOCIDADE = 5 -- studs por segundo indo atrás do herói (passo pesado)
-local DISTANCIA_IDEAL = 9 -- para de chegar perto a essa distância
+local DISTANCIA_IDEAL = 7 -- distância em que ele rodeia o herói
 
 local function peca(props)
 	local p = Instance.new("Part")
@@ -92,6 +92,11 @@ function Chefe.iniciar(m, ctx)
 	local angAtual = 0
 	local ocupado = true -- parado (entrada e habilidades); senão vai atrás do herói
 	local movendo = false
+	local orbita = math.random() * math.pi * 2
+	local pausaAte = 0
+	m:GetAttributeChangedSignal("Ataque"):Connect(function()
+		pausaAte = os.clock() + 1.1 -- planta os pés para golpear
+	end)
 
 	-- movimento suave a cada quadro: desce do céu, flutua, vira e anda até o herói
 	local con
@@ -109,8 +114,13 @@ function Chefe.iniciar(m, ctx)
 				local u = d.Unit
 				angAlvo = math.atan2(frente0.X * u.Z - frente0.Z * u.X, frente0.X * u.X + frente0.Z * u.Z)
 			end
-			if not ocupado and d.Magnitude > DISTANCIA_IDEAL + 1 then
-				local nova = base + d.Unit * math.min(d.Magnitude - DISTANCIA_IDEAL, VELOCIDADE * dt)
+			-- anda sempre: vai até o herói e fica rodeando devagar (para só ao golpear e nas habilidades)
+			orbita += dt * 0.45
+			local destino = Vector3.new(raiz.Position.X, base.Y, raiz.Position.Z)
+				+ Vector3.new(math.cos(orbita), 0, math.sin(orbita)) * DISTANCIA_IDEAL
+			local ate = (destino - base) * XZ
+			if not ocupado and os.clock() >= pausaAte and ate.Magnitude > 0.8 then
+				local nova = base + ate.Unit * math.min(ate.Magnitude, VELOCIDADE * dt)
 				local rel = (nova - centroLuta) * XZ
 				if rel.Magnitude > rMax then
 					nova = Vector3.new(centroLuta.X, base.Y, centroLuta.Z) + rel.Unit * rMax
