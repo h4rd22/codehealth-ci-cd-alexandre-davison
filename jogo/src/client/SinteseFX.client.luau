@@ -308,24 +308,24 @@ local function cerimonia(d)
 	fundo.BackgroundTransparency = 1
 	tw(fundo, 0.3, { BackgroundTransparency = forte and 0.25 or 0.4 })
 
-	-- 1) os 3 itens chegam de fora
+	-- 1) os itens (6 na síntese) chegam de fora, um atrás do outro, e formam um círculo
+	local N = d.qtd or (d.joiaCor and 3) or ((Config.Forja and Config.Forja.Quantidade) or 6)
 	local cartoes = {}
-	local partidas = {
-		UDim2.new(0.5, -520, 0.5, -160),
-		UDim2.new(0.5, 520, 0.5, -160),
-		UDim2.new(0.5, 0, 0.5, 420),
-	}
-	for i = 1, 3 do
-		local c, esc = cartao(palco, 96, d.corVelha, d.item, d.riVelho, d.joiaCor)
-		c.Position = partidas[i]
+	local angulos = {}
+	local RAIO0 = N > 3 and 190 or 150
+	for i = 1, N do
+		angulos[i] = -90 + (i - 1) * (360 / N)
+		local a = math.rad(angulos[i])
+		local c, esc = cartao(palco, N > 3 and 84 or 96, d.corVelha, d.item, d.riVelho, d.joiaCor)
+		c.Position = CENTRO + UDim2.fromOffset(math.cos(a) * 700, math.sin(a) * 500)
 		c.Rotation = math.random(-40, 40)
 		esc.Scale = 0.6
 		cartoes[i] = { frame = c, esc = esc }
 	end
-	local RAIO0 = 150
-	local angulos = { -90, 30, 150 }
 	for i, cc in ipairs(cartoes) do
 		local a = math.rad(angulos[i])
+		task.wait(0.06)
+		som(SOM_TIQUE, 0.5, 0.7 + i * 0.08)
 		tw(cc.frame, 0.45, {
 			Position = CENTRO + UDim2.fromOffset(math.cos(a) * RAIO0, math.sin(a) * RAIO0),
 			Rotation = 0,
@@ -349,7 +349,8 @@ local function cerimonia(d)
 		Color = ColorSequence.new(BRANCO, d.corVelha),
 		Transparency = NumberSequence.new(0, 0.6),
 	})
-	local DUR = forte and 1.25 or 0.95
+	local DUR = forte and 1.5 or 1.2
+	tw(fundo, DUR, { BackgroundTransparency = forte and 0.05 or 0.15 }) -- a tela escurece durante a antecipação
 	local t0 = os.clock()
 	local proxTique = 0
 	local ang = 0
@@ -373,9 +374,11 @@ local function cerimonia(d)
 			som(SOM_TIQUE, 0.45, 0.8 + t * 1.6)
 			proxTique += 0.12
 		end
-		if t > 0.6 then
-			-- treme a tela de leve antes de explodir
-			palco.Position = UDim2.new(0.5, (math.random() - 0.5) * 8 * t, 0.46, (math.random() - 0.5) * 8 * t)
+		if t > 0.25 then
+			-- tremor que cresce até a explosão
+			local f = (t - 0.25) / 0.75
+			local amp = 4 + f * f * (forte and 22 or 14)
+			palco.Position = UDim2.new(0.5, (math.random() - 0.5) * amp, 0.46, (math.random() - 0.5) * amp)
 		end
 		RunService.RenderStepped:Wait()
 	end
@@ -419,6 +422,24 @@ local function cerimonia(d)
 				Debris:AddItem(caco, 0.95)
 			end
 		end
+	end
+	if super then
+		-- "slow motion": tudo congela por 0,3 s com zoom da câmera antes de estourar
+		local cam = workspace.CurrentCamera
+		local fov0 = cam.FieldOfView
+		tw(cam, 0.3, { FieldOfView = fov0 - 18 }, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+		local brilho = novo("Frame", palco, {
+			AnchorPoint = Vector2.new(0.5, 0.5),
+			Position = CENTRO,
+			Size = UDim2.fromOffset(60, 60),
+			BackgroundColor3 = Color3.fromRGB(255, 230, 120),
+			ZIndex = 9,
+		})
+		canto(brilho, 999)
+		tw(brilho, 0.3, { Size = UDim2.fromOffset(26, 26) }, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
+		esperar(0.3)
+		brilho:Destroy()
+		tw(cam, 0.6, { FieldOfView = fov0 }, Enum.EasingStyle.Back)
 	end
 	local flash = novo("Frame", gui, {
 		Size = UDim2.fromScale(1, 1),
@@ -537,6 +558,35 @@ local function cerimonia(d)
 	})
 	novo("UIStroke", nome, { Color = Color3.fromRGB(20, 10, 24), Thickness = 3 })
 	tw(nome, 0.4, { TextTransparency = 0 })
+	if d.riVelho and d.riNovo and d.riNovo ~= d.riVelho and not d.joiaCor then
+		local tier = novo("TextLabel", palco, {
+			AnchorPoint = Vector2.new(0.5, 0.5),
+			Position = CENTRO + UDim2.fromOffset(0, tam / 2 + 74),
+			Size = UDim2.fromOffset(400, 40),
+			BackgroundTransparency = 1,
+			Text = "TIER " .. d.riVelho,
+			TextColor3 = BRANCO,
+			TextSize = 34,
+			Font = FONTE,
+			ZIndex = 10,
+		})
+		novo("UIStroke", tier, { Color = Color3.fromRGB(20, 10, 24), Thickness = 3 })
+		local escTier = novo("UIScale", tier)
+		task.spawn(function()
+			local passo = d.riNovo > d.riVelho and 1 or -1
+			for v = d.riVelho + passo, d.riNovo, passo do
+				task.wait(0.28)
+				if not tier.Parent then
+					return
+				end
+				tier.Text = "TIER " .. v .. (passo > 0 and " ▲" or " ▼")
+				tier.TextColor3 = passo > 0 and d.cor:Lerp(BRANCO, 0.3) or Color3.fromRGB(230, 80, 80)
+				escTier.Scale = 1.6
+				tw(escTier, 0.25, { Scale = 1 }, Enum.EasingStyle.Back)
+				som(SOM_TIQUE, 0.7, passo > 0 and (1 + v * 0.12) or 0.6)
+			end
+		end)
+	end
 	if d.vezes and d.vezes > 1 then
 		local vezes = novo("TextLabel", palco, {
 			AnchorPoint = Vector2.new(0.5, 0.5),
@@ -572,7 +622,7 @@ local function cerimonia(d)
 	-- confete de estrelas caindo nos raros de verdade
 	if forte then
 		task.spawn(function()
-			for _ = 1, muitoForte and 8 or 4 do
+			for _ = 1, super and 14 or (muitoForte and 8 or 4) do
 				if pular then
 					break
 				end
