@@ -118,6 +118,58 @@ function E.iconeElemento(ramo: string?): string
 	return E.ICONES[E.ICONE_ELEMENTO[ramo or ""] or ""] or E.ICONES.estrela
 end
 
+-- Emblema de cada magia: um kanji próprio, branco com contorno de tinta, em cima
+-- do quadrado na cor do elemento (estilo selo de técnica de anime).
+E.KANJI_MAGIA = {
+	lancaGelo = "槍", -- lança
+	frioCortante = "刃", -- lâmina
+	novaGelo = "凍", -- congelar
+	nevasca = "雪", -- neve
+	correnteRaio = "鎖", -- corrente
+	sobrecarga = "電", -- eletricidade
+	furiaTrovao = "雷", -- trovão
+	tempestade = "嵐", -- tempestade
+	bolaFogo = "火", -- fogo
+	combustao = "燃", -- queimar
+	anelChamas = "輪", -- anel
+	meteoro = "星", -- estrela cadente
+	poderArcano = "力", -- poder
+	menteRapida = "速", -- rapidez
+	ecoArcano = "響", -- eco
+	maestria = "極", -- maestria
+}
+E.KANJI_ELEMENTO = { gelo = "氷", raio = "雷", fogo = "炎", arcano = "魔" }
+
+function E.kanjiDe(h: any): string
+	if not h then
+		return ""
+	end
+	return E.KANJI_MAGIA[h.id] or E.KANJI_ELEMENTO[h.ramo] or "魔"
+end
+
+-- Troca o conteúdo de um TextLabel pelo kanji da magia (h = nil limpa)
+function E.kanjiMagia(t: TextLabel | TextButton, h: any)
+	local img = t:FindFirstChild("Img")
+	if img then
+		(img :: ImageLabel).Visible = false
+	end
+	t.Text = E.kanjiDe(h)
+	t.Font = E.fonteTitulo
+	t.TextScaled = true
+	t.TextColor3 = (h and h.tipo == "suprema") and Color3.fromRGB(255, 236, 170) or C.papel
+	if not t:FindFirstChild("PadKanji") then
+		E.novo("UIPadding", t, {
+			Name = "PadKanji",
+			PaddingTop = UDim.new(0.16, 0),
+			PaddingBottom = UDim.new(0.16, 0),
+			PaddingLeft = UDim.new(0.16, 0),
+			PaddingRight = UDim.new(0.16, 0),
+		})
+	end
+	local s = E.tracoTexto(t, 2.5)
+	s.Enabled = true
+end
+
 -- Põe uma imagem no meio de um TextLabel que antes mostrava um emoji.
 -- imagem = nil esconde. A transparência do texto passa para a imagem.
 function E.imagemNoTexto(t: TextLabel | TextButton, imagem: string?, escala: number?)
