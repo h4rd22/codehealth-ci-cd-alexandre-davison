@@ -1122,7 +1122,7 @@ Config.Slots = {
 
 -- Forja: junta itens iguais em raridade para criar 1 item da raridade de cima.
 Config.Forja = {
-	Quantidade = 3, -- quantos itens entram
+	Quantidade = 6, -- quantos itens do mesmo tier entram (pedido do dono)
 	Custo = { comum = 10, incomum = 30, raro = 90, epico = 250, lendario = 700, mitico = 2000 }, -- ouro por forja (nível 1)
 	CustoCrescimento = 1.06, -- o preço multiplica por isto a cada nível do item
 	-- Síntese com sorte (estilo TBH): o resultado pode pular raridades ou até cair uma
