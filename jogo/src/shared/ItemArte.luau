@@ -2338,7 +2338,113 @@ local function cajadoPronto(m, ri, cor)
 end
 
 -- Guerreiro: armadura e elmo anime (Blender); sem a importação, usa os desenhados
+-- Famílias de material por raridade (laca = corpo da peça, enfeite = bordas/ornamentos)
+-- Comum/Incomum ferro simples · Raro aço · Épico metal escuro com brilho · Lendário obsidiana e ouro ·
+-- Mítico+ cristal e energia · Secreto preto com luz branca
+local function familiaCores(ri, cor)
+	if ri <= 2 then
+		return Color3.fromRGB(58, 56, 54), MAT.Metal, Color3.fromRGB(150, 115, 70), MAT.Metal
+	elseif ri == 3 then
+		return Color3.fromRGB(150, 156, 168), MAT.Metal, Color3.fromRGB(220, 226, 236), MAT.Foil
+	elseif ri == 4 then
+		return Color3.fromRGB(36, 28, 46), MAT.Metal, cor:Lerp(BRANCO, 0.2), MAT.Neon
+	elseif ri == 5 then
+		return Color3.fromRGB(20, 18, 24), MAT.SmoothPlastic, OURO, MAT.Metal
+	elseif ri >= 9 then
+		return PRETO, MAT.SmoothPlastic, BRANCO, MAT.Neon
+	end
+	return cor:Lerp(BRANCO, 0.35), MAT.Glass, cor:Lerp(BRANCO, 0.15), MAT.Neon
+end
+
+local function prepararPeca(p)
+	p.Anchored = true
+	p.CanCollide = false
+	p.CanQuery = false
+	p.CanTouch = false
+	p.CastShadow = false
+end
+
+-- Elmo samurai (kabuto) do pacote grátis: vem com uma "Head" de referência; o modelo fica com a
+-- origem no centro da cabeça (o vestir só escala pelo tamanho da cabeça do herói)
+local function elmoKabuto(m, ri, cor)
+	local k = modeloPronto("elmoKabuto")
+	local cabeca = k and k:FindFirstChild("Head", true)
+	if not cabeca then
+		if k then
+			k:Destroy()
+		end
+		return false
+	end
+	local ref = cabeca.CFrame
+	local laca, matLaca, enfeite, matEnfeite = familiaCores(ri, cor)
+	local maior
+	for _, p in ipairs(k:GetDescendants()) do
+		if p:IsA("BasePart") and p ~= cabeca then
+			p.CFrame = ref:ToObjectSpace(p.CFrame)
+			prepararPeca(p)
+			if p.Name == "ColorPart" then
+				p.Color, p.Material = laca, matLaca
+				p.Transparency = matLaca == MAT.Glass and 0.12 or 0
+				if not maior or p.Size.Magnitude > maior.Size.Magnitude then
+					maior = p
+				end
+			elseif p.Name ~= "Chinstrap" and p.Color.R > 0.6 then
+				p.Color, p.Material = enfeite, matEnfeite
+			end
+			p.Parent = m
+		end
+	end
+	k:Destroy()
+	if maior then
+		maior.Name = "Nucleo"
+	end
+	m:SetAttribute("ElmoCabeca", true)
+	return true
+end
+
+-- Armadura samurai texturizada do pacote grátis (tronco + braços), família Comum/Incomum/Raro.
+-- Cada peça leva o atributo "Membro" para o vestir soldar no membro certo (o braço acompanha o braço).
+local function armaduraSamurai(m, ri, cor)
+	local a = modeloPronto("armaduraSamurai")
+	local tronco = a and a:FindFirstChild("TorsoPart", true)
+	if not tronco then
+		if a then
+			a:Destroy()
+		end
+		return false
+	end
+	local ref = tronco.CFrame
+	local membros = { TorsoPart = "tronco", LeftArmPart = "bracoE", RightArmPart = "bracoD" }
+	for _, p in ipairs(a:GetDescendants()) do
+		if p:IsA("BasePart") then
+			local membro = membros[p.Name]
+			if membro then
+				p.CFrame = ref:ToObjectSpace(p.CFrame)
+				prepararPeca(p)
+				p:SetAttribute("Membro", membro)
+				p.Name = membro == "tronco" and "Nucleo" or p.Name
+				if ri >= 3 then
+					-- do Raro para cima a textura sai e a peça ganha o material da família
+					local laca, matLaca = familiaCores(ri, cor)
+					pcall(function()
+						p.TextureID = ""
+					end)
+					p.Color, p.Material = laca, matLaca
+					p.Transparency = matLaca == MAT.Glass and 0.12 or 0
+				end
+				p.Parent = m
+			end
+		end
+	end
+	a:Destroy()
+	m:SetAttribute("PorMembro", true)
+	return true
+end
+
 local function armaduraPronta(m, ri, cor)
+	if armaduraSamurai(m, ri, cor) then
+		return
+	end
 	local espelho = { ombro = true, espinhos = true }
 	if
 		not montarAnime(m, "armadura" .. formaDoTier(ri), 1.45, CFrame.new(0, -0.45, 0), coresAnime(ri, cor), espelho)
@@ -2347,6 +2453,9 @@ local function armaduraPronta(m, ri, cor)
 	end
 end
 local function elmoPronto(m, ri, cor)
+	if elmoKabuto(m, ri, cor) then
+		return
+	end
 	if not montarAnime(m, "elmo" .. formaDoTier(ri), 1.9, CFrame.new(0, 0.2, 0.1), coresAnime(ri, cor)) then
 		elmo(m, ri, cor)
 	end
@@ -2739,7 +2848,10 @@ function ItemArte.vestir(char, pasta, slot, ri, cor, conjunto, classe)
 			end
 		end
 		local escala, desloc
-		if conjunto == "katsuki" then
+		if m:GetAttribute("ElmoCabeca") then
+			-- elmo pronto com origem no centro da cabeça clássica (1 de altura)
+			escala, desloc = cabeca.Size.Y, CFrame.new(0, 0.08 * cabeca.Size.Y, 0)
+		elseif conjunto == "katsuki" then
 			escala, desloc = 0.55, CFrame.new(0, 0.55, 0)
 		elseif classe == "mago" then
 			escala, desloc = 0.48, CFrame.new(0, 0.62, 0)
@@ -2762,6 +2874,37 @@ function ItemArte.vestir(char, pasta, slot, ri, cor, conjunto, classe)
 		end
 		local m = criarNoCorpo(slot, ri, cor, conjunto, classe)
 		local r15 = tronco.Name == "UpperTorso"
+		if m:GetAttribute("PorMembro") then
+			-- armadura pronta em peças: tronco no tronco, cada manga no seu braço
+			local s = tronco.Size.X / 2
+			local alvos = {
+				tronco = { tronco, CFrame.new(0, (r15 and -0.55 or -0.21) * s, 0) },
+				bracoE = {
+					pecaCorpo(char, "LeftUpperArm", "Left Arm"),
+					CFrame.new(-0.07 * s, (r15 and -0.42 or 0) * s, 0),
+				},
+				bracoD = {
+					pecaCorpo(char, "RightUpperArm", "Right Arm"),
+					CFrame.new(0.07 * s, (r15 and -0.42 or 0) * s, 0),
+				},
+			}
+			for _, p in ipairs(m:GetChildren()) do
+				local alvo = p:IsA("BasePart") and alvos[p:GetAttribute("Membro")]
+				if alvo and alvo[1] then
+					local unico = Instance.new("Model")
+					p.Size *= s
+					p.CFrame = p.CFrame.Rotation -- mantém o giro da peça, centro no membro
+					p.Parent = unico
+					unico.WorldPivot = CFrame.new()
+					unico:PivotTo(alvo[1].CFrame * alvo[2])
+					soldar(unico, alvo[1])
+					p.Parent = m
+					unico:Destroy()
+				end
+			end
+			m.Parent = pasta
+			return
+		end
 		m:ScaleTo(r15 and 0.72 or 0.82)
 		m:PivotTo(tronco.CFrame * CFrame.new(0, r15 and -0.15 or -0.05, 0))
 		soldar(m, tronco)
