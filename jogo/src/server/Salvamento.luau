@@ -69,6 +69,30 @@ local CAMPOS = {
 -- Exemplo para o futuro: [1] = function(d) d.cristais = 0 return d end
 local MIGRACOES: { [number]: (any) -> any } = {}
 
+-- v1 -> v2: raridades passam a ter 7 tiers (Lucas). Fica pronta, mas só roda
+-- quando VERSAO virar 2 — suba VERSAO no MESMO commit que muda o Config.
+local RARIDADE_V2 = { incomum = "raro", epico = "ultraRaro", mitico = "lendario" }
+MIGRACOES[1] = function(d)
+	if type(d) ~= "table" then
+		return d
+	end
+	local function nova(r)
+		return RARIDADE_V2[r] or r
+	end
+	for _, item in ipairs(type(d.itens) == "table" and d.itens or {}) do
+		if type(item) == "table" and type(item.raridade) == "string" then
+			item.raridade = nova(item.raridade)
+		end
+	end
+	if type(d.autoVenda) == "string" then
+		d.autoVenda = nova(d.autoVenda)
+	end
+	if type(d.configForja) == "table" and type(d.configForja.ate) == "string" then
+		d.configForja.ate = nova(d.configForja.ate)
+	end
+	return d
+end
+
 local sessoes = {} -- sessoes[player] = { st = ..., chave = ..., salvando = bool }
 local saindo = {} -- userId -> true enquanto o save final ainda está sendo gravado
 
