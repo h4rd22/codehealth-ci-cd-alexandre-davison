@@ -113,11 +113,12 @@ local function ponto(pos)
 end
 
 -- Jorrada de partículas num lugar
+local multNivel = 1 -- 1.0 no Nv 1 ... 1.6 no Nv 5 (vale durante o tocar)
 local function jorrar(pos, n, props, vida)
 	local a = ponto(pos)
 	local e = emissor(a, props)
 	e.Enabled = false
-	e:Emit(n)
+	e:Emit(math.floor(n * multNivel + 0.5))
 	Debris:AddItem(a, vida or 2)
 	return e
 end
@@ -1112,14 +1113,149 @@ end
 ------------------------------------------------------------------------
 -- Entrada única. Retorna true se desenhou o efeito (senão o Habilidades usa o antigo).
 ------------------------------------------------------------------------
+local COR_ELEMENTO = {
+	lancaGelo = GELO,
+	novaGelo = GELO,
+	nevasca = GELO,
+	correnteRaio = RAIO,
+	furiaTrovao = RAIO,
+	tempestade = RAIO,
+	tempestadeGolpe = RAIO,
+	bolaFogo = FOGO,
+	anelChamas = FOGO,
+	meteoro = FOGO,
+	explosaoMorte = FOGO,
+}
+
+local function centroDe(d)
+	if typeof(d.centro) == "Vector3" then
+		return d.centro
+	elseif typeof(d.para) == "Vector3" then
+		return d.para
+	elseif typeof(d.pos) == "Vector3" then
+		return d.pos
+	elseif type(d.pontos) == "table" and typeof(d.pontos[1]) == "Vector3" then
+		return d.pontos[1]
+	end
+	return nil
+end
+
+-- Nível alto: o efeito "evolui". Nv 3+ ganha anel duplo na cor do elemento; Nv 5 ganha estouro e flash.
+local function extraDeNivel(id, d, nivel)
+	if nivel < 3 or id == "tempestadeGolpe" or id == "explosaoMorte" then
+		return
+	end
+	local c = centroDe(d)
+	local cor = COR_ELEMENTO[id]
+	if not c or not cor then
+		return
+	end
+	local atraso = (id == "meteoro" and (d.tempo or 0.9)) or (id == "bolaFogo" and (d.tempo or 0.4)) or 0.1
+	task.delay(atraso, function()
+		local base = chao(c)
+		Animacoes.anel(base + Vector3.new(0, 0.4, 0), cor, (d.raio or 6) * 1.3, 0.5, 1.2)
+		Animacoes.anel(base + Vector3.new(0, 0.8, 0), BRANCO, (d.raio or 6) * 0.9, 0.4, 0.7)
+		if nivel >= 5 then
+			VFX.estouro("Golpes/GiganticCrush", base + Vector3.new(0, 1.5, 0), { escala = 0.9, cor = cor })
+			Animacoes.clarao(base + Vector3.new(0, 1.5, 0), BRANCO, 7, 0.3, 30)
+			flash(cor:Lerp(BRANCO, 0.5), 0.2, 0.3)
+		end
+	end)
+end
+
 function EfeitosMagia.tocar(id, d)
 	local f = E[id]
 	if not f or type(d) ~= "table" or not RunService:IsClient() then
 		return false
 	end
+	-- estágio da magia (Jorge): 1 = Nv1-2, 2 = Nv3-4, 3 = Nv5+; sem estágio, calcula pelo nível
+	local estagio = tonumber(d.estagio)
+	if not estagio then
+		local nv = tonumber(d.nivel) or 1
+		estagio = nv >= 5 and 3 or (nv >= 3 and 2 or 1)
+	end
+	estagio = math.clamp(estagio, 1, 3)
+	local nivel = estagio == 3 and 5 or (estagio == 2 and 3 or 1)
+	multNivel = ({ 1, 1.3, 1.6 })[estagio]
 	local ok, erro = pcall(f, d)
+	multNivel = 1
 	if not ok then
 		warn("[EfeitosMagia] " .. tostring(id) .. ": " .. tostring(erro))
+		return false
+	end
+	pcall(extraDeNivel, id, d, nivel)
+	return true
+end
+
+------------------------------------------------------------------------
+-- Passivas: um sinal curto e diferente quando cada uma ativa
+-- EfeitosMagia.passiva(id, { pos = Vector3 (onde), nivel = 1..5 })
+------------------------------------------------------------------------
+local ARCANO = Color3.fromRGB(190, 120, 255)
+local P = {}
+function P.frioCortante(pos, k) -- gelo corta: lâminas de gelo cruzando
+	for i = 1, 2 do
+		local a = math.rad(i == 1 and 35 or -35)
+		local lam = peca(Vector3.new(0.25, 3.2 * k, 0.6), GELO_CLARO, nil, Enum.Material.Glass)
+		lam.CFrame = CFrame.new(pos + Vector3.new(0, 1, 0)) * CFrame.Angles(0, 0, a)
+		tw(lam, 0.3, { Transparency = 1, Size = Vector3.new(0.05, 4.2 * k, 0.6) })
+		Debris:AddItem(lam, 0.35)
+	end
+	estilhacos(pos + Vector3.new(0, 1, 0), GELO_CLARO, math.floor(4 * k), 12, Enum.Material.Glass, 0.3)
+end
+function P.sobrecarga(pos, k) -- raio extra: arcos saltando em volta
+	for _ = 1, math.floor(3 * k) do
+		local fim = pos + Vector3.new(math.random(-4, 4), math.random(0, 3), math.random(-4, 4))
+		Animacoes.relampago(pos + Vector3.new(0, 1, 0), fim, RAIO, 0.15, 0.2)
+	end
+	faiscasEletricas(pos + Vector3.new(0, 1, 0), math.floor(10 * k), 18)
+end
+function P.combustao(pos, k) -- fogo extra: pequena explosão em chamas
+	explosaoFogo(pos, 2.5 * k, false)
+end
+function P.poderArcano(pos, k) -- dano arcano: runa roxa girando sob o herói
+	Animacoes.circuloMagico(CFrame.new(chao(pos) + Vector3.new(0, 0.1, 0)), ARCANO, 2.5 * k, 0.6)
+end
+function P.menteRapida(pos, k) -- recarga mais rápida: anel azul subindo como um relógio
+	local base = chao(pos)
+	for i = 0, 2 do
+		task.delay(i * 0.08, function()
+			Animacoes.anel(base + Vector3.new(0, 0.5 + i * 1.2, 0), Color3.fromRGB(120, 200, 255), 2.5 * k, 0.35, 0.4)
+		end)
+	end
+end
+function P.ecoArcano(pos, k) -- magia repetida: dois anéis em pé, um atrás do outro
+	Animacoes.anel(
+		CFrame.new(pos + Vector3.new(0, 1.5, 0)) * CFrame.Angles(math.rad(90), 0, 0),
+		ARCANO,
+		4 * k,
+		0.4,
+		0.6
+	)
+	task.delay(0.12, function()
+		Animacoes.anel(
+			CFrame.new(pos + Vector3.new(0, 1.5, 0)) * CFrame.Angles(math.rad(90), 0, 0),
+			BRANCO,
+			3 * k,
+			0.4,
+			0.5
+		)
+	end)
+end
+function P.maestria(pos, k) -- domínio: chuva de brilhos dourados
+	Animacoes.brilhos(pos + Vector3.new(0, 2, 0), Color3.fromRGB(255, 215, 70), math.floor(20 * k), 14)
+	Animacoes.clarao(pos + Vector3.new(0, 1.5, 0), Color3.fromRGB(255, 230, 140), 3 * k, 0.25, 12)
+end
+
+function EfeitosMagia.passiva(id, d)
+	local f = P[id]
+	if not f or type(d) ~= "table" or typeof(d.pos) ~= "Vector3" or not RunService:IsClient() then
+		return false
+	end
+	local nivel = math.clamp(tonumber(d.nivel) or 1, 1, 5)
+	local ok, erro = pcall(f, d.pos, 0.85 + 0.15 * nivel)
+	if not ok then
+		warn("[EfeitosMagia] passiva " .. tostring(id) .. ": " .. tostring(erro))
 	end
 	return ok
 end

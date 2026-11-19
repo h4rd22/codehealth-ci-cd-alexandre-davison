@@ -481,6 +481,8 @@ local AJUSTES = {
 }
 -- enquanto a arte de um chefe novo não chega, usa o boneco de outro (com o tamanho/aura do novo)
 local RESERVA = { madaro = "itachu" }
+AJUSTES.madaro = AJUSTES.madaro
+	or { escala = 1.6, cor = Color3.fromRGB(220, 50, 40), aura = Color3.fromRGB(255, 90, 50) }
 
 local function aura(raiz, cor)
 	local fx = Instance.new("ParticleEmitter")
@@ -719,6 +721,7 @@ end
 function Modelos.criar(nomeModelo, cf)
 	local m, raiz, altura = deArte(nomeModelo, cf)
 	if m then
+		m:SetAttribute("Modelo", nomeModelo) -- o Chefe usa para escolher as habilidades
 		return m, raiz, altura
 	end
 	if nomeModelo == "serpente" then

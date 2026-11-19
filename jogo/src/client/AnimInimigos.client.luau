@@ -261,19 +261,62 @@ local function ameaca(t)
 end
 
 -- Pen: respira firme parado e anda pesado (sem balanço mole)
+-- Rotação (no espaço do tronco, em volta do ombro) que leva o braço do jeito que o modelo veio
+-- para "solto ao lado do corpo". Assim funciona em qualquer boneco, mesmo com braços abertos de fábrica.
+local function bracoParaBaixo(m, junta, lado)
+	local r = Animacoes.rig(m)
+	local j = r and r.juntas[junta]
+	local motor = j and j.motor
+	if not motor or not motor:IsA("Motor6D") or not motor.Part0 or not motor.Part1 then
+		return CFrame.identity
+	end
+	local nomesMao = lado > 0 and { "RightHand", "Right Arm", "RightLowerArm" }
+		or { "LeftHand", "Left Arm", "LeftLowerArm" }
+	local mao
+	for _, n in ipairs(nomesMao) do
+		mao = m:FindFirstChild(n, true)
+		if mao and mao:IsA("BasePart") and mao ~= motor.Part0 then
+			break
+		end
+		mao = nil
+	end
+	local ombro = (motor.Part0.CFrame * j.base).Position
+	local ponta = mao and mao.Position or (motor.Part1.CFrame * CFrame.new(0, -motor.Part1.Size.Y / 2, 0)).Position
+	local dir = motor.Part0.CFrame:VectorToObjectSpace(ponta - ombro)
+	if dir.Magnitude < 0.01 then
+		return CFrame.identity
+	end
+	local alvo = Vector3.new(0.22 * lado, -1, 0.08).Unit
+	local ok, giro = pcall(CFrame.fromRotationBetweenVectors, dir.Unit, alvo)
+	return ok and giro or CFrame.identity
+end
+
+-- Chefe: respira firme parado (peito sobe e desce, braços soltos que acompanham)
+-- e anda pesado (pernas, joelhos, quadril, braços balançando ao contrário das pernas)
 local function corpoChefe(m)
 	local ultimoPasso = 0
+	local baixoD, baixoE
 	return function(t)
+		if not baixoD then
+			baixoD = bracoParaBaixo(m, "ombroD", 1)
+			baixoE = bracoParaBaixo(m, "ombroE", -1)
+		end
 		local andando = m:GetAttribute("Movendo") == true
 		local resp = math.sin(t * 1.6)
+		local peso = math.sin(t * 0.55) -- o peso passa de uma perna para a outra devagar
 		if not andando then
-			return Animacoes.pose({
-				raiz = { 3 + resp * 1.2, 0, 0, 0, resp * 0.03, 0 },
-				tronco = { resp * 1.5, 0, 0 },
-				pescoco = { -8, 0, 0 },
-				ombroD = { 6, 0, 12 + resp * 1.5 },
-				ombroE = { 6, 0, -12 - resp * 1.5 },
+			local p = Animacoes.pose({
+				raiz = { 3 + resp * 1.4, peso * 2, peso * 1.5, 0, resp * 0.04, 0 },
+				tronco = { resp * 2, -peso * 2, 0 },
+				pescoco = { -9 + resp * 1.5, peso * 4, 0 },
+				quadrilD = { 0, 0, 3 + peso * 2 },
+				quadrilE = { 0, 0, -3 + peso * 2 },
+				cotoveloD = { 12 + resp * 3, 0, 0 },
+				cotoveloE = { 12 + resp * 3, 0, 0 },
 			})
+			p.ombroD = baixoD * CFrame.Angles(math.rad(4 + resp * 3), 0, math.rad(resp * 2))
+			p.ombroE = baixoE * CFrame.Angles(math.rad(4 + resp * 3), 0, math.rad(-resp * 2))
+			return p
 		end
 		-- passo: perna vai e volta devagar; o corpo afunda a cada pisada
 		local fase = t * math.pi * 2 * 0.9
@@ -293,16 +336,20 @@ local function corpoChefe(m)
 				Animacoes.anel(raiz.Position - Vector3.new(0, 4, 0), Color3.fromRGB(150, 120, 170), 4, 0.35, 0.4)
 			end
 		end
-		return Animacoes.pose({
+		local p = Animacoes.pose({
 			raiz = { -7, s * 4, s * 2.5, 0, -(1 - pisada) * 0.25, 0 },
+			tronco = { -3, -s * 5, 0 },
 			pescoco = { -6, -s * 3, 0 },
 			quadrilD = { s * 28, 0, 0 },
 			quadrilE = { -s * 28, 0, 0 },
 			joelhoD = { math.max(0, -s) * 35, 0, 0 },
 			joelhoE = { math.max(0, s) * 35, 0, 0 },
-			ombroD = { -s * 16, 0, 12 },
-			ombroE = { s * 16, 0, -12 },
+			cotoveloD = { 15 + math.max(0, s) * 15, 0, 0 },
+			cotoveloE = { 15 + math.max(0, -s) * 15, 0, 0 },
 		})
+		p.ombroD = baixoD * CFrame.Angles(math.rad(-s * 22), 0, 0)
+		p.ombroE = baixoE * CFrame.Angles(math.rad(s * 22), 0, 0)
+		return p
 	end
 end
 

@@ -14,6 +14,7 @@ local Chefe = {}
 
 local ROXO = Color3.fromRGB(180, 90, 255)
 local VERMELHO = Color3.fromRGB(255, 60, 70)
+local LARANJA = Color3.fromRGB(255, 120, 40)
 local XZ = Vector3.new(1, 0, 1)
 
 local ALTURA_ENTRADA = 22 -- de onde ele desce na entrada
@@ -341,6 +342,132 @@ function Chefe.iniciar(m, ctx)
 			TweenService:Create(f, TweenInfo.new(0.5), { Size = Vector3.new(12, 12, 12), Transparency = 1 }):Play()
 			Debris:AddItem(f, 0.55)
 		end
+		-- 4) Chuva de Meteoros (Madaro): meteoros caem em volta do herói, com círculo de aviso
+		function habilidades.meteoros()
+			ctx.aviso("Chuva de Meteoros!")
+			pose("pregos")
+			local centro = posHeroi()
+			if not centro then
+				return
+			end
+			local pontos = { centro }
+			for _ = 1, 4 do
+				local a = math.random() * math.pi * 2
+				local r = 3 + math.random() * 6
+				table.insert(pontos, centro + Vector3.new(math.cos(a) * r, 0, math.sin(a) * r))
+			end
+			local marcas = {}
+			for _, p in ipairs(pontos) do
+				table.insert(marcas, disco(p + Vector3.new(0, 0.1, 0), 4, LARANJA, 0.45))
+			end
+			ctx.atacar()
+			task.wait(1.1)
+			pose("pregosSolta")
+			local jaAcertou = false
+			for i, p in ipairs(pontos) do
+				marcas[i]:Destroy()
+				if not ctx.vivo() then
+					continue
+				end
+				local pedra = peca({
+					Shape = Enum.PartType.Ball,
+					Size = Vector3.new(3, 3, 3),
+					Position = p + Vector3.new(-14, 40, 10),
+					Color = LARANJA,
+				})
+				luz(pedra, LARANJA, 20)
+				local queda = TweenService:Create(
+					pedra,
+					TweenInfo.new(0.35, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
+					{ Position = p + Vector3.new(0, 1, 0) }
+				)
+				queda.Completed:Connect(function()
+					pedra:Destroy()
+					local boom = peca({
+						Shape = Enum.PartType.Ball,
+						Size = Vector3.new(2, 2, 2),
+						Position = p + Vector3.new(0, 1, 0),
+						Color = LARANJA,
+						Transparency = 0.2,
+					})
+					TweenService:Create(boom, TweenInfo.new(0.35), { Size = Vector3.new(10, 10, 10), Transparency = 1 })
+						:Play()
+					Debris:AddItem(boom, 0.4)
+					if ctx.vivo() and not jaAcertou then
+						jaAcertou = ctx.acertar(p, 4, ctx.dano * 2.4)
+					end
+				end)
+				queda:Play()
+				Debris:AddItem(pedra, 1)
+				task.wait(0.14)
+			end
+		end
+
+		-- 5) Muralha de Fogo (Madaro): uma parede de fogo sai dele e varre o caminho até o herói
+		function habilidades.muralha()
+			ctx.aviso("Muralha de Fogo!")
+			pose("esferas")
+			local alvo = posHeroi()
+			if not alvo then
+				return
+			end
+			local inicio = Vector3.new(base.X, ctx.chao, base.Z)
+			local dir = (alvo - inicio) * XZ
+			dir = dir.Magnitude > 0.5 and dir.Unit or Vector3.new(0, 0, 1)
+			local largura, alcance = 14, 30
+			-- aviso: corredor vermelho no chão
+			local corredor = peca({
+				Size = Vector3.new(largura, 0.15, alcance),
+				CFrame = CFrame.lookAt(
+					inicio + dir * (alcance / 2) + Vector3.new(0, 0.1, 0),
+					inicio + dir * alcance + Vector3.new(0, 0.1, 0)
+				),
+				Color = VERMELHO,
+				Transparency = 0.6,
+			})
+			task.wait(0.9)
+			corredor:Destroy()
+			if not ctx.vivo() then
+				return
+			end
+			ctx.atacar()
+			pose("pregosSolta")
+			local parede = peca({
+				Size = Vector3.new(largura, 7, 1.4),
+				Color = LARANJA,
+				Transparency = 0.15,
+			})
+			luz(parede, LARANJA, 24)
+			local fogo = Instance.new("Fire")
+			fogo.Size = 12
+			fogo.Heat = 15
+			fogo.Color = LARANJA
+			fogo.SecondaryColor = Color3.fromRGB(255, 220, 90)
+			fogo.Parent = parede
+			local jaAcertou = false
+			local t0 = os.clock()
+			local tempo = 1.2
+			local conParede
+			conParede = RunService.Heartbeat:Connect(function()
+				local a = math.min(1, (os.clock() - t0) / tempo)
+				local pos = inicio + dir * (2 + (alcance - 2) * a) + Vector3.new(0, 3.5, 0)
+				parede.CFrame = CFrame.lookAt(pos, pos + dir)
+				local raiz = ctx.raizHeroi()
+				if raiz and not jaAcertou and ctx.vivo() then
+					local rel = (raiz.Position - pos) * XZ
+					if math.abs(rel:Dot(dir)) < 1.6 and math.abs(rel:Dot(dir:Cross(Vector3.yAxis))) < largura / 2 then
+						jaAcertou = ctx.acertar(raiz.Position, 1, ctx.dano * 2)
+					end
+				end
+				if a >= 1 then
+					conParede:Disconnect()
+					TweenService:Create(parede, TweenInfo.new(0.3), { Transparency = 1 }):Play()
+					fogo.Enabled = false
+					Debris:AddItem(parede, 0.6)
+				end
+			end)
+		end
+
 		local function teleportar()
 			pose("sumir")
 			task.wait(0.25)
@@ -354,6 +481,9 @@ function Chefe.iniciar(m, ctx)
 		end
 
 		local ordem = { "repulsao", "esferas", "pregos" }
+		if m:GetAttribute("Modelo") == "madaro" then
+			ordem = { "meteoros", "muralha", "repulsao" } -- habilidades próprias do Madaro
+		end
 		local ultima
 		task.wait(1.4) -- termina o rugido
 		ocupado = false
