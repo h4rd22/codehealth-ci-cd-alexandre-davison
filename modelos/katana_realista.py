@@ -87,20 +87,21 @@ def lamina():
 def habaki():
     bm = bmesh.new()
     bmesh.ops.create_cube(bm, size=1)
-    bmesh.ops.scale(bm, vec=(W * 1.12, T * 2.6, 0.16), verts=bm.verts)
-    bmesh.ops.translate(bm, verts=bm.verts, vec=(0, 0, 0.08))
-    bmesh.ops.bevel(bm, geom=list(bm.edges), offset=0.012, segments=2, affect="EDGES")
+    bmesh.ops.scale(bm, vec=(W * 1.04, T * 1.45, 0.11), verts=bm.verts)
+    bmesh.ops.translate(bm, verts=bm.verts, vec=(0, 0, 0.055))
+    bmesh.ops.bevel(bm, geom=list(bm.edges), offset=0.006, segments=2, affect="EDGES")
     return malha("katana_habaki", bm)
 
 
 def tsuba():
-    # disco oval com borda alta e 2 aberturas em forma de gota (sukashi)
-    def contorno(r_mul):
-        return [Vector((0.34 * r_mul * math.cos(a), 0.29 * r_mul * math.sin(a), 0)) for a in [2 * math.pi * i / 64 for i in range(64)]]
+    # desenho próprio: contorno de 4 lóbulos (mokko), borda alta (mimi),
+    # lua crescente vazada de um lado e três furinhos de nuvem do outro
+    def raio(a):
+        return 0.33 * (1 + 0.075 * math.cos(4 * a))
+    ext = [Vector((1.06 * raio(a) * math.cos(a), raio(a) * math.sin(a), 0)) for a in [2 * math.pi * i / 96 for i in range(96)]]
     bm = bmesh.new()
-    ext = contorno(1.0)
-    vs_b = [bm.verts.new(p + Vector((0, 0, -0.03))) for p in ext]
-    vs_t = [bm.verts.new(p + Vector((0, 0, 0.03))) for p in ext]
+    vs_b = [bm.verts.new(p + Vector((0, 0, -0.022))) for p in ext]
+    vs_t = [bm.verts.new(p + Vector((0, 0, 0.022))) for p in ext]
     n = len(ext)
     for i in range(n):
         j = (i + 1) % n
@@ -108,30 +109,55 @@ def tsuba():
     bm.faces.new(list(reversed(vs_b)))
     bm.faces.new(vs_t)
     bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
-    bmesh.ops.bevel(bm, geom=[e for e in bm.edges if abs(e.verts[0].co.z) > 0.02 and abs(e.verts[1].co.z) > 0.02], offset=0.012, segments=2, affect="EDGES")
     ob = malha("katana_tsuba", bm)
-    ob.rotation_euler = (0, 0, 0)
-    # furos decorativos: booleano com 2 gotas
-    for s in (-1, 1):
-        bpy.ops.mesh.primitive_cylinder_add(vertices=24, radius=0.055, depth=0.2, location=(0, s * 0.17, 0))
-        furo = bpy.context.active_object
-        furo.scale = (1.6, 0.8, 1)
-        mod = ob.modifiers.new("furo", "BOOLEAN")
+    # borda alta: tubo achatado seguindo o contorno
+    aro = bmesh.new()
+    prev = None
+    primeiro = None
+    for i in range(n + 1):
+        p = ext[i % n]
+        rad = Vector((p.x, p.y, 0)).normalized()
+        q = [aro.verts.new(p + rad * d + Vector((0, 0, z))) for d, z in ((-0.03, -0.032), (0.004, -0.032), (0.004, 0.032), (-0.03, 0.032))]
+        if i == n:
+            q = primeiro
+        if prev:
+            for k in range(4):
+                aro.faces.new((prev[k], prev[(k + 1) % 4], q[(k + 1) % 4], q[k]))
+        if primeiro is None:
+            primeiro = q
+        prev = q
+    bmesh.ops.recalc_face_normals(aro, faces=aro.faces)
+    aro_ob = malha("tmp_aro", aro)
+
+    def cortar(alvo, ferramenta):
+        mod = alvo.modifiers.new("corte", "BOOLEAN")
         mod.operation = "DIFFERENCE"
-        mod.object = furo
-        bpy.context.view_layer.objects.active = ob
+        mod.object = ferramenta
+        bpy.context.view_layer.objects.active = alvo
         bpy.ops.object.modifier_apply(modifier=mod.name)
-        bpy.data.objects.remove(furo)
+        bpy.data.objects.remove(ferramenta)
+
+    def cilindro(r, x, y):
+        bpy.ops.mesh.primitive_cylinder_add(vertices=32, radius=r, depth=0.2, location=(x, y, 0))
+        return bpy.context.active_object
+
+    # lua crescente: círculo grande menos um deslocado
+    lua = cilindro(0.085, 0.0, 0.17)
+    cortar(lua, cilindro(0.075, 0.04, 0.19))
+    cortar(ob, lua)
+    for x, y, r in ((-0.05, -0.15, 0.028), (0.02, -0.19, 0.022), (0.065, -0.135, 0.017)):
+        cortar(ob, cilindro(r, x, y))
     # furo da lâmina (nakago-ana)
     bpy.ops.mesh.primitive_cube_add(size=1, location=(0, 0, 0))
     furo = bpy.context.active_object
     furo.scale = (W * 0.9, T * 1.6, 0.3)
-    mod = ob.modifiers.new("nakago", "BOOLEAN")
-    mod.operation = "DIFFERENCE"
-    mod.object = furo
+    cortar(ob, furo)
+    # junta a borda na tsuba
+    bpy.ops.object.select_all(action="DESELECT")
+    aro_ob.select_set(True)
+    ob.select_set(True)
     bpy.context.view_layer.objects.active = ob
-    bpy.ops.object.modifier_apply(modifier=mod.name)
-    bpy.data.objects.remove(furo)
+    bpy.ops.object.join()
     return ob
 
 
@@ -148,7 +174,7 @@ def tsuka():
     nucleo = malha("katana_same", loft(secoes))
     # ito: duas fitas em hélice cruzada (forma os losangos clássicos)
     bm = bmesh.new()
-    voltas = 7
+    voltas = 4
     for sentido in (1, -1):
         pontos = 140
         prev = None
@@ -157,11 +183,12 @@ def tsuka():
             z = -0.08 - (TSUKA - 0.1) * t
             a = sentido * t * voltas * 2 * math.pi
             cint = 1 - 0.07 * math.sin(t * math.pi)
-            rx, ry = 0.142 * cint, 0.112 * cint
+            extra = 0.0 if sentido > 0 else 0.008
+            rx, ry = (0.142 + extra) * cint, (0.112 + extra) * cint
             c = Vector((rx * math.cos(a), ry * math.sin(a), z))
             n = Vector((math.cos(a), math.sin(a), 0)).normalized()
             tang = Vector((-math.sin(a) * sentido * rx, math.cos(a) * sentido * ry, -(TSUKA - 0.1) / (voltas * 2 * math.pi))).normalized()
-            lado = n.cross(tang).normalized() * 0.07
+            lado = n.cross(tang).normalized() * 0.06
             esp = n * 0.016
             quad = [bm.verts.new(c + lado), bm.verts.new(c + lado + esp), bm.verts.new(c - lado + esp), bm.verts.new(c - lado)]
             if prev:
@@ -246,8 +273,8 @@ def mat_lamina(nt, bsdf):
     sep = no(nt, "ShaderNodeSeparateXYZ")
     nt.links.new(tc.outputs["Object"], sep.inputs["Vector"])
     onda = no(nt, "ShaderNodeTexWave")
-    onda.inputs["Scale"].default_value = 3.0
-    onda.inputs["Distortion"].default_value = 6.0
+    onda.inputs["Scale"].default_value = 3.5
+    onda.inputs["Distortion"].default_value = 4.0
     nt.links.new(tc.outputs["Object"], onda.inputs["Vector"])
     zn = no(nt, "ShaderNodeMath", operation="DIVIDE")
     nt.links.new(sep.outputs["Z"], zn.inputs[0])
@@ -264,7 +291,7 @@ def mat_lamina(nt, bsdf):
     soma.inputs[1].default_value = 0.03
     nt.links.new(curva.outputs["Value"], soma.inputs[2])
     # x relativo ao centro da lâmina → hamon onde x > ~0.03
-    hamon = rampa(nt, soma.outputs["Value"], [(0.0, (0.48, 0.5, 0.53, 1)), (0.52, (0.52, 0.54, 0.57, 1)), (0.56, (0.86, 0.87, 0.88, 1)), (1.0, (0.92, 0.93, 0.94, 1))])
+    hamon = rampa(nt, soma.outputs["Value"], [(0.0, (0.3, 0.32, 0.35, 1)), (0.49, (0.36, 0.38, 0.42, 1)), (0.555, (0.95, 0.95, 0.97, 1)), (0.6, (0.82, 0.84, 0.87, 1)), (1.0, (0.9, 0.91, 0.93, 1))])
     hamon.color_ramp.interpolation = "EASE"
     # o rampa de entrada precisa de faixa 0..1: desloca o X (lâmina vai de -0.13 a +0.13)
     mapa = no(nt, "ShaderNodeMapRange")
@@ -279,15 +306,10 @@ def mat_lamina(nt, bsdf):
     mapr.inputs["Scale"].default_value = (0.05, 1, 1)
     nt.links.new(tc.outputs["Object"], mapr.inputs["Vector"])
     nt.links.new(mapr.outputs["Vector"], riscos.inputs["Vector"])
-    mix = no(nt, "ShaderNodeMix", data_type="RGBA", blend_type="MULTIPLY")
-    mix.inputs["Factor"].default_value = 0.08
-    nt.links.new(hamon.outputs["Color"], mix.inputs["A"])
-    nt.links.new(riscos.outputs["Fac"], mix.inputs["B"])
-    nt.links.new(mix.outputs["Result"], bsdf.inputs["Base Color"])
+    nt.links.new(hamon.outputs["Color"], bsdf.inputs["Base Color"])
     bsdf.inputs["Metallic"].default_value = 1.0
-    rough = rampa(nt, riscos.outputs["Fac"], [(0.0, (0.18, 0.18, 0.18, 1)), (1.0, (0.34, 0.34, 0.34, 1))])
+    rough = rampa(nt, mapa.outputs["Result"], [(0.0, (0.12, 0.12, 0.12, 1)), (0.49, (0.15, 0.15, 0.15, 1)), (0.57, (0.48, 0.48, 0.48, 1)), (1.0, (0.4, 0.4, 0.4, 1))])
     nt.links.new(rough.outputs["Color"], bsdf.inputs["Roughness"])
-    bump(nt, bsdf, riscos.outputs["Fac"], 0.015)
 
 
 def mat_ferro_escuro(nt, bsdf):
@@ -435,31 +457,47 @@ tris = sum(sum(len(p.vertices) - 2 for p in o.data.polygons) for o in cena.objec
 bpy.ops.export_scene.gltf(filepath=os.path.join(SAIDA, "katana_comum.glb"), export_format="GLB", export_image_format="AUTO", export_yup=True)
 print("TRIS", tris)
 
-# ------------------------------------------------------------------ prévia de perto
-cam = bpy.data.objects.new("cam", bpy.data.cameras.new("cam"))
-cam.data.lens = 50
-cena.collection.objects.link(cam)
-cena.camera = cam
-alvo = bpy.data.objects.new("alvo", None)
-alvo.location = (0, 0, 1.1)
-cena.collection.objects.link(alvo)
-cam.location = (3.2, -8.5, 2.2)
-tr = cam.constraints.new("TRACK_TO")
-tr.target = alvo
-tr.track_axis = "TRACK_NEGATIVE_Z"
-tr.up_axis = "UP_Y"
-for nome, rot, energia in (("sol1", (50, 15, -30), 4), ("sol2", (110, 0, 150), 1.5)):
-    l = bpy.data.objects.new(nome, bpy.data.lights.new(nome, "SUN"))
+# ------------------------------------------------------------------ prévias
+def luz_area(nome, loc, energia, tam):
+    l = bpy.data.objects.new(nome, bpy.data.lights.new(nome, "AREA"))
     l.data.energy = energia
-    l.rotation_euler = tuple(math.radians(a) for a in rot)
+    l.data.size = tam
+    l.location = loc
+    tr = l.constraints.new("TRACK_TO")
+    tr.target = alvo
+    tr.track_axis = "TRACK_NEGATIVE_Z"
+    tr.up_axis = "UP_Y"
     cena.collection.objects.link(l)
+
+alvo = bpy.data.objects.new("alvo", None)
+alvo.location = (0, 0, 1.15)
+cena.collection.objects.link(alvo)
+luz_area("chave", (-3, -4, 4), 900, 3)
+luz_area("preench", (4, -3, 1), 250, 4)
+luz_area("recorte", (0.5, 4, 3), 700, 2)
 mundo = bpy.data.worlds.new("mundo")
 mundo.use_nodes = True
-mundo.node_tree.nodes["Background"].inputs["Color"].default_value = (0.25, 0.27, 0.32, 1)
+mundo.node_tree.nodes["Background"].inputs["Color"].default_value = (0.012, 0.012, 0.016, 1)
 cena.world = mundo
-cena.cycles.samples = 48
+cena.cycles.samples = 64
 cena.render.resolution_x = 900
 cena.render.resolution_y = 900
+cam = bpy.data.objects.new("cam", bpy.data.cameras.new("cam"))
+cena.collection.objects.link(cam)
+cena.camera = cam
+trc = cam.constraints.new("TRACK_TO")
+trc.target = alvo
+trc.track_axis = "TRACK_NEGATIVE_Z"
+trc.up_axis = "UP_Y"
+# de lado (mostra o lado largo, o hamon e o chanfro)
+cam.data.lens = 55
+cam.location = (0.2, -9.0, 1.15)
 cena.render.filepath = PREVIA
+bpy.ops.render.render(write_still=True)
+# detalhe do cabo e da tsuba em 3/4
+alvo.location = (0, 0, -0.35)
+cam.data.lens = 85
+cam.location = (2.2, -2.6, 1.3)
+cena.render.filepath = PREVIA.replace(".png", "_detalhe.png")
 bpy.ops.render.render(write_still=True)
 print("PREVIA", PREVIA)
