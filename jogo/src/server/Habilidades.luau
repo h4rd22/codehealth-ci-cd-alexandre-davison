@@ -152,6 +152,14 @@ end
 
 local explodirAoMorrer -- definida abaixo
 
+-- Manda o efeito para a tela com o nível da magia: estagio 1 (Nv 1-2), 2 (Nv 3-4), 3 (Nv 5+).
+-- O EfeitosMagia (Henrique) usa isso para o visual evoluir com o nível.
+local function magia(ctx, n, id, dados)
+	dados.nivel = n
+	dados.estagio = n >= 5 and 3 or (n >= 3 and 2 or 1)
+	api.evDano:FireClient(ctx.player, "magia", id, dados)
+end
+
 -- Causa dano de magia: pct = % do Poder Mágico
 local function danoMagia(ctx, alvo, pct, elemento, semCritico)
 	if not vivo(alvo) or not api.estado[ctx.player] then
@@ -207,7 +215,7 @@ explodirAoMorrer = function(ctx, pos)
 		if not api.estado[ctx.player] then
 			return
 		end
-		api.evDano:FireClient(ctx.player, "magia", "explosaoMorte", { centro = pos, raio = 6 })
+		magia(ctx, nivelDe(ctx.st, "combustao"), "explosaoMorte", { centro = pos, raio = 6 })
 		for _, m in ipairs(monstrosPerto(ctx.player, pos, 6)) do
 			danoMagia(ctx, m, pct, "fogo", true)
 		end
@@ -264,7 +272,7 @@ Lancar.lancaGelo = function(ctx, hab, n, alvo)
 	end)
 	local maximo = math.floor(Dados.valor(hab, "perfura", n))
 	local fim = origem + dir * alcance
-	api.evDano:FireClient(ctx.player, "magia", hab.id, { de = origem, para = fim })
+	magia(ctx, n, hab.id, { de = origem, para = fim })
 	local velocidade = 70
 	for i = 1, math.min(maximo, #acertos) do
 		local a = acertos[i]
@@ -284,7 +292,7 @@ Lancar.novaGelo = function(ctx, hab, n)
 	if #alvos == 0 then
 		return false
 	end
-	api.evDano:FireClient(ctx.player, "magia", hab.id, { centro = centro, raio = hab.raio })
+	magia(ctx, n, hab.id, { centro = centro, raio = hab.raio })
 	for _, m in ipairs(alvos) do
 		estender(m, "CongeladoAte", Dados.valor(hab, "congelar", n))
 		danoMagia(ctx, m, Dados.valor(hab, "dano", n), "gelo")
@@ -295,12 +303,7 @@ end
 Lancar.nevasca = function(ctx, hab, n, alvo)
 	local centro = posDe(alvo)
 	local intervalo = 0.45
-	api.evDano:FireClient(
-		ctx.player,
-		"magia",
-		hab.id,
-		{ centro = centro, raio = hab.raio, duracao = hab.pulsos * intervalo }
-	)
+	magia(ctx, n, hab.id, { centro = centro, raio = hab.raio, duracao = hab.pulsos * intervalo })
 	task.spawn(function()
 		for p = 1, hab.pulsos do
 			if not api.estado[ctx.player] then
@@ -345,7 +348,7 @@ Lancar.correnteRaio = function(ctx, hab, n, alvo)
 	for _, m in ipairs(cadeia) do
 		table.insert(pontos, posDe(m))
 	end
-	api.evDano:FireClient(ctx.player, "magia", hab.id, { de = ctx.root.Position, pontos = pontos })
+	magia(ctx, n, hab.id, { de = ctx.root.Position, pontos = pontos })
 	local dano = Dados.valor(hab, "dano", n)
 	local chance = Dados.valor(hab, "atordoar", n)
 	for i, m in ipairs(cadeia) do
@@ -372,7 +375,7 @@ Lancar.furiaTrovao = function(ctx, hab, n)
 		table.insert(alvos, lista[i])
 		table.insert(pontos, posDe(lista[i]))
 	end
-	api.evDano:FireClient(ctx.player, "magia", hab.id, { pontos = pontos })
+	magia(ctx, n, hab.id, { pontos = pontos })
 	task.delay(0.22, function()
 		for _, m in ipairs(alvos) do
 			if vivo(m) then
@@ -390,7 +393,7 @@ Lancar.tempestade = function(ctx, hab, n)
 	end
 	local golpes = math.floor(Dados.valor(hab, "golpes", n))
 	local intervalo = 0.25
-	api.evDano:FireClient(ctx.player, "magia", hab.id, { duracao = golpes * intervalo })
+	magia(ctx, n, hab.id, { duracao = golpes * intervalo })
 	task.spawn(function()
 		for _ = 1, golpes do
 			local st = api.estado[ctx.player]
@@ -403,7 +406,7 @@ Lancar.tempestade = function(ctx, hab, n)
 			if #lista > 0 then
 				local m = lista[math.random(#lista)]
 				local pos = posDe(m)
-				api.evDano:FireClient(ctx.player, "magia", "tempestadeGolpe", { pos = pos })
+				magia(ctx, n, "tempestadeGolpe", { pos = pos })
 				task.delay(0.12, function()
 					if vivo(m) then
 						if math.random() < Dados.valor(hab, "atordoar", n) then
@@ -437,7 +440,7 @@ Lancar.bolaFogo = function(ctx, hab, n, alvo)
 	local de = ctx.root.Position
 	local para = posDe(alvo)
 	local tempo = math.clamp((para - de).Magnitude / 45, 0.15, 0.6)
-	api.evDano:FireClient(ctx.player, "magia", hab.id, { de = de, para = para, tempo = tempo, raio = hab.raio })
+	magia(ctx, n, hab.id, { de = de, para = para, tempo = tempo, raio = hab.raio })
 	task.delay(tempo, function()
 		local centro = vivo(alvo) and posDe(alvo) or para
 		explosaoFogo(ctx, hab, n, alvo, centro)
@@ -451,7 +454,7 @@ Lancar.anelChamas = function(ctx, hab, n)
 	if #alvos == 0 then
 		return false
 	end
-	api.evDano:FireClient(ctx.player, "magia", hab.id, { centro = centro, raio = hab.raio })
+	magia(ctx, n, hab.id, { centro = centro, raio = hab.raio })
 	local queima = Dados.valor(hab, "queima", n) * ctx.poder / 100
 	for _, m in ipairs(alvos) do
 		task.delay(plano(posDe(m), centro) / 40, function()
@@ -467,7 +470,7 @@ end
 Lancar.meteoro = function(ctx, hab, n, alvo)
 	local centro = posDe(alvo)
 	local queda = 0.9
-	api.evDano:FireClient(ctx.player, "magia", hab.id, { centro = centro, raio = hab.raio, tempo = queda })
+	magia(ctx, n, hab.id, { centro = centro, raio = hab.raio, tempo = queda })
 	task.delay(queda, function()
 		local c = vivo(alvo) and posDe(alvo) or centro
 		explosaoFogo(ctx, hab, n, alvo, c)

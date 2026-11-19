@@ -368,7 +368,7 @@ local function atualizarBarra()
 		if h then
 			local cor = corRamo(h.ramo)
 			local suprema = h.tipo == "suprema"
-			E.imagemNoTexto(sl.icone, E.iconeMagia(h))
+			E.kanjiMagia(sl.icone, h)
 			E.imagemNoTexto(sl.elem, E.iconeElemento(h.ramo), 1)
 			sl.gradFundo.Color =
 				ColorSequence.new(cor:Lerp(Color3.new(1, 1, 1), 0.45), cor:Lerp(Color3.new(0, 0, 0), 0.45))
@@ -386,7 +386,7 @@ local function atualizarBarra()
 			sl.nv.Text = "Nv " .. nivelHab(id)
 			sl.bordaNv.Color = suprema and COR.ouro or cor
 		else
-			E.imagemNoTexto(sl.icone, nil)
+			E.kanjiMagia(sl.icone, nil)
 			E.imagemNoTexto(sl.elem, nil)
 			sl.gradFundo.Color = ColorSequence.new(Color3.fromRGB(70, 60, 70), Color3.fromRGB(30, 24, 30))
 			sl.fundo.BackgroundTransparency = 0.4
@@ -858,7 +858,7 @@ local function construir(arvore)
 		})
 		canto(vidro, raioCanto)
 		local ic = rotulo(b, { Size = UDim2.fromScale(1, 1), Text = "", TextSize = 30, ZIndex = 5 })
-		E.imagemNoTexto(ic, E.iconeMagia(h), 0.72)
+		E.kanjiMagia(ic, h)
 		local nv = rotulo(b, {
 			AnchorPoint = Vector2.new(0.5, 0.5),
 			Position = UDim2.fromScale(0.5, 1),
@@ -1131,7 +1131,7 @@ atualizarArvore = function()
 	local lista = estado.barraHab or {}
 	for i, b in ipairs(miniBarra) do
 		local h = lista[i] and Dados.PorId[lista[i]]
-		E.imagemNoTexto(b, h and E.iconeMagia(h) or nil)
+		E.kanjiMagia(b, h)
 		b.BackgroundColor3 = h and corRamo(h.ramo):Lerp(COR.painel, 0.35) or COR.painel2
 	end
 
@@ -1142,7 +1142,7 @@ atualizarArvore = function()
 	end
 	local n = niveis[h.id] or 0
 	local cor = corRamo(h.ramo)
-	E.imagemNoTexto(detalhe.icone, E.iconeMagia(h), 0.75)
+	E.kanjiMagia(detalhe.icone, h)
 	detalhe.iconeGrad.Color = ColorSequence.new(cor:Lerp(Color3.new(1, 1, 1), 0.5), cor:Lerp(Color3.new(0, 0, 0), 0.35))
 	for _, r in ipairs(detalhe.listaRaios) do
 		r.BackgroundColor3 = h.tipo == "suprema" and COR.ouro or cor
@@ -1752,9 +1752,9 @@ end
 
 -- faixa grande na tela quando sai uma suprema
 local SUPREMAS = {
-	nevasca = { "NEVASCA ETERNA!", COR_GELO },
-	tempestade = { "TEMPESTADE DIVINA!", COR_RAIO },
-	meteoro = { "METEORO INFERNAL!", COR_FOGO },
+	nevasca = { string.upper(Dados.PorId.nevasca.nome) .. "!", COR_GELO },
+	tempestade = { string.upper(Dados.PorId.tempestade.nome) .. "!", COR_RAIO },
+	meteoro = { string.upper(Dados.PorId.meteoro.nome) .. "!", COR_FOGO },
 }
 
 Efeito.explosaoMorte = function(d)
@@ -1807,6 +1807,167 @@ local function numero(pos, texto, cor, tamanho)
 	Debris:AddItem(ancora, 1)
 end
 
+------------------------------------------------------------------------
+-- Sinais das passivas: cada passiva aprendida mostra algo quando age
+--   Kori no Yaiba (frioCortante) = cristais de gelo brotam nos acertos de gelo
+--   Denki Kajo (sobrecarga)      = faíscas elétricas no herói (sempre) e estouro ao lançar raio
+--   Nensho (combustao)           = explosão "NENSHO!" quando um inimigo queimando morre
+--   Maryoku (poderArcano)        = aura roxa no herói (mais forte com o nível)
+--   Shinsoku (menteRapida)       = anel de relógio azul nos pés a cada magia lançada
+--   Kodama (ecoArcano)           = anel duplo roxo + "ECO!" quando a magia repete
+--   Kyokui (maestria)            = estrela de cores no crítico de magia
+------------------------------------------------------------------------
+local COR_ARCANO = Dados.Elementos.arcano.cor
+local ultimoSinal = {}
+local function podeSinal(chave, intervalo)
+	local agora = os.clock()
+	if agora - (ultimoSinal[chave] or 0) < intervalo then
+		return false
+	end
+	ultimoSinal[chave] = agora
+	return true
+end
+local function raizHeroi()
+	local char = player.Character
+	return char and char:FindFirstChild("HumanoidRootPart")
+end
+
+local Sinal = {}
+
+function Sinal.gelo(pos)
+	local n = nivelHab("frioCortante")
+	if n <= 0 or typeof(pos) ~= "Vector3" or not podeSinal("frio", 0.12) then
+		return
+	end
+	local base = chao(pos)
+	local qtd = 3 + math.floor(n / 3)
+	for i = 1, qtd do
+		local ang = i / qtd * math.pi * 2 + math.random()
+		local alt = 1.2 + n * 0.12 + math.random()
+		local c = fx(Vector3.new(0.5, 0.1, 0.5), COR_GELO:Lerp(Color3.new(1, 1, 1), 0.35), nil, Enum.Material.Ice)
+		c.Transparency = 0.2
+		c.CFrame = CFrame.new(base + Vector3.new(math.cos(ang) * 1.2, 0, math.sin(ang) * 1.2))
+			* CFrame.Angles(math.rad(math.random(-25, 25)), ang, math.rad(math.random(-25, 25)))
+		tw(
+			c,
+			0.12,
+			{ Size = Vector3.new(0.5, alt, 0.5), CFrame = c.CFrame * CFrame.new(0, alt / 2, 0) },
+			Enum.EasingStyle.Back
+		)
+		task.delay(0.45, function()
+			if c.Parent then
+				tw(c, 0.25, { Transparency = 1, Size = Vector3.new(0.1, 0.1, 0.1) })
+			end
+		end)
+		Debris:AddItem(c, 0.8)
+	end
+end
+
+function Sinal.raio()
+	local n = nivelHab("sobrecarga")
+	local raiz = raizHeroi()
+	if n <= 0 or not raiz or not podeSinal("sobrecargaLance", 0.2) then
+		return
+	end
+	local centro = raiz.Position + Vector3.new(0, 1, 0)
+	for _ = 1, 2 + math.floor(n / 4) do
+		local d = Vector3.new(math.random() - 0.5, math.random() * 0.8, math.random() - 0.5).Unit * (2.5 + n * 0.1)
+		raioZigue(centro, centro + d, COR_RAIO, 0.18, 0.15)
+	end
+end
+
+function Sinal.nensho(pos)
+	if typeof(pos) ~= "Vector3" or not podeSinal("nensho", 0.25) then
+		return
+	end
+	numero(pos + Vector3.new(0, 2, 0), "NENSHO!", COR_FOGO, 24)
+end
+
+function Sinal.mente()
+	local n = nivelHab("menteRapida")
+	local raiz = raizHeroi()
+	if n <= 0 or not raiz or not podeSinal("mente", 0.3) then
+		return
+	end
+	local anel = anelChao(raiz.Position, Color3.fromRGB(150, 225, 255), 3 + n * 0.25, 0.35)
+	if anel then
+		anel.Transparency = 0.35
+	end
+end
+
+function Sinal.eco(pos)
+	if typeof(pos) ~= "Vector3" then
+		return
+	end
+	anelChao(pos, COR_ARCANO, 5, 0.4)
+	task.delay(0.12, anelChao, pos, Color3.new(1, 1, 1), 4, 0.35)
+end
+
+function Sinal.critico(pos)
+	local n = nivelHab("maestria")
+	if n <= 0 or typeof(pos) ~= "Vector3" or not podeSinal("kyokui", 0.15) then
+		return
+	end
+	local cores = { COR_GELO, COR_RAIO, COR_FOGO, COR_ARCANO }
+	for i, cor in ipairs(cores) do
+		local ang = i / #cores * math.pi * 2
+		local p = fx(Vector3.new(0.3, 0.3, 1.6 + n * 0.2), cor)
+		p.CFrame = CFrame.lookAt(pos, pos + Vector3.new(math.cos(ang), 0.6, math.sin(ang)))
+		tw(p, 0.3, { CFrame = p.CFrame * CFrame.new(0, 0, -2.5), Transparency = 1 })
+		Debris:AddItem(p, 0.35)
+	end
+end
+
+-- Auras que ficam ligadas no herói (Maryoku roxa, Denki Kajo faíscas)
+local function emissorNoHeroi(raiz, nome, props)
+	local e = raiz:FindFirstChild(nome)
+	if not e then
+		e = Instance.new("ParticleEmitter")
+		e.Name = nome
+		for k, v in pairs(props) do
+			e[k] = v
+		end
+		e.Parent = raiz
+	end
+	return e
+end
+task.spawn(function()
+	while true do
+		local raiz = raizHeroi()
+		if raiz and estado then
+			local temArvore = arvoreAtual() ~= nil
+			local nArcano = temArvore and nivelHab("poderArcano") or 0
+			local aura = emissorNoHeroi(raiz, "AuraMaryoku", {
+				Color = ColorSequence.new(COR_ARCANO:Lerp(Color3.new(1, 1, 1), 0.3), COR_ARCANO),
+				LightEmission = 0.8,
+				Size = NumberSequence.new({
+					NumberSequenceKeypoint.new(0, 0.5),
+					NumberSequenceKeypoint.new(1, 0),
+				}),
+				Transparency = NumberSequence.new(0.3, 1),
+				Lifetime = NumberRange.new(0.8, 1.4),
+				Speed = NumberRange.new(1, 2.5),
+				SpreadAngle = Vector2.new(180, 180),
+				Acceleration = Vector3.new(0, 3, 0),
+			})
+			aura.Enabled = nArcano > 0
+			aura.Rate = 4 + nArcano * 2
+			local nSobre = temArvore and nivelHab("sobrecarga") or 0
+			local faisca = emissorNoHeroi(raiz, "FaiscasDenki", {
+				Color = ColorSequence.new(Color3.new(1, 1, 1), COR_RAIO),
+				LightEmission = 1,
+				Size = NumberSequence.new(0.25, 0),
+				Lifetime = NumberRange.new(0.12, 0.25),
+				Speed = NumberRange.new(6, 12),
+				SpreadAngle = Vector2.new(180, 180),
+			})
+			faisca.Enabled = nSobre > 0
+			faisca.Rate = 3 + nSobre * 1.5
+		end
+		task.wait(1)
+	end
+end)
+
 evDano.OnClientEvent:Connect(function(tipo, a, b, c, d)
 	if tipo == "magia" then
 		local tocou = false
@@ -1823,6 +1984,18 @@ evDano.OnClientEvent:Connect(function(tipo, a, b, c, d)
 		elseif a == "eco" and type(b) == "table" then
 			numero(b.pos + Vector3.new(0, 3, 0), "ECO! " .. tostring(b.nome), Dados.Elementos.arcano.cor, 26)
 		end
+		-- sinais das passivas
+		local hab = Dados.PorId[a]
+		if hab then
+			Sinal.mente()
+			if hab.ramo == "raio" then
+				Sinal.raio()
+			end
+		elseif a == "eco" and type(b) == "table" then
+			Sinal.eco(b.pos)
+		elseif a == "explosaoMorte" and type(b) == "table" then
+			Sinal.nensho(b.centro)
+		end
 		piscarSlot(a)
 	elseif tipo == "recarga" then
 		fimRecarga[a] = os.clock() + b
@@ -1830,6 +2003,12 @@ evDano.OnClientEvent:Connect(function(tipo, a, b, c, d)
 	elseif tipo == "danoElem" then
 		-- número na cor do elemento (gelo azul-claro, fogo laranja, raio roxo); crítico maior com "!"
 		NumerosDano.mostrar(a, b, d or "arcano", { critico = c == true, menor = d == "queima" })
+		if d == "gelo" then
+			Sinal.gelo(a)
+		end
+		if c == true then
+			Sinal.critico(a)
+		end
 	end
 end)
 
