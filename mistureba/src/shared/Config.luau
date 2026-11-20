@@ -1152,18 +1152,18 @@ export type OvoLoja = {
 }
 
 Config.OvosLoja = {
-	{ id = "basico", nome = "Ovo Básico", preco = 100, pesos = { comum = 75, raro = 22, epico = 3 } },
-	{ id = "doce", nome = "Ovo Doce", preco = 700, pesos = { comum = 45, raro = 45, epico = 10 } },
-	{ id = "brilhante", nome = "Ovo Brilhante", preco = 2500, pesos = { raro = 60, epico = 35, lendario = 5 } },
-	{ id = "estelar", nome = "Ovo Estelar", preco = 50000, pesos = { epico = 60, lendario = 35, mitico = 5 } },
-	{ id = "cosmico", nome = "Ovo Cósmico", preco = 750000, pesos = { lendario = 70, mitico = 30 } },
+	{ id = "basico", nome = "Ovo Básico", preco = 300, pesos = { comum = 75, raro = 22, epico = 3 } },
+	{ id = "doce", nome = "Ovo Doce", preco = 2500, pesos = { comum = 45, raro = 45, epico = 10 } },
+	{ id = "brilhante", nome = "Ovo Brilhante", preco = 15000, pesos = { raro = 60, epico = 35, lendario = 5 } },
+	{ id = "estelar", nome = "Ovo Estelar", preco = 750000, pesos = { epico = 60, lendario = 35, mitico = 5 } },
+	{ id = "cosmico", nome = "Ovo Cósmico", preco = 10000000, pesos = { lendario = 70, mitico = 30 } },
 } :: { OvoLoja }
 
 ------------------------------------------------------------------------
 -- Fusão: duas Misturebas da mesma raridade viram uma da raridade seguinte.
 -- As secretas só saem por receita.
 ------------------------------------------------------------------------
-Config.CustoFusao = { comum = 50, raro = 1000, epico = 15000, lendario = 120000, mitico = 1000000 }
+Config.CustoFusao = { comum = 100, raro = 5000, epico = 60000, lendario = 2000000, mitico = 8000000 }
 
 Config.Receitas = {
 	{ a = "pinguivulcao", b = "nuvemcornio", resultado = "reimistureba" },
@@ -1177,7 +1177,7 @@ Config.Receitas = {
 Config.Base = {
 	vagasIniciais = 8,
 	vagasMaximo = 16, -- sem contar o gamepass
-	melhorias = { 1000, 5000, 25000, 100000 }, -- cada uma dá +2 vagas
+	melhorias = { 1000, 10000, 100000, 1000000 }, -- cada uma dá +2 vagas
 	vagasPorMelhoria = 2,
 	cadeadoSegundos = 60,
 	cadeadoEsperaSegundos = 45, -- depois que abre, quanto tempo até poder trancar de novo
@@ -1291,7 +1291,7 @@ Config.SacoMoedasMinimo = 500
 ------------------------------------------------------------------------
 -- Renascer: zera moedas e Misturebas, mas a renda fica maior para sempre.
 Config.Renascer = {
-	precoBase = 1000000, -- moedas para o 1º renascimento
+	precoBase = 100000000, -- moedas para o 1º renascimento
 	crescimento = 4, -- cada renascimento custa 4x o anterior
 	bonusPorRenascimento = 0.5, -- +50% de renda por renascimento
 }
@@ -1321,6 +1321,32 @@ Config.MarcosDex = {
 	{ achadas = 20, bonus = 0.5 },
 	{ achadas = 30, bonus = 0.75 },
 	{ achadas = 40, bonus = 1 },
+}
+
+-- Vender uma Mistureba dá este tanto de segundos da renda dela.
+-- Tem que ser bem menos que o preço do ovo, senão comprar e vender vira máquina de moedas.
+Config.VendaSegundos = 15
+
+-- Roleta grátis: um giro a cada 10 minutos jogando. As chances aparecem na tela.
+export type PremioRoleta = {
+	nome: string,
+	peso: number,
+	cor: Color3,
+	segundos: number?, -- prêmio em moedas = segundos da sua renda
+	minimo: number?,
+	ovo: string?, -- ou um ovo da loja
+}
+Config.Roleta = {
+	intervalo = 600,
+	premios = {
+		{ nome = "1 min de moedas", segundos = 60, minimo = 300, peso = 30, cor = c(255, 220, 80) },
+		{ nome = "Ovo Básico", ovo = "basico", peso = 20, cor = c(200, 200, 200) },
+		{ nome = "3 min de moedas", segundos = 180, minimo = 800, peso = 18, cor = c(255, 170, 60) },
+		{ nome = "Ovo Doce", ovo = "doce", peso = 15, cor = c(255, 140, 200) },
+		{ nome = "Ovo Brilhante", ovo = "brilhante", peso = 9, cor = c(80, 170, 255) },
+		{ nome = "10 min de moedas", segundos = 600, minimo = 3000, peso = 6, cor = c(120, 255, 120) },
+		{ nome = "Ovo Estelar", ovo = "estelar", peso = 2, cor = c(190, 90, 255) },
+	} :: { PremioRoleta },
 }
 
 -- Missões diárias: 3 por dia (iguais para todo o servidor), trocam à meia-noite UTC.

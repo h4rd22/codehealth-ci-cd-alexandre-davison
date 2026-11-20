@@ -50,3 +50,13 @@ Jogo original de pegar, fundir e roubar criaturas. Ovos de cristal caem no meio 
 
 ## Verificação automática
 Todo push que muda esta pasta roda `.github/workflows/mistureba.yml`: formatação (StyLua), lint (Selene) e build (Rojo).
+
+## Teste de balanceamento
+
+Antes de publicar qualquer mudança de preço, renda, ovo ou prêmio, rode:
+
+    python3 mistureba/tools/balanceamento.py
+
+Ele lê o `Config.luau`, simula jogadores grátis e VIP por 4 horas e falha se a
+economia quebrar (venda dando lucro, progresso rápido ou lento demais, prêmios
+grátis virando a fonte principal de moedas, VIP rápido demais). O CI roda o mesmo teste.

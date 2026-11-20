@@ -39,5 +39,8 @@ jobs:
       - name: Lint (Selene)
         run: selene src
 
+      - name: Teste de balanceamento da economia
+        run: python3 tools/balanceamento.py
+
       - name: Montar o jogo (Rojo)
         run: rojo build -o mistureba.rbxl

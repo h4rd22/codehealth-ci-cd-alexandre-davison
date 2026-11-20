@@ -42,11 +42,13 @@ local evTapa = remote("Tapa")
 local evSoltar = remote("Soltar")
 local evRenascer = remote("Renascer")
 local evPegarMissao = remote("PegarMissao")
+local evGirarRoleta = remote("GirarRoleta")
 -- servidor -> tela
 local evEstado = remote("Estado")
 local evAviso = remote("Aviso")
 local evAnuncio = remote("Anuncio")
 local evChocou = remote("Chocou")
+local evRoleta = remote("Roleta") -- qual prêmio saiu, para a tela girar até ele
 
 ------------------------------------------------------------------------
 -- Estado de cada jogador enquanto está no servidor
@@ -61,6 +63,8 @@ type Estado = {
 	entrouEm: number,
 	presenteEm: number, -- quando sai o próximo presente por tempo jogando
 	presentes: number,
+	roletaEm: number, -- quando libera o próximo giro grátis
+	girando: boolean,
 	segundosJogados: number,
 	ultimoTapa: number, -- última bolha lançada
 	presoAte: number, -- preso numa bolha até este os.clock()
@@ -904,6 +908,8 @@ local function entrar(jogador: Player)
 		entrouEm = agora(),
 		presenteEm = agora() + Config.PresenteTempo.intervalo,
 		presentes = 0,
+		roletaEm = agora(), -- o primeiro giro já vem liberado
+		girando = false,
 		segundosJogados = 0,
 		ultimoTapa = 0,
 		presoAte = 0,
@@ -1110,7 +1116,7 @@ evVender.OnServerEvent:Connect(function(jogador, vaga)
 			return
 		end
 	end
-	local valor = Config.PorId[id].renda * 60
+	local valor = Config.PorId[id].renda * Config.VendaSegundos
 	perfil.criaturas[vaga] = nil
 	perfil.moedas += valor
 	arrumarGuardadas(jogador, perfil)
@@ -1281,6 +1287,54 @@ evTapa.OnServerEvent:Connect(function(jogador)
 	end
 end)
 
+-- Roleta grátis: o servidor sorteia, a tela gira até o prêmio e só então ele é entregue
+local DURACAO_GIRO = 4.2
+evGirarRoleta.OnServerEvent:Connect(function(jogador)
+	local estado = estados[jogador]
+	if not estado or estado.girando or agora() < estado.roletaEm or not liberado(estado, "roleta", 1) then
+		return
+	end
+	local total = 0
+	for _, p in Config.Roleta.premios do
+		total += p.peso
+	end
+	local alvo = rng:NextNumber() * total
+	local escolhido = #Config.Roleta.premios
+	for i, p in Config.Roleta.premios do
+		alvo -= p.peso
+		if alvo <= 0 then
+			escolhido = i
+			break
+		end
+	end
+	estado.girando = true
+	estado.roletaEm = agora() + Config.Roleta.intervalo
+	estado.sujo = true
+	evRoleta:FireClient(jogador, escolhido)
+	task.delay(DURACAO_GIRO, function()
+		estado.girando = false
+		local perfil = Dados.obter(jogador)
+		if not perfil or estados[jogador] ~= estado then
+			return
+		end
+		local premio = Config.Roleta.premios[escolhido]
+		if premio.segundos then
+			local valor = math.floor(math.max(premio.minimo or 0, rendaPorSegundo(jogador, perfil) * premio.segundos))
+			perfil.moedas += valor
+			aviso(jogador, "ROLETA: +" .. Util.numero(valor) .. " moedas!", premio.cor)
+		elseif premio.ovo then
+			for _, ovo in Config.OvosLoja do
+				if ovo.id == premio.ovo then
+					aviso(jogador, "ROLETA: " .. ovo.nome .. " de graça!", premio.cor)
+					darCriatura(jogador, sortearCriatura(Util.sortearPeso(ovo.pesos, rng), true, jogador), true)
+					progredir(jogador, "ovos", 1)
+				end
+			end
+		end
+		estado.sujo = true
+	end)
+end)
+
 evPegarMissao.OnServerEvent:Connect(function(jogador, i)
 	local estado = estados[jogador]
 	local perfil = Dados.obter(jogador)
@@ -1399,6 +1453,7 @@ local function montarEstado(jogador: Player, estado: Estado, perfil: Dados.Perfi
 		roubo = if estado.roubo then estado.roubo.id else nil,
 		protegidoAte = estado.entrouEm + Config.Base.protecaoNovatoSegundos,
 		presenteEm = estado.presenteEm,
+		roletaEm = estado.roletaEm,
 		proximoPresenteEspecial = (estado.presentes + 1) % Config.PresenteTempo.especialACada == 0,
 		missoes = (function()
 			local m = missoesDoDia(perfil)

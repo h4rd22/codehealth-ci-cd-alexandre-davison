@@ -147,7 +147,7 @@ local menu = Instance.new("Frame")
 menu.BackgroundTransparency = 1
 menu.AnchorPoint = Vector2.new(0, 0.5)
 menu.Position = UDim2.new(0, 10, 0.5, 0)
-menu.Size = UDim2.fromOffset(120, 440)
+menu.Size = UDim2.fromOffset(120, 512)
 menu.Parent = tela
 local listaMenu = Instance.new("UIListLayout")
 listaMenu.Padding = UDim.new(0, 10)
@@ -160,6 +160,17 @@ local botaoLoja = botao(menu, "LOJA", COR_VERDE, { Size = UDim2.fromOffset(120, 
 local botaoDex = botao(menu, "DEX", Color3.fromRGB(60, 200, 190), { Size = UDim2.fromOffset(120, 62), LayoutOrder = 5 })
 local botaoMissoes =
 	botao(menu, "MISSÕES", Color3.fromRGB(255, 150, 60), { Size = UDim2.fromOffset(120, 62), LayoutOrder = 6 })
+local botaoRoleta =
+	botao(menu, "ROLETA", Color3.fromRGB(255, 90, 160), { Size = UDim2.fromOffset(120, 62), LayoutOrder = 7 })
+local alertaRoleta = rotulo(botaoRoleta, {
+	AnchorPoint = Vector2.new(0.5, 0.5),
+	Position = UDim2.new(1, -4, 0, 4),
+	Size = UDim2.fromOffset(26, 26),
+	BackgroundTransparency = 0,
+	BackgroundColor3 = COR_VERMELHO,
+	Text = "!",
+	Visible = false,
+})
 -- bolinha "!" quando tem prêmio de missão para pegar
 local alertaMissoes = rotulo(botaoMissoes, {
 	AnchorPoint = Vector2.new(0.5, 0.5),
@@ -213,6 +224,7 @@ type EstadoTela = {
 	roubo: string?,
 	protegidoAte: number,
 	presenteEm: number,
+	roletaEm: number,
 	proximoPresenteEspecial: boolean,
 	missoes: { { texto: string, meta: number, progresso: number, pega: boolean } },
 	missoesFinal: boolean,
@@ -616,7 +628,7 @@ local function desenharBasePainel()
 			TextColor3 = COR_VERDE,
 			TextXAlignment = Enum.TextXAlignment.Left,
 		})
-		local vender = botao(c, "Vender: " .. Util.numero(def.renda * 60), COR_VERMELHO, {
+		local vender = botao(c, "Vender: " .. Util.numero(def.renda * Config.VendaSegundos), COR_VERMELHO, {
 			Size = UDim2.fromOffset(190, 40),
 			Position = UDim2.new(1, -200, 0, 8),
 		})
@@ -628,7 +640,7 @@ local function desenharBasePainel()
 				task.delay(2.5, function()
 					if vender.Parent then
 						confirmar = false
-						vender.Text = "Vender: " .. Util.numero(def.renda * 60)
+						vender.Text = "Vender: " .. Util.numero(def.renda * Config.VendaSegundos)
 					end
 				end)
 				return
@@ -1072,6 +1084,181 @@ ev("Chocou").OnClientEvent:Connect(function(id: string)
 end)
 
 ------------------------------------------------------------------------
+-- Painel: Roleta grátis (um giro a cada 10 minutos jogando, chances na tela)
+------------------------------------------------------------------------
+local COR_ROLETA = Color3.fromRGB(255, 90, 160)
+local painelRoleta, rolagemRoleta = novoPainel("Roleta grátis", COR_ROLETA)
+local LARGURA_CARTA, PASSO_CARTA = 120, 130
+local DURACAO_GIRO = 4
+
+local janela = Instance.new("Frame")
+janela.Size = UDim2.new(1, -16, 0, 150)
+janela.Position = UDim2.fromOffset(4, 4)
+janela.BackgroundColor3 = Color3.fromRGB(25, 22, 45)
+janela.ClipsDescendants = true
+cantos(janela, 14)
+borda(janela, COR_ROLETA, 3)
+janela.Parent = rolagemRoleta
+
+local fita = Instance.new("Frame")
+fita.BackgroundTransparency = 1
+fita.Size = UDim2.new(0, 0, 1, -20)
+fita.Position = UDim2.new(0.5, -LARGURA_CARTA / 2, 0, 10)
+fita.Parent = janela
+
+-- setinha no meio que mostra o prêmio
+local marcador = Instance.new("Frame")
+marcador.AnchorPoint = Vector2.new(0.5, 0)
+marcador.Position = UDim2.fromScale(0.5, 0)
+marcador.Size = UDim2.new(0, 6, 1, 0)
+marcador.BackgroundColor3 = COR_AMARELO
+marcador.BorderSizePixel = 0
+marcador.ZIndex = 5
+marcador.Parent = janela
+
+local function cartaPremio(i: number, premio: Config.PremioRoleta)
+	local c = Instance.new("Frame")
+	c.Size = UDim2.new(0, LARGURA_CARTA, 1, 0)
+	c.Position = UDim2.fromOffset((i - 1) * PASSO_CARTA, 0)
+	c.BackgroundColor3 = premio.cor:Lerp(Color3.new(0, 0, 0), 0.35)
+	cantos(c, 12)
+	borda(c, premio.cor, 3)
+	local g = Instance.new("UIGradient")
+	g.Rotation = 90
+	g.Color = ColorSequence.new(Color3.new(1, 1, 1), Color3.fromRGB(170, 170, 170))
+	g.Parent = c
+	rotulo(c, {
+		Size = UDim2.new(1, -10, 0, 50),
+		Position = UDim2.fromOffset(5, 10),
+		Text = if premio.ovo then "OVO" else "$",
+		TextColor3 = premio.cor,
+	})
+	rotulo(c, {
+		Size = UDim2.new(1, -10, 0, 54),
+		Position = UDim2.fromOffset(5, 62),
+		Text = premio.nome,
+		TextWrapped = true,
+	})
+	c.Parent = fita
+end
+
+local function montarFita(premios: { number })
+	limpar(fita)
+	for i, idx in premios do
+		cartaPremio(i, Config.Roleta.premios[idx])
+	end
+end
+
+local function premioAleatorio(): number
+	local total = 0
+	for _, p in Config.Roleta.premios do
+		total += p.peso
+	end
+	local alvo = math.random() * total
+	for i, p in Config.Roleta.premios do
+		alvo -= p.peso
+		if alvo <= 0 then
+			return i
+		end
+	end
+	return 1
+end
+
+-- fita parada mostrando os prêmios
+do
+	local inicial = {}
+	for i = 1, #Config.Roleta.premios do
+		inicial[i] = i
+	end
+	montarFita(inicial)
+	fita.Position = UDim2.new(0.5, -LARGURA_CARTA / 2 - PASSO_CARTA * 2, 0, 10)
+end
+
+local botaoGirar = botao(rolagemRoleta, "GIRAR!", COR_ROLETA, {
+	Size = UDim2.fromOffset(260, 64),
+	Position = UDim2.new(0.5, -130, 0, 166),
+})
+
+local chancesRoleta = {}
+do
+	local total = 0
+	for _, p in Config.Roleta.premios do
+		total += p.peso
+	end
+	for _, p in Config.Roleta.premios do
+		table.insert(
+			chancesRoleta,
+			string.format('<font color="#%s">%s %s%%</font>', p.cor:ToHex(), p.nome, Util.numero(p.peso / total * 100))
+		)
+	end
+end
+rotulo(rolagemRoleta, {
+	Size = UDim2.new(1, -16, 0, 120),
+	Position = UDim2.fromOffset(8, 244),
+	Text = "Chances: " .. table.concat(chancesRoleta, " · ") .. "\nUm giro grátis a cada 10 minutos jogando.",
+	RichText = true,
+	TextWrapped = true,
+	TextScaled = false,
+	TextSize = 20,
+	TextYAlignment = Enum.TextYAlignment.Top,
+})
+
+local girando = false
+botaoGirar.MouseButton1Click:Connect(function()
+	if girando or not estado or workspace:GetServerTimeNow() < estado.roletaEm then
+		return
+	end
+	ev("GirarRoleta"):FireServer()
+end)
+
+ev("Roleta").OnClientEvent:Connect(function(escolhido: number)
+	girando = true
+	if not painelRoleta.Visible then
+		abrir(painelRoleta)
+	end
+	local cartas = {}
+	local alvo = 34
+	for i = 1, alvo + 4 do
+		cartas[i] = if i == alvo then escolhido else premioAleatorio()
+	end
+	montarFita(cartas)
+	fita.Position = UDim2.new(0.5, -LARGURA_CARTA / 2, 0, 10)
+	local final = -LARGURA_CARTA / 2
+		- (alvo - 1) * PASSO_CARTA
+		+ math.random(-LARGURA_CARTA * 0.35, LARGURA_CARTA * 0.35)
+	local giro = TweenService:Create(
+		fita,
+		TweenInfo.new(DURACAO_GIRO, Enum.EasingStyle.Quint, Enum.EasingDirection.Out),
+		{ Position = UDim2.new(0.5, final, 0, 10) }
+	)
+	giro:Play()
+	-- "tic" cada vez que uma carta passa pela setinha, ficando mais grave no fim
+	local ultima = 0
+	local conexao
+	conexao = game:GetService("RunService").RenderStepped:Connect(function()
+		local x = -fita.Position.X.Offset - LARGURA_CARTA / 2
+		local atual = math.floor(x / PASSO_CARTA + 0.5)
+		if atual ~= ultima then
+			ultima = atual
+			tocar(1.7 - math.clamp(atual / alvo, 0, 1) * 0.6, 0.25)
+		end
+	end)
+	giro.Completed:Once(function()
+		conexao:Disconnect()
+		local premio = Config.Roleta.premios[escolhido]
+		marcador.BackgroundColor3 = premio.cor
+		TweenService:Create(marcador, TweenInfo.new(0.6), { BackgroundColor3 = COR_AMARELO }):Play()
+		if premio.segundos then
+			-- ovo já ganha a festa do cartão de chocar; moedas ganham a festa aqui
+			festa(if premio.segundos >= 600 then 5 elseif premio.segundos >= 180 then 4 else 3, premio.cor)
+		end
+		task.delay(0.6, function()
+			girando = false
+		end)
+	end)
+end)
+
+------------------------------------------------------------------------
 -- Botões e teclas
 ------------------------------------------------------------------------
 botaoOvos.MouseButton1Click:Connect(function()
@@ -1092,6 +1279,9 @@ botaoDex.MouseButton1Click:Connect(function()
 end)
 botaoLoja.MouseButton1Click:Connect(function()
 	abrir(painelLoja)
+end)
+botaoRoleta.MouseButton1Click:Connect(function()
+	abrir(painelRoleta)
 end)
 botaoMissoes.MouseButton1Click:Connect(function()
 	desenharMissoes()
@@ -1200,6 +1390,19 @@ local function atualizarStatus()
 		botaoTrancar.BackgroundColor3 = COR_VERDE
 	end
 	botaoSoltar.Visible = estado.roubo ~= nil or #estado.ovos > 0
+
+	local faltaRoleta = math.ceil((estado.roletaEm or 0) - t)
+	alertaRoleta.Visible = faltaRoleta <= 0
+	if faltaRoleta <= 0 then
+		botaoRoleta.Text = "ROLETA"
+		botaoGirar.Text = if girando then "GIRANDO..." else "GIRAR!"
+		botaoGirar.BackgroundColor3 = COR_ROLETA
+	else
+		local texto = string.format("%d:%02d", faltaRoleta // 60, faltaRoleta % 60)
+		botaoRoleta.Text = "ROLETA " .. texto
+		botaoGirar.Text = if girando then "GIRANDO..." else "Próximo giro em " .. texto
+		botaoGirar.BackgroundColor3 = Color3.fromRGB(110, 110, 120)
+	end
 end
 
 local assinaturaMissoes = ""
