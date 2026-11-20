@@ -24,6 +24,9 @@ jobs:
         run: |
           curl -sSf https://raw.githubusercontent.com/rojo-rbx/rokit/main/scripts/install.sh | bash
           echo "$HOME/.rokit/bin" >> "$GITHUB_PATH"
+        env:
+          # sem token a API do GitHub às vezes recusa (403) e a instalação falha
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Instalar ferramentas (Rojo, Selene, StyLua)
         run: rokit install --no-trust-check
