@@ -181,7 +181,14 @@ local function bola(ctx: Ctx, cor: Color3, tam: Vector3, cf: CFrame, material: E
 end
 
 -- cilindro em pé (o cilindro do Roblox deita no eixo X; giramos para ficar em Y)
-local function tubo(ctx: Ctx, cor: Color3, altura: number, diametro: number, pos: Vector3, material: Enum.Material?): BasePart
+local function tubo(
+	ctx: Ctx,
+	cor: Color3,
+	altura: number,
+	diametro: number,
+	pos: Vector3,
+	material: Enum.Material?
+): BasePart
 	return parte(
 		ctx,
 		"cilindro",
@@ -226,7 +233,8 @@ end
 A.torrada = function(ctx, _cor)
 	local y = topo(ctx)
 	for _, lado in { -1, 1 } do
-		local cf = CFrame.new(0.2 * lado * ctx.e, (y + 0.35) * ctx.e, 0.1 * ctx.e) * CFrame.Angles(0, 0, math.rad(-8 * lado))
+		local cf = CFrame.new(0.2 * lado * ctx.e, (y + 0.35) * ctx.e, 0.1 * ctx.e)
+			* CFrame.Angles(0, 0, math.rad(-8 * lado))
 		bola(ctx, c(215, 150, 80), Vector3.new(0.8, 1.15, 0.32), cf)
 		bola(ctx, c(255, 225, 165), Vector3.new(0.62, 0.92, 0.36), cf)
 	end
@@ -234,19 +242,14 @@ end
 
 A.bandana = function(ctx, cor)
 	local s = ctx.corpo.Size / 2
-	parte(
-		ctx,
-		"bola",
-		cor,
-		Vector3.new(s.X * 2.04, 0.42 * ctx.e, s.Z * 2.04),
-		CFrame.new(0, s.Y * 0.42, 0)
-	)
+	parte(ctx, "bola", cor, Vector3.new(s.X * 2.04, 0.42 * ctx.e, s.Z * 2.04), CFrame.new(0, s.Y * 0.42, 0))
 	for _, lado in { -1, 1 } do
 		bola(
 			ctx,
 			cor,
 			Vector3.new(0.3, 0.3, 1.1),
-			CFrame.new(0.25 * lado * ctx.e, s.Y * 0.4, s.Z + 0.35 * ctx.e) * CFrame.Angles(math.rad(25), math.rad(20 * lado), 0)
+			CFrame.new(0.25 * lado * ctx.e, s.Y * 0.4, s.Z + 0.35 * ctx.e)
+				* CFrame.Angles(math.rad(25), math.rad(20 * lado), 0)
 		)
 	end
 end
@@ -273,7 +276,13 @@ A.cobertura = function(ctx, cor)
 		)
 	end
 	bola(ctx, c(240, 40, 70), Vector3.one * 0.6, CFrame.new(0, s.Y + 0.4 * e, 0))
-	bola(ctx, c(240, 120, 140), Vector3.new(0.18, 0.15, 0.1), CFrame.new(-0.12 * e, s.Y + 0.55 * e, -0.27 * e), Enum.Material.Neon)
+	bola(
+		ctx,
+		c(240, 120, 140),
+		Vector3.new(0.18, 0.15, 0.1),
+		CFrame.new(-0.12 * e, s.Y + 0.55 * e, -0.27 * e),
+		Enum.Material.Neon
+	)
 end
 
 A.sorvete = function(ctx, _cor)
@@ -292,7 +301,11 @@ A.pipoca = function(ctx, _cor)
 			ctx,
 			if k % 3 == 0 then c(255, 240, 170) else BRANCO,
 			Vector3.one * (0.75 - (k % 2) * 0.12),
-			CFrame.new(math.cos(a) * r * ctx.e, (y + 0.1 + (if k == 0 then 0.45 else 0)) * ctx.e, math.sin(a) * r * ctx.e)
+			CFrame.new(
+				math.cos(a) * r * ctx.e,
+				(y + 0.1 + (if k == 0 then 0.45 else 0)) * ctx.e,
+				math.sin(a) * r * ctx.e
+			)
 		)
 	end
 end
@@ -301,9 +314,11 @@ A.xicara = function(ctx, _cor)
 	local y = topo(ctx)
 	tubo(ctx, BRANCO, 1, 1.5, Vector3.new(0, y + 0.3, 0.05))
 	tubo(ctx, c(120, 70, 45), 0.12, 1.32, Vector3.new(0, y + 0.8, 0.05))
-	local alca = bola(ctx, BRANCO, Vector3.new(0.18, 0.7, 0.55), CFrame.new(0.85 * ctx.e, (y + 0.3) * ctx.e, 0.05 * ctx.e))
+	local alca =
+		bola(ctx, BRANCO, Vector3.new(0.18, 0.7, 0.55), CFrame.new(0.85 * ctx.e, (y + 0.3) * ctx.e, 0.05 * ctx.e))
 	alca.Name = "Acessorio"
-	local espuma = bola(ctx, c(255, 245, 230), Vector3.new(0.6, 0.35, 0.6), CFrame.new(0.1 * ctx.e, (y + 0.9) * ctx.e, 0))
+	local espuma =
+		bola(ctx, c(255, 245, 230), Vector3.new(0.6, 0.35, 0.6), CFrame.new(0.1 * ctx.e, (y + 0.9) * ctx.e, 0))
 	fumaca(espuma, BRANCO, 0.7, 3)
 end
 
@@ -335,7 +350,9 @@ A.helice = function(ctx, cor)
 			ctx,
 			c(210, 225, 240),
 			Vector3.new(1.3, 0.08, 0.38),
-			CFrame.new(0, (y + 0.6) * ctx.e, 0) * CFrame.Angles(0, k * math.pi * 2 / 3, 0) * CFrame.new(0.6 * ctx.e, 0, 0)
+			CFrame.new(0, (y + 0.6) * ctx.e, 0)
+				* CFrame.Angles(0, k * math.pi * 2 / 3, 0)
+				* CFrame.new(0.6 * ctx.e, 0, 0)
 		)
 	end
 	bola(ctx, ctx.acento, Vector3.one * 0.3, CFrame.new(0, (y + 0.65) * ctx.e, 0))
@@ -351,7 +368,13 @@ A.telinha = function(ctx, cor)
 	bola(ctx, ESCURO, Vector3.new(0.95, 0.62, 0.22), CFrame.new(0, y, z))
 	local tela = bola(ctx, cor, Vector3.new(0.76, 0.46, 0.2), CFrame.new(0, y, z - 0.05 * ctx.e), Enum.Material.Neon)
 	tela.Transparency = 0.15
-	bola(ctx, BRANCO, Vector3.new(0.18, 0.1, 0.08), CFrame.new(-0.2 * ctx.e, y + 0.11 * ctx.e, z - 0.11 * ctx.e), Enum.Material.Neon)
+	bola(
+		ctx,
+		BRANCO,
+		Vector3.new(0.18, 0.1, 0.08),
+		CFrame.new(-0.2 * ctx.e, y + 0.11 * ctx.e, z - 0.11 * ctx.e),
+		Enum.Material.Neon
+	)
 end
 
 A.abajur = function(ctx, _cor)
@@ -368,8 +391,18 @@ end
 
 A.chinelo = function(ctx, cor)
 	for _, lado in { -1, 1 } do
-		bola(ctx, cor:Lerp(ctx.acento, 0.5), Vector3.new(1.25, 0.2, 1.7), CFrame.new(0.8 * lado * ctx.e, -1.66 * ctx.e, -0.3 * ctx.e))
-		bola(ctx, c(255, 110, 140), Vector3.new(0.9, 0.16, 0.2), CFrame.new(0.8 * lado * ctx.e, -1.4 * ctx.e, -0.75 * ctx.e))
+		bola(
+			ctx,
+			cor:Lerp(ctx.acento, 0.5),
+			Vector3.new(1.25, 0.2, 1.7),
+			CFrame.new(0.8 * lado * ctx.e, -1.66 * ctx.e, -0.3 * ctx.e)
+		)
+		bola(
+			ctx,
+			c(255, 110, 140),
+			Vector3.new(0.9, 0.16, 0.2),
+			CFrame.new(0.8 * lado * ctx.e, -1.4 * ctx.e, -0.75 * ctx.e)
+		)
 	end
 end
 
@@ -414,14 +447,25 @@ A.cerdas = function(ctx, _cor)
 	local y = topo(ctx)
 	for k = 0, 5 do
 		local z = -0.5 + k * 0.2
-		tubo(ctx, if k % 2 == 0 then BRANCO else c(120, 200, 255), 0.7, 0.22, Vector3.new(0, y + 0.2 - math.abs(z) * 0.25, z))
+		tubo(
+			ctx,
+			if k % 2 == 0 then BRANCO else c(120, 200, 255),
+			0.7,
+			0.22,
+			Vector3.new(0, y + 0.2 - math.abs(z) * 0.25, z)
+		)
 	end
 end
 
 A.tenis = function(ctx, cor)
 	for _, lado in { -1, 1 } do
 		bola(ctx, BRANCO, Vector3.new(1.2, 0.26, 1.55), CFrame.new(0.8 * lado * ctx.e, -1.62 * ctx.e, -0.3 * ctx.e))
-		bola(ctx, cor:Lerp(ESCURO, 0.4), Vector3.new(0.5, 0.12, 0.6), CFrame.new(0.8 * lado * ctx.e, -1.3 * ctx.e, -0.65 * ctx.e))
+		bola(
+			ctx,
+			cor:Lerp(ESCURO, 0.4),
+			Vector3.new(0.5, 0.12, 0.6),
+			CFrame.new(0.8 * lado * ctx.e, -1.3 * ctx.e, -0.65 * ctx.e)
+		)
 	end
 end
 
@@ -492,7 +536,13 @@ A.vulcao = function(ctx, _cor)
 	local terra = c(150, 95, 70)
 	bola(ctx, terra, Vector3.new(1.8, 0.8, 1.8), CFrame.new(0, (y + 0.05) * ctx.e, 0))
 	bola(ctx, terra, Vector3.new(1.25, 0.8, 1.25), CFrame.new(0, (y + 0.45) * ctx.e, 0))
-	local lava = bola(ctx, c(255, 120, 40), Vector3.new(0.9, 0.35, 0.9), CFrame.new(0, (y + 0.82) * ctx.e, 0), Enum.Material.Neon)
+	local lava = bola(
+		ctx,
+		c(255, 120, 40),
+		Vector3.new(0.9, 0.35, 0.9),
+		CFrame.new(0, (y + 0.82) * ctx.e, 0),
+		Enum.Material.Neon
+	)
 	fumaca(lava, c(120, 110, 110), 1, 4)
 end
 
@@ -547,7 +597,13 @@ A.foguete = function(ctx, _cor)
 			CFrame.new(math.sin(a) * s.X * 0.9, -0.5 * ctx.e, s.Z * 0.75) * CFrame.Angles(0, a, 0)
 		)
 	end
-	local bocal = bola(ctx, c(200, 205, 215), Vector3.new(0.7, 0.7, 0.4), CFrame.new(0, -0.4 * ctx.e, s.Z + 0.05 * ctx.e), Enum.Material.Metal)
+	local bocal = bola(
+		ctx,
+		c(200, 205, 215),
+		Vector3.new(0.7, 0.7, 0.4),
+		CFrame.new(0, -0.4 * ctx.e, s.Z + 0.05 * ctx.e),
+		Enum.Material.Metal
+	)
 	local fogo = Instance.new("ParticleEmitter")
 	fogo.Texture = "rbxasset://textures/particles/fire_main.dds"
 	fogo.Color = ColorSequence.new(c(255, 230, 120), c(255, 90, 40))
@@ -563,8 +619,22 @@ end
 A.raio = function(ctx, _cor)
 	local y = topo(ctx)
 	local amarelo = c(255, 225, 60)
-	parte(ctx, "bloco", amarelo, Vector3.new(0.35, 0.9, 0.2) * ctx.e, CFrame.new(0.1 * ctx.e, (y + 0.45) * ctx.e, 0) * CFrame.Angles(0, 0, math.rad(-25)), Enum.Material.Neon)
-	parte(ctx, "bloco", amarelo, Vector3.new(0.35, 0.9, 0.2) * ctx.e, CFrame.new(-0.05 * ctx.e, (y + 1.1) * ctx.e, 0) * CFrame.Angles(0, 0, math.rad(25)), Enum.Material.Neon)
+	parte(
+		ctx,
+		"bloco",
+		amarelo,
+		Vector3.new(0.35, 0.9, 0.2) * ctx.e,
+		CFrame.new(0.1 * ctx.e, (y + 0.45) * ctx.e, 0) * CFrame.Angles(0, 0, math.rad(-25)),
+		Enum.Material.Neon
+	)
+	parte(
+		ctx,
+		"bloco",
+		amarelo,
+		Vector3.new(0.35, 0.9, 0.2) * ctx.e,
+		CFrame.new(-0.05 * ctx.e, (y + 1.1) * ctx.e, 0) * CFrame.Angles(0, 0, math.rad(25)),
+		Enum.Material.Neon
+	)
 	local faisca = Instance.new("ParticleEmitter")
 	faisca.Texture = "rbxasset://textures/particles/sparkles_main.dds"
 	faisca.Color = ColorSequence.new(amarelo, BRANCO)
