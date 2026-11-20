@@ -44,6 +44,8 @@ local evSoltar = remote("Soltar")
 local evRenascer = remote("Renascer")
 local evPegarMissao = remote("PegarMissao")
 local evGirarRoleta = remote("GirarRoleta")
+local evComprarUpgrade = remote("ComprarUpgrade")
+local evRastro = remote("Rastro")
 -- servidor -> tela
 local evEstado = remote("Estado")
 local evAviso = remote("Aviso")
@@ -150,6 +152,24 @@ local function contarDescobertas(perfil: Dados.Perfil): number
 	return n
 end
 
+-- Tudo que multiplica a renda: VIP, renascimentos, Misturedex e a melhoria Renda Turbo
+local function multiplicadorRenda(jogador: Player, perfil: Dados.Perfil): number
+	local m = 1
+	if Loja.tem(jogador, "vip") then
+		m *= Config.VipMultiplicador
+	end
+	m *= 1 + perfil.renascimentos * Config.Renascer.bonusPorRenascimento
+	m *= 1 + Util.bonusDex(contarDescobertas(perfil))
+	m *= 1 + Util.efeitoUpgrade(perfil.upgrades, "renda")
+	return m
+end
+
+local function velocidadeDe(jogador: Player, base: number): number
+	local v = if Loja.tem(jogador, "rapido") then base * Config.RapidoMultiplicador else base
+	local perfil = Dados.obter(jogador)
+	return v * (1 + Util.efeitoUpgrade(perfil and perfil.upgrades, "velocidade"))
+end
+
 local function rendaPorSegundo(jogador: Player, perfil: Dados.Perfil): number
 	local total = 0
 	for vaga, id in perfil.criaturas do
@@ -165,12 +185,7 @@ local function rendaPorSegundo(jogador: Player, perfil: Dados.Perfil): number
 			total += Config.PorId[id].renda
 		end
 	end
-	if Loja.tem(jogador, "vip") then
-		total *= Config.VipMultiplicador
-	end
-	total *= 1 + perfil.renascimentos * Config.Renascer.bonusPorRenascimento
-	total *= 1 + Util.bonusDex(contarDescobertas(perfil))
-	return total
+	return total * multiplicadorRenda(jogador, perfil)
 end
 
 local function precoRenascer(perfil: Dados.Perfil): number
@@ -398,6 +413,8 @@ local function sortearCriatura(raridade: string, comMutacao: boolean?, dono: Pla
 	local id = lista[rng:NextInteger(1, #lista)].id
 	if comMutacao then
 		local mult = if dono and Loja.tem(dono, "sortedupla") then Config.SorteDuplaMutacao else 1
+		local perfilDono = dono and Dados.obter(dono)
+		mult *= 1 + Util.efeitoUpgrade(perfilDono and perfilDono.upgrades, "sorte")
 		local mut = Util.sortearMutacao(rng, mult)
 		if mut then
 			id ..= "*" .. mut
@@ -428,7 +445,7 @@ local function atualizarCarga(jogador: Player)
 			hum.WalkSpeed = 0
 		else
 			local base = if carregando then Config.Jogador.velocidadeCarregando else Config.Jogador.velocidade
-			hum.WalkSpeed = if Loja.tem(jogador, "rapido") then base * Config.RapidoMultiplicador else base
+			hum.WalkSpeed = velocidadeDe(jogador, base)
 		end
 	end
 	if not carregando or not cabeca then
@@ -757,9 +774,10 @@ local function trancar(jogador: Player)
 		aviso(jogador, string.format("O cadeado recarrega em %d s.", math.ceil(estado.cadeadoLivreEm - t)))
 		return
 	end
-	local duracao = if Loja.tem(jogador, "cadeado")
-		then Config.CadeadoReforcadoSegundos
-		else Config.Base.cadeadoSegundos
+	local perfilCadeado = Dados.obter(jogador)
+	local duracao = (
+		if Loja.tem(jogador, "cadeado") then Config.CadeadoReforcadoSegundos else Config.Base.cadeadoSegundos
+	) + Util.efeitoUpgrade(perfilCadeado and perfilCadeado.upgrades, "cadeado")
 	estado.cadeadoAte = t + duracao
 	estado.cadeadoLivreEm = estado.cadeadoAte + Config.Base.cadeadoEsperaSegundos
 	desenharPorta(estado)
@@ -791,6 +809,8 @@ local function criarLeaderstats(jogador: Player)
 	pasta.Parent = jogador
 end
 
+local colocarRastro: (Player) -> ()
+
 local function aoPersonagem(jogador: Player, personagem: Model)
 	local estado = estados[jogador]
 	if not estado then
@@ -801,11 +821,13 @@ local function aoPersonagem(jogador: Player, personagem: Model)
 	if not hum then
 		return
 	end
-	hum.WalkSpeed = if Loja.tem(jogador, "rapido")
-		then Config.Jogador.velocidade * Config.RapidoMultiplicador
-		else Config.Jogador.velocidade
+	hum.WalkSpeed = velocidadeDe(jogador, Config.Jogador.velocidade)
 	hum.Died:Connect(function()
 		soltarTudo(jogador)
+	end)
+	task.defer(function()
+		personagem:WaitForChild("HumanoidRootPart", 5)
+		colocarRastro(jogador)
 	end)
 	task.defer(irParaBase, jogador)
 	if Loja.tem(jogador, "vip") then
@@ -1290,6 +1312,116 @@ evTapa.OnServerEvent:Connect(function(jogador)
 	end
 end)
 
+-- Melhorias permanentes compradas com moedas
+evComprarUpgrade.OnServerEvent:Connect(function(jogador, id)
+	local estado, perfil = estados[jogador], Dados.obter(jogador)
+	if not estado or not perfil or type(id) ~= "string" or not liberado(estado, "upgrade", 0.25) then
+		return
+	end
+	local u = Util.upgrade(id)
+	if not u then
+		return
+	end
+	local nivel = perfil.upgrades[id] or 0
+	if nivel >= u.max then
+		aviso(jogador, u.nome .. " já está no máximo!")
+		return
+	end
+	local preco = Util.precoUpgrade(u, nivel)
+	if perfil.moedas < preco then
+		aviso(jogador, "Moedas insuficientes.")
+		return
+	end
+	perfil.moedas -= preco
+	perfil.upgrades[id] = nivel + 1
+	aviso(jogador, u.nome .. " nível " .. (nivel + 1) .. "!", u.cor)
+	if id == "velocidade" then
+		atualizarCarga(jogador)
+	end
+	estado.sujo = true
+end)
+
+-- Rastro atrás do personagem (só enfeite)
+colocarRastro = function(jogador: Player)
+	local perfil = Dados.obter(jogador)
+	local personagem = jogador.Character
+	local raizP = personagem and personagem:FindFirstChild("HumanoidRootPart")
+	if not perfil or not raizP then
+		return
+	end
+	for _, nome in { "RastroMistureba", "RastroA", "RastroB" } do
+		local velho = raizP:FindFirstChild(nome)
+		if velho then
+			velho:Destroy()
+		end
+	end
+	local def: Config.Rastro? = nil
+	for _, r in Config.Rastros do
+		if r.id == perfil.rastro then
+			def = r
+		end
+	end
+	if not def then
+		return
+	end
+	local a = Instance.new("Attachment")
+	a.Name = "RastroA"
+	a.Position = Vector3.new(0, 0.9, 0)
+	a.Parent = raizP
+	local b = Instance.new("Attachment")
+	b.Name = "RastroB"
+	b.Position = Vector3.new(0, -0.9, 0)
+	b.Parent = raizP
+	local pontos = {}
+	for i, cor in def.cores do
+		table.insert(pontos, ColorSequenceKeypoint.new((i - 1) / math.max(1, #def.cores - 1), cor))
+	end
+	if #pontos == 1 then
+		table.insert(pontos, ColorSequenceKeypoint.new(1, def.cores[1]))
+	end
+	local rastro = Instance.new("Trail")
+	rastro.Name = "RastroMistureba"
+	rastro.Attachment0 = a
+	rastro.Attachment1 = b
+	rastro.Color = ColorSequence.new(pontos)
+	rastro.Transparency = NumberSequence.new(0.1, 1)
+	rastro.Lifetime = 0.6
+	rastro.LightEmission = 0.6
+	rastro.FaceCamera = true
+	rastro.Parent = raizP
+end
+
+evRastro.OnServerEvent:Connect(function(jogador, id)
+	local estado, perfil = estados[jogador], Dados.obter(jogador)
+	if not estado or not perfil or type(id) ~= "string" or not liberado(estado, "rastro", 0.4) then
+		return
+	end
+	local def: Config.Rastro? = nil
+	for _, r in Config.Rastros do
+		if r.id == id then
+			def = r
+		end
+	end
+	if not def then
+		return
+	end
+	if not perfil.rastros[id] then
+		if perfil.moedas < def.preco then
+			aviso(jogador, "Moedas insuficientes.")
+			return
+		end
+		perfil.moedas -= def.preco
+		perfil.rastros[id] = true
+		perfil.rastro = id
+		aviso(jogador, "Rastro " .. def.nome .. " comprado!", def.cores[1])
+	else
+		-- já tem: clicar de novo equipa ou tira
+		perfil.rastro = if perfil.rastro == id then nil else id
+	end
+	colocarRastro(jogador)
+	estado.sujo = true
+end)
+
 -- Roleta grátis: o servidor sorteia, a tela gira até o prêmio e só então ele é entregue
 local DURACAO_GIRO = 4.2
 evGirarRoleta.OnServerEvent:Connect(function(jogador)
@@ -1480,6 +1612,10 @@ local function montarEstado(jogador: Player, estado: Estado, perfil: Dados.Perfi
 		protegidoAte = estado.entrouEm + Config.Base.protecaoNovatoSegundos,
 		presenteEm = estado.presenteEm,
 		roletaEm = estado.roletaEm,
+		upgrades = perfil.upgrades,
+		rastros = perfil.rastros,
+		rastro = perfil.rastro,
+		multiplicador = multiplicadorRenda(jogador, perfil),
 		proximoPresenteEspecial = (estado.presentes + 1) % Config.PresenteTempo.especialACada == 0,
 		missoes = (function()
 			local m = missoesDoDia(perfil)

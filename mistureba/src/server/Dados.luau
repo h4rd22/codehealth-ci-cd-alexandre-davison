@@ -29,6 +29,9 @@ export type Perfil = {
 	diaPremio: number, -- último dia (os.time()//86400) em que pegou o prêmio diário
 	sequencia: number, -- dias seguidos pegando o prêmio
 	missoes: Missoes,
+	upgrades: { [string]: number }, -- melhorias compradas com moedas (id -> nível)
+	rastros: { [string]: boolean }, -- rastros comprados
+	rastro: string?, -- rastro equipado
 	trava: { servidor: string, hora: number }?,
 }
 
@@ -64,6 +67,9 @@ local function perfilNovo(): Perfil
 		diaPremio = 0,
 		sequencia = 0,
 		missoes = { dia = 0, ids = {}, progresso = {}, pegas = {}, final = false },
+		upgrades = {},
+		rastros = {},
+		rastro = nil,
 		trava = nil,
 	}
 end
@@ -146,6 +152,24 @@ local function corrigir(dado: any): Perfil
 				p.missoes.pegas[i] = type(m.pegas) == "table" and m.pegas[i] == true
 			end
 		end
+	end
+	if type(dado.upgrades) == "table" then
+		for _, u in Config.Upgrades do
+			local v = dado.upgrades[u.id]
+			if type(v) == "number" and v == v then
+				p.upgrades[u.id] = math.clamp(math.floor(v), 0, u.max)
+			end
+		end
+	end
+	if type(dado.rastros) == "table" then
+		for _, r in Config.Rastros do
+			if dado.rastros[r.id] == true then
+				p.rastros[r.id] = true
+			end
+		end
+	end
+	if type(dado.rastro) == "string" and p.rastros[dado.rastro] then
+		p.rastro = dado.rastro
 	end
 	p.trava = dado.trava
 	return p

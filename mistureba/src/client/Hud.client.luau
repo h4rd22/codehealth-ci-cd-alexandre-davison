@@ -110,33 +110,133 @@ end
 camera:GetPropertyChangedSignal("ViewportSize"):Connect(ajustarEscala)
 ajustarEscala()
 
--- Moedas no topo
+-- Moedas no topo: moeda que gira, número que sobe contando, renda por segundo e multiplicador
 local barraMoedas = Instance.new("Frame")
 barraMoedas.AnchorPoint = Vector2.new(0.5, 0)
 barraMoedas.Position = UDim2.new(0.5, 0, 0, 8)
-barraMoedas.Size = UDim2.fromOffset(320, 70)
-barraMoedas.BackgroundColor3 = COR_FUNDO
-barraMoedas.BackgroundTransparency = 0.15
-cantos(barraMoedas, 16)
+barraMoedas.Size = UDim2.fromOffset(340, 76)
+barraMoedas.BackgroundColor3 = Color3.new(1, 1, 1)
+barraMoedas.BackgroundTransparency = 0.08
+cantos(barraMoedas, 20)
 borda(barraMoedas, COR_AMARELO, 3)
 barraMoedas.Parent = tela
-local textoMoedas = rotulo(barraMoedas, {
-	Size = UDim2.new(1, -16, 0, 40),
-	Position = UDim2.fromOffset(8, 4),
-	Text = "0 moedas",
-	TextColor3 = COR_AMARELO,
+local fundoMoedas = Instance.new("UIGradient")
+fundoMoedas.Color = ColorSequence.new(Color3.fromRGB(70, 50, 120), Color3.fromRGB(30, 26, 55))
+fundoMoedas.Rotation = 90
+fundoMoedas.Parent = barraMoedas
+
+local moeda = Instance.new("Frame")
+moeda.AnchorPoint = Vector2.new(0.5, 0.5)
+moeda.Position = UDim2.fromOffset(40, 38)
+moeda.Size = UDim2.fromOffset(54, 54)
+moeda.BackgroundColor3 = Color3.new(1, 1, 1)
+cantos(moeda, 27)
+borda(moeda, Color3.fromRGB(190, 110, 10), 3)
+moeda.Parent = barraMoedas
+local corMoeda = Instance.new("UIGradient")
+corMoeda.Color = ColorSequence.new(Color3.fromRGB(255, 240, 120), Color3.fromRGB(255, 160, 30))
+corMoeda.Rotation = 45
+corMoeda.Parent = moeda
+rotulo(moeda, {
+	Size = UDim2.fromScale(0.7, 0.7),
+	Position = UDim2.fromScale(0.15, 0.15),
+	Text = "M",
+	TextColor3 = Color3.fromRGB(170, 95, 0),
+	TextStrokeTransparency = 1,
 })
+
+local textoMoedas = rotulo(barraMoedas, {
+	Size = UDim2.new(1, -86, 0, 42),
+	Position = UDim2.fromOffset(76, 4),
+	Text = "0",
+	TextColor3 = COR_AMARELO,
+	TextXAlignment = Enum.TextXAlignment.Left,
+})
+local escalaMoedas = Instance.new("UIScale")
+escalaMoedas.Parent = textoMoedas
 local textoRenda = rotulo(barraMoedas, {
-	Size = UDim2.new(1, -16, 0, 22),
-	Position = UDim2.fromOffset(8, 44),
+	Size = UDim2.new(1, -170, 0, 24),
+	Position = UDim2.fromOffset(78, 46),
 	Text = "+0/s",
 	TextColor3 = COR_VERDE,
+	TextXAlignment = Enum.TextXAlignment.Left,
 })
+-- bônus total da renda (VIP, renascimentos, Dex e Renda Turbo juntos)
+local chipMult = rotulo(barraMoedas, {
+	AnchorPoint = Vector2.new(1, 0),
+	Position = UDim2.new(1, -10, 0, 46),
+	Size = UDim2.fromOffset(76, 24),
+	BackgroundTransparency = 0,
+	BackgroundColor3 = COR_ROXO,
+	Text = "x1",
+	Visible = false,
+})
+cantos(chipMult, 12)
+
+-- a moeda dá uma girada de vez em quando
+task.spawn(function()
+	while true do
+		task.wait(4)
+		local ida = TweenService:Create(moeda, TweenInfo.new(0.18), { Size = UDim2.fromOffset(6, 54) })
+		ida:Play()
+		ida.Completed:Wait()
+		TweenService:Create(moeda, TweenInfo.new(0.18), { Size = UDim2.fromOffset(54, 54) }):Play()
+	end
+end)
+
+local moedasAlvo, moedasMostradas, ultimoTextoMoedas = 0, 0, -1
+local function mostrarMoedas(novas: number, rendaAtual: number)
+	local diferenca = novas - moedasAlvo
+	moedasAlvo = novas
+	if diferenca == 0 then
+		return
+	end
+	escalaMoedas.Scale = if diferenca > 0 then 1.12 else 0.92
+	TweenService:Create(escalaMoedas, TweenInfo.new(0.3, Enum.EasingStyle.Back), { Scale = 1 }):Play()
+	textoMoedas.TextColor3 = if diferenca > 0 then COR_AMARELO else Color3.fromRGB(255, 120, 120)
+	if diferenca < 0 then
+		task.delay(0.35, function()
+			textoMoedas.TextColor3 = COR_AMARELO
+		end)
+	end
+	-- ganho grande (venda, prêmio, roleta...) sobe um "+N" na tela
+	if math.abs(diferenca) > math.max(rendaAtual * 3, 10) then
+		local voa = rotulo(tela, {
+			AnchorPoint = Vector2.new(0.5, 0),
+			Position = UDim2.new(0.5, 40, 0, 70),
+			Size = UDim2.fromOffset(220, 34),
+			Text = (if diferenca > 0 then "+" else "-") .. Util.numero(math.abs(diferenca)),
+			TextColor3 = if diferenca > 0 then COR_VERDE else COR_VERMELHO,
+			ZIndex = 5,
+		})
+		TweenService:Create(voa, TweenInfo.new(1.2), {
+			Position = UDim2.new(0.5, 40, 0, if diferenca > 0 then 20 else 110),
+			TextTransparency = 1,
+			TextStrokeTransparency = 1,
+		}):Play()
+		task.delay(1.3, function()
+			voa:Destroy()
+		end)
+	end
+end
+game:GetService("RunService").Heartbeat:Connect(function(dt)
+	if moedasMostradas ~= moedasAlvo then
+		moedasMostradas += (moedasAlvo - moedasMostradas) * math.min(1, dt * 8)
+		if math.abs(moedasAlvo - moedasMostradas) < 1 then
+			moedasMostradas = moedasAlvo
+		end
+		local inteiro = math.floor(moedasMostradas + 0.5)
+		if inteiro ~= ultimoTextoMoedas then
+			ultimoTextoMoedas = inteiro
+			textoMoedas.Text = Util.numero(inteiro)
+		end
+	end
+end)
 
 -- Linha de status (carregando, cadeado, sorte, proteção)
 local textoStatus = rotulo(tela, {
 	AnchorPoint = Vector2.new(0.5, 0),
-	Position = UDim2.new(0.5, 0, 0, 84),
+	Position = UDim2.new(0.5, 0, 0, 90),
 	Size = UDim2.fromOffset(560, 26),
 	Text = "",
 	RichText = true,
@@ -147,7 +247,7 @@ local menu = Instance.new("Frame")
 menu.BackgroundTransparency = 1
 menu.AnchorPoint = Vector2.new(0, 0.5)
 menu.Position = UDim2.new(0, 10, 0.5, 0)
-menu.Size = UDim2.fromOffset(120, 590)
+menu.Size = UDim2.fromOffset(120, 640)
 menu.Parent = tela
 local listaMenu = Instance.new("UIListLayout")
 listaMenu.Padding = UDim.new(0, 10)
@@ -170,13 +270,13 @@ local function ajustarMenu()
 		gradeMenu.Parent = menu
 		menu.AnchorPoint = Vector2.new(0, 0)
 		menu.Position = UDim2.fromOffset(10, 10)
-		menu.Size = UDim2.fromOffset(250, 300)
+		menu.Size = UDim2.fromOffset(250, 350)
 	else
 		gradeMenu.Parent = nil
 		listaMenu.Parent = menu
 		menu.AnchorPoint = Vector2.new(0, 0.5)
 		menu.Position = UDim2.new(0, 10, 0.5, 0)
-		menu.Size = UDim2.fromOffset(120, 590)
+		menu.Size = UDim2.fromOffset(120, 640)
 	end
 end
 
@@ -189,6 +289,8 @@ local botaoMissoes =
 	botao(menu, "MISSÕES", Color3.fromRGB(255, 150, 60), { Size = UDim2.fromOffset(120, 62), LayoutOrder = 6 })
 local COR_TROCA = Color3.fromRGB(70, 200, 230)
 local botaoTrocar = botao(menu, "TROCAR", COR_TROCA, { Size = UDim2.fromOffset(120, 62), LayoutOrder = 8 })
+local botaoMelhorar =
+	botao(menu, "MELHORAR", Color3.fromRGB(255, 160, 40), { Size = UDim2.fromOffset(120, 62), LayoutOrder = 9 })
 local botaoRoleta =
 	botao(menu, "ROLETA", Color3.fromRGB(255, 90, 160), { Size = UDim2.fromOffset(120, 62), LayoutOrder = 7 })
 local alertaRoleta = rotulo(botaoRoleta, {
@@ -267,6 +369,10 @@ type EstadoTela = {
 	premioMissao: number,
 	bonusDex: number,
 	baseIndice: number,
+	upgrades: { [string]: number },
+	rastros: { [string]: boolean },
+	rastro: string?,
+	multiplicador: number?,
 }
 
 local estado: EstadoTela? = nil
@@ -1664,6 +1770,165 @@ task.spawn(function()
 end)
 
 ------------------------------------------------------------------------
+-- Painel: Melhorias (onde gastar moedas para sempre) e Rastros (enfeites)
+------------------------------------------------------------------------
+local COR_MELHORAR = Color3.fromRGB(255, 160, 40)
+local painelMelhorar, rolagemMelhorar = novoPainel("Melhorias", COR_MELHORAR)
+lista(rolagemMelhorar)
+
+local function textoEfeito(u: Config.Upgrade, nivel: number): string
+	local v = nivel * u.porNivel
+	if u.id == "cadeado" then
+		return "+" .. v .. "s"
+	end
+	return "+" .. math.floor(v * 100 + 0.5) .. "%"
+end
+
+local function titulo(texto: string, ordem: number, cor: Color3)
+	rotulo(rolagemMelhorar, {
+		Size = UDim2.new(1, -12, 0, 34),
+		Text = texto,
+		TextColor3 = cor,
+		LayoutOrder = ordem,
+		TextXAlignment = Enum.TextXAlignment.Left,
+	})
+end
+
+local atualizarMelhorias: { () -> () } = {}
+titulo("Para sempre (não somem ao Renascer)", 0, COR_MELHORAR)
+for i, u in Config.Upgrades do
+	local c = cartao(rolagemMelhorar, 104, i)
+	borda(c, u.cor, 2)
+	rotulo(c, {
+		Size = UDim2.new(1, -220, 0, 32),
+		Position = UDim2.fromOffset(14, 6),
+		Text = u.nome,
+		TextColor3 = u.cor,
+		TextXAlignment = Enum.TextXAlignment.Left,
+	})
+	rotulo(c, {
+		Size = UDim2.new(1, -220, 0, 24),
+		Position = UDim2.fromOffset(14, 38),
+		Text = u.descricao,
+		TextColor3 = Color3.fromRGB(210, 210, 235),
+		TextXAlignment = Enum.TextXAlignment.Left,
+	})
+	-- barrinha com um pedaço por nível
+	local barra = Instance.new("Frame")
+	barra.BackgroundTransparency = 1
+	barra.Position = UDim2.fromOffset(14, 70)
+	barra.Size = UDim2.new(1, -220, 0, 20)
+	barra.Parent = c
+	local gradeNiveis = Instance.new("UIListLayout")
+	gradeNiveis.FillDirection = Enum.FillDirection.Horizontal
+	gradeNiveis.Padding = UDim.new(0, 3)
+	gradeNiveis.Parent = barra
+	local pedacos = {}
+	for n = 1, u.max do
+		local pedaco = Instance.new("Frame")
+		pedaco.Size = UDim2.new(1 / u.max, -3, 1, 0)
+		pedaco.BackgroundColor3 = Color3.fromRGB(80, 75, 110)
+		pedaco.LayoutOrder = n
+		cantos(pedaco, 4)
+		pedaco.Parent = barra
+		pedacos[n] = pedaco
+	end
+	local efeito = rotulo(c, {
+		AnchorPoint = Vector2.new(1, 0),
+		Position = UDim2.new(1, -14, 0, 6),
+		Size = UDim2.fromOffset(190, 28),
+		Text = "",
+		TextColor3 = COR_VERDE,
+	})
+	local comprar = botao(c, "", COR_VERDE, {
+		AnchorPoint = Vector2.new(1, 0),
+		Position = UDim2.new(1, -14, 0, 40),
+		Size = UDim2.fromOffset(190, 52),
+	})
+	local nivelVisto = -1
+	local function atualizar()
+		if not estado then
+			return
+		end
+		local nivel = (estado.upgrades or {})[u.id] or 0
+		for n, pedaco in pedacos do
+			pedaco.BackgroundColor3 = if n <= nivel then u.cor else Color3.fromRGB(80, 75, 110)
+		end
+		if nivelVisto >= 0 and nivel > nivelVisto and pedacos[nivel] then
+			local brilho = pedacos[nivel]
+			brilho.BackgroundColor3 = Color3.new(1, 1, 1)
+			TweenService:Create(brilho, TweenInfo.new(0.5), { BackgroundColor3 = u.cor }):Play()
+		end
+		nivelVisto = nivel
+		efeito.Text = "Nível " .. nivel .. "/" .. u.max .. "  " .. textoEfeito(u, nivel)
+		if nivel >= u.max then
+			comprar.Text = "MÁXIMO!"
+			comprar.BackgroundColor3 = COR_AZUL
+		else
+			local preco = Util.precoUpgrade(u, nivel)
+			comprar.Text = Util.numero(preco)
+			comprar.BackgroundColor3 = if estado.moedas >= preco then COR_VERDE else Color3.fromRGB(110, 110, 120)
+		end
+	end
+	comprar.MouseButton1Click:Connect(function()
+		ev("ComprarUpgrade"):FireServer(u.id)
+	end)
+	table.insert(atualizarMelhorias, atualizar)
+end
+
+titulo("Rastros (só enfeite, seguem você)", 50, Color3.fromRGB(150, 220, 255))
+for i, r in Config.Rastros do
+	local c = cartao(rolagemMelhorar, 74, 50 + i)
+	local amostra = Instance.new("Frame")
+	amostra.Position = UDim2.fromOffset(14, 14)
+	amostra.Size = UDim2.fromOffset(90, 46)
+	amostra.BackgroundColor3 = Color3.new(1, 1, 1)
+	cantos(amostra, 10)
+	amostra.Parent = c
+	local pontos = {}
+	for k, cor in r.cores do
+		table.insert(pontos, ColorSequenceKeypoint.new((k - 1) / math.max(1, #r.cores - 1), cor))
+	end
+	local degrade = Instance.new("UIGradient")
+	degrade.Color = ColorSequence.new(pontos)
+	degrade.Parent = amostra
+	rotulo(c, {
+		Size = UDim2.new(1, -330, 0, 40),
+		Position = UDim2.fromOffset(116, 16),
+		Text = r.nome,
+		TextXAlignment = Enum.TextXAlignment.Left,
+	})
+	local acao = botao(c, "", COR_VERDE, {
+		AnchorPoint = Vector2.new(1, 0.5),
+		Position = UDim2.new(1, -14, 0.5, 0),
+		Size = UDim2.fromOffset(190, 52),
+	})
+	acao.MouseButton1Click:Connect(function()
+		ev("Rastro"):FireServer(r.id)
+	end)
+	table.insert(atualizarMelhorias, function()
+		if not estado then
+			return
+		end
+		if (estado.rastros or {})[r.id] then
+			local usando = estado.rastro == r.id
+			acao.Text = if usando then "TIRAR" else "USAR"
+			acao.BackgroundColor3 = if usando then COR_VERMELHO else COR_AZUL
+		else
+			acao.Text = Util.numero(r.preco)
+			acao.BackgroundColor3 = if estado.moedas >= r.preco then COR_VERDE else Color3.fromRGB(110, 110, 120)
+		end
+	end)
+end
+table.insert(aoMudarEstado, function()
+	if painelMelhorar.Visible then
+		for _, f in atualizarMelhorias do
+			f()
+		end
+	end
+end)
+
+------------------------------------------------------------------------
 -- Botões e teclas
 ------------------------------------------------------------------------
 botaoOvos.MouseButton1Click:Connect(function()
@@ -1695,6 +1960,12 @@ botaoTrocar.MouseButton1Click:Connect(function()
 end)
 botaoRoleta.MouseButton1Click:Connect(function()
 	abrir(painelRoleta)
+end)
+botaoMelhorar.MouseButton1Click:Connect(function()
+	for _, f in atualizarMelhorias do
+		f()
+	end
+	abrir(painelMelhorar)
 end)
 botaoMissoes.MouseButton1Click:Connect(function()
 	desenharMissoes()
@@ -1839,8 +2110,11 @@ ev("Estado").OnClientEvent:Connect(function(novo: EstadoTela)
 			or estado.renascimentos ~= novo.renascimentos
 	end
 	estado = novo
-	textoMoedas.Text = Util.numero(novo.moedas) .. " moedas"
+	mostrarMoedas(novo.moedas, novo.renda)
 	textoRenda.Text = "+" .. Util.numero(novo.renda) .. "/s"
+	local mult = novo.multiplicador or 1
+	chipMult.Visible = mult > 1.001
+	chipMult.Text = "x" .. string.gsub(string.format("%.1f", mult), "%.0$", "")
 	for _, f in aoMudarEstado do
 		f()
 	end

@@ -145,6 +145,11 @@ PRESENTE = config("PresenteTempo")
 VENDA_SEG = config("VendaSegundos")
 ROLETA = config("Roleta")
 VIP_MULT = config("VipMultiplicador")
+UPGRADES = {u["id"]: u for u in config("Upgrades")}
+
+
+def preco_upgrade(u: dict, nivel: int) -> float:
+    return int(u["precoBase"] * u["crescimento"] ** nivel)
 
 
 def bonus_dex(achadas: int) -> float:
@@ -165,12 +170,13 @@ def sortear_peso(rng: random.Random, pesos: dict) -> str:
     return ordem[-1]
 
 
-def sortear_mut(rng: random.Random) -> float:
+def sortear_mut(rng: random.Random, mult: float = 1.0) -> float:
     x = rng.random() * 100
-    for m in reversed(MUTACOES):  # mais rara primeiro, como no Util
-        if x < m["chance"]:
+    soma = 0.0
+    for m in MUTACOES:  # mesma ordem do Util.sortearMutacao
+        soma += m["chance"] * mult
+        if x < soma:
             return m["multiplicador"]
-        x -= m["chance"]
     return 1.0
 
 
@@ -203,6 +209,8 @@ class Jogador:
         self.ganho_total = 0.0
         self.primeira: dict[str, float] = {}
         self.renasceu_em: list[float] = []
+        self.upgrades = {k: 0 for k in UPGRADES}  # nao somem ao renascer
+        self.gasto_upgrades = 0.0
 
     def vagas(self) -> int:
         return BASE["vagasIniciais"] + self.melhorias * BASE["vagasPorMelhoria"]
@@ -213,11 +221,12 @@ class Jogador:
             total *= VIP_MULT
         total *= 1 + self.renasc * RENASCER["bonusPorRenascimento"]
         total *= 1 + bonus_dex(len(self.dex))
+        total *= 1 + self.upgrades["renda"] * UPGRADES["renda"]["porNivel"]
         return total
 
     def ganhar(self, raridade: str, t: float):
         c = self.rng.choice(POR_RARIDADE[raridade])
-        r = c["renda"] * sortear_mut(self.rng)
+        r = c["renda"] * sortear_mut(self.rng, 1 + self.upgrades["sorte"] * UPGRADES["sorte"]["porNivel"])
         self.dex.add(c["id"])
         self.primeira.setdefault(raridade, t)
         if len(self.base) < self.vagas():
@@ -268,6 +277,17 @@ class Jogador:
             self.renasc += 1
             self.renasceu_em.append(t)
             return
+        # melhorias permanentes: jogador guloso compra quando custa menos que 4 min de renda
+        for uid in ("renda", "sorte"):
+            u = UPGRADES[uid]
+            nivel = self.upgrades[uid]
+            if nivel < u["max"]:
+                preco = preco_upgrade(u, nivel)
+                if self.moedas >= preco and preco < self.renda() * 240:
+                    self.moedas -= preco
+                    self.gasto_upgrades += preco
+                    self.upgrades[uid] += 1
+                    return
         # compra o ovo mais caro que valer a pena (renda esperada > a mais fraca da base)
         fraca = min(b[1] for b in self.base) if len(self.base) >= self.vagas() else 0
         for ovo in sorted(OVOS.values(), key=lambda o: -o["preco"]):
@@ -355,6 +375,7 @@ def main() -> int:
         renasc = []
         nrenasc = []
         extra = []
+        niveis = {k: [] for k in UPGRADES}
         for seed in range(rodadas):
             j, fotos = simular(seed, vip, horas, marcos)
             for m in marcos:
@@ -365,6 +386,8 @@ def main() -> int:
             renasc.append(j.renasceu_em[0] if j.renasceu_em else None)
             nrenasc.append(len(j.renasceu_em))
             extra.append(j.ganho_extra / max(1, j.ganho_total))
+            for k in UPGRADES:
+                niveis[k].append(j.upgrades[k])
         nome = "VIP" if vip else "Gratis"
         print(f"-- Jogador {nome} --")
         print("tempo    renda/s (mediana)   Dex")
@@ -381,12 +404,14 @@ def main() -> int:
             print(f"primeira {r:<9} {minutos(mediana_tempo(prim[r]))}")
         print(f"1o renascimento    {minutos(mediana_tempo(renasc))}")
         print(f"renascimentos em {horas}h: {statistics.median(nrenasc):.0f}")
-        print(f"premios (missao/roleta) = {statistics.mean(extra) * 100:.1f}% de todas as moedas\n")
+        print(f"premios (missao/roleta) = {statistics.mean(extra) * 100:.1f}% de todas as moedas")
+        print("melhorias em " + str(horas) + "h: " + ", ".join(f"{k} {statistics.median(v):.0f}/{UPGRADES[k]['max']}" for k, v in niveis.items()) + "\n")
         resultados[nome] = {
             "renda": {m: statistics.median(rendas[m]) for m in marcos},
             "prim": {r: mediana_tempo(prim[r]) for r in ORDEM},
             "renasc": mediana_tempo(renasc),
             "extra": statistics.mean(extra),
+            "niveis": {k: statistics.median(v) for k, v in niveis.items()},
         }
 
     g, v = resultados["Gratis"], resultados["VIP"]
@@ -416,6 +441,12 @@ def main() -> int:
     #    o VIP pode chegar no renascimento no maximo 2,5x mais rapido
     if g["renasc"] and v["renasc"] and g["renasc"] / v["renasc"] > 2.5:
         falhas.append(f"VIP renasce {g['renasc'] / v['renasc']:.1f}x mais rapido que gratis (maximo 2,5x)")
+
+    # 5) Melhorias sao um objetivo longo: ninguem fecha Renda Turbo ou Trevo em 4h
+    for k in ("renda", "sorte"):
+        for nome, r in (("gratis", g), ("VIP", v)):
+            if r["niveis"][k] >= UPGRADES[k]["max"]:
+                falhas.append(f"{UPGRADES[k]['nome']} chega no maximo em {horas}h ({nome}): fica sem objetivo")
 
     if falhas:
         print("FALHOU o balanceamento:")

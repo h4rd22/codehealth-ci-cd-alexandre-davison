@@ -1323,6 +1323,77 @@ Config.MarcosDex = {
 	{ achadas = 40, bonus = 1 },
 }
 
+-- Melhorias permanentes compradas com moedas (não somem ao renascer).
+-- Preço do próximo nível = precoBase * crescimento ^ nível atual.
+export type Upgrade = {
+	id: string,
+	nome: string,
+	descricao: string,
+	max: number,
+	precoBase: number,
+	crescimento: number,
+	porNivel: number,
+	cor: Color3,
+}
+Config.Upgrades = {
+	{
+		id = "renda",
+		nome = "Renda Turbo",
+		descricao = "+8% de moedas por segundo a cada nível",
+		max = 15,
+		precoBase = 20000,
+		crescimento = 2.6,
+		porNivel = 0.08,
+		cor = c(255, 205, 60),
+	},
+	{
+		id = "sorte",
+		nome = "Trevo da Sorte",
+		descricao = "+10% de chance de mutação a cada nível",
+		max = 10,
+		precoBase = 50000,
+		crescimento = 3.5,
+		porNivel = 0.1,
+		cor = c(120, 230, 120),
+	},
+	{
+		id = "velocidade",
+		nome = "Tênis Veloz",
+		descricao = "+4% de velocidade a cada nível",
+		max = 5,
+		precoBase = 3000,
+		crescimento = 2.6,
+		porNivel = 0.04,
+		cor = c(90, 180, 255),
+	},
+	{
+		id = "cadeado",
+		nome = "Cadeado Forte",
+		descricao = "+5 segundos de base trancada a cada nível",
+		max = 6,
+		precoBase = 8000,
+		crescimento = 2.4,
+		porNivel = 5,
+		cor = c(200, 140, 255),
+	},
+} :: { Upgrade }
+
+-- Rastros: enfeite que segue o personagem. Só visual, não dá vantagem nenhuma.
+export type Rastro = { id: string, nome: string, preco: number, cores: { Color3 } }
+Config.Rastros = {
+	{ id = "ceu", nome = "Céu", preco = 25000, cores = { c(120, 200, 255), c(255, 255, 255) } },
+	{ id = "fogo", nome = "Fogo", preco = 150000, cores = { c(255, 220, 60), c(255, 90, 30) } },
+	{ id = "doce", nome = "Doce", preco = 600000, cores = { c(255, 150, 210), c(160, 230, 255) } },
+	{ id = "galaxia", nome = "Galáxia", preco = 3000000, cores = { c(120, 60, 255), c(255, 80, 220) } },
+	{
+		id = "arcoiris",
+		nome = "Arco-íris",
+		preco = 15000000,
+		cores = { c(255, 70, 70), c(255, 220, 60), c(80, 230, 90), c(60, 170, 255), c(190, 90, 255) },
+	},
+	{ id = "ouro", nome = "Ouro Puro", preco = 80000000, cores = { c(255, 240, 150), c(255, 180, 20) } },
+} :: { Rastro }
+
 -- Vender uma Mistureba dá este tanto de segundos da renda dela.
 -- Tem que ser bem menos que o preço do ovo, senão comprar e vender vira máquina de moedas.
 Config.VendaSegundos = 15

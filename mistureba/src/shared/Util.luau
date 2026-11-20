@@ -81,6 +81,29 @@ function Util.sortearMutacao(rng: Random, mult: number?): string?
 	return nil
 end
 
+-- Melhorias compradas com moedas
+function Util.upgrade(id: string): Config.Upgrade?
+	for _, u in Config.Upgrades do
+		if u.id == id then
+			return u
+		end
+	end
+	return nil
+end
+
+function Util.precoUpgrade(u: Config.Upgrade, nivel: number): number
+	return math.floor(u.precoBase * u.crescimento ^ nivel)
+end
+
+-- Quanto a melhoria dá no nível atual (ex.: renda nível 3 = 0.3)
+function Util.efeitoUpgrade(upgrades: { [string]: number }?, id: string): number
+	local u = Util.upgrade(id)
+	if not u or not upgrades then
+		return 0
+	end
+	return (upgrades[id] or 0) * u.porNivel
+end
+
 -- Bônus de renda da Misturedex (0.25 = +25%) e o próximo marco.
 function Util.bonusDex(achadas: number): (number, { achadas: number, bonus: number }?)
 	local bonus = 0
