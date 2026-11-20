@@ -422,6 +422,14 @@ local function sortearCriatura(raridade: string, comMutacao: boolean?, dono: Pla
 		local mult = if dono and Loja.tem(dono, "sortedupla") then Config.SorteDuplaMutacao else 1
 		local perfilDono = dono and Dados.obter(dono)
 		mult *= 1 + Util.efeitoUpgrade(perfilDono and perfilDono.upgrades, "sorte")
+		if perfilDono and perfilDono.pocoes > 0 and dono then
+			perfilDono.pocoes -= 1
+			mult *= Config.PocaoMultiplicador
+			local estadoDono = estados[dono]
+			if estadoDono then
+				estadoDono.sujo = true
+			end
+		end
 		local mut = Util.sortearMutacao(rng, mult, climaAtual)
 		if mut then
 			id ..= "*" .. mut
@@ -1117,6 +1125,35 @@ evFundir.OnServerEvent:Connect(function(jogador, vagaA, vagaB)
 		end
 		resultado = sortearCriatura(proxima)
 	end
+	-- mutação na fusão: cada mutação das duas tem chance de passar;
+	-- se nenhuma passar, ainda pode nascer uma mutação nova (como um ovo)
+	local herdada: string? = nil
+	local chanceHerdar = if Loja.tem(jogador, "sortedupla")
+		then Config.FusaoHerdarMutacaoSorte
+		else Config.FusaoHerdarMutacao
+	local candidatas = {}
+	for _, d in { a, b } do
+		if d.mutacao then
+			table.insert(candidatas, rng:NextInteger(1, #candidatas + 1), d.mutacao)
+		end
+	end
+	for _, m in candidatas do
+		if rng:NextNumber() < chanceHerdar then
+			herdada = m
+			break
+		end
+	end
+	local baseResultado = Config.PorId[resultado :: string].base or resultado :: string
+	if herdada then
+		resultado = baseResultado .. "*" .. herdada
+	else
+		resultado = sortearCriatura(Config.PorId[baseResultado].raridade, true, jogador)
+		if Util.receita(idA, idB) then
+			-- receita sempre dá a Mistureba da receita; só a mutação é sorteada
+			local mutNova = Config.PorId[resultado :: string].mutacao
+			resultado = if mutNova then baseResultado .. "*" .. mutNova else baseResultado
+		end
+	end
 	local custo = Config.CustoFusao[raridadeCusto] or 0
 	if perfil.moedas < custo then
 		aviso(jogador, "A fusão custa " .. Util.numero(custo) .. " moedas.")
@@ -1131,6 +1168,13 @@ evFundir.OnServerEvent:Connect(function(jogador, vagaA, vagaB)
 	arrumarGuardadas(jogador, perfil)
 	desenharBase(jogador)
 	evChocou:FireClient(jogador, resultado)
+	if herdada then
+		aviso(
+			jogador,
+			"A mutação " .. Config.MutacaoPorId[herdada].nome .. " passou na fusão!",
+			Config.MutacaoPorId[herdada].cor
+		)
+	end
 	local raridade = Config.PorId[resultado :: string].raridade
 	if raridade == "mitico" or raridade == "secreto" then
 		local info = Config.Raridades[raridade]
@@ -1581,6 +1625,18 @@ Loja.iniciar({
 			perfil.moedas += math.floor(valor)
 			aviso(jogador, "+" .. Util.numero(valor) .. " moedas!", Color3.fromRGB(255, 220, 80))
 			return true
+		elseif chave == "pocao" then
+			perfil.pocoes += Config.PocaoOvos
+			aviso(
+				jogador,
+				"Poção ativa! Seus próximos " .. perfil.pocoes .. " ovos têm 4x mais chance de mutação.",
+				Color3.fromRGB(200, 140, 255)
+			)
+			local estado = estados[jogador]
+			if estado then
+				estado.sujo = true
+			end
+			return true
 		elseif chave == "presente" then
 			local estado = estados[jogador]
 			if not estado then
@@ -1629,6 +1685,7 @@ local function montarEstado(jogador: Player, estado: Estado, perfil: Dados.Perfi
 		protegidoAte = estado.entrouEm + Config.Base.protecaoNovatoSegundos,
 		presenteEm = estado.presenteEm,
 		roletaEm = estado.roletaEm,
+		pocoes = perfil.pocoes,
 		clima = climaAtual,
 		climaAte = climaAte,
 		proximoClima = proximoClima,

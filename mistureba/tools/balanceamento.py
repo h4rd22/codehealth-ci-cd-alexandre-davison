@@ -172,7 +172,16 @@ def sortear_peso(rng: random.Random, pesos: dict) -> str:
     return ordem[-1]
 
 
+MUT_POR_ID = {m["id"]: m for m in MUTACOES}
+HERDAR = config("FusaoHerdarMutacao")
+
+
 def sortear_mut(rng: random.Random, mult: float = 1.0, clima: str | None = None) -> float:
+    m = sortear_mut_id(rng, mult, clima)
+    return MUT_POR_ID[m]["multiplicador"] if m else 1.0
+
+
+def sortear_mut_id(rng: random.Random, mult: float = 1.0, clima: str | None = None) -> str | None:
     x = rng.random() * 100
     soma = 0.0
     extras = (CLIMA_POR_ID[clima].get("mutacao") or {}) if clima else {}
@@ -181,8 +190,8 @@ def sortear_mut(rng: random.Random, mult: float = 1.0, clima: str | None = None)
             continue
         soma += m["chance"] * mult * extras.get(m["id"], 1)
         if x < soma:
-            return m["multiplicador"]
-    return 1.0
+            return m["id"]
+    return None
 
 
 def renda_media(raridade: str) -> float:
@@ -218,6 +227,9 @@ class Jogador:
         self.gasto_upgrades = 0.0
         self.clima: str | None = None
 
+    def mult_sorte(self) -> float:
+        return 1 + self.upgrades["sorte"] * UPGRADES["sorte"]["porNivel"]
+
     def vagas(self) -> int:
         return BASE["vagasIniciais"] + self.melhorias * BASE["vagasPorMelhoria"]
 
@@ -232,17 +244,19 @@ class Jogador:
 
     def ganhar(self, raridade: str, t: float):
         c = self.rng.choice(POR_RARIDADE[raridade])
-        r = c["renda"] * sortear_mut(self.rng, 1 + self.upgrades["sorte"] * UPGRADES["sorte"]["porNivel"], self.clima)
+        mut = sortear_mut_id(self.rng, self.mult_sorte(), self.clima)
+        r = c["renda"] * (MUT_POR_ID[mut]["multiplicador"] if mut else 1)
+        cid = c["id"] + ("*" + mut if mut else "")
         self.dex.add(c["id"])
         self.primeira.setdefault(raridade, t)
         if len(self.base) < self.vagas():
-            self.base.append((raridade, r, c["id"]))
+            self.base.append((raridade, r, cid))
         else:
             # base cheia: troca pela mais fraca se for melhor (vende a fraca)
             fraca = min(range(len(self.base)), key=lambda i: self.base[i][1])
             if r > self.base[fraca][1]:
                 self.moedas += self.base[fraca][1] * VENDA_SEG
-                self.base[fraca] = (raridade, r, c["id"])
+                self.base[fraca] = (raridade, r, cid)
 
     def premio(self, valor: float):
         self.moedas += valor
@@ -259,13 +273,19 @@ class Jogador:
             if len(iguais) >= 2 and self.moedas >= custo * 2:
                 self.moedas -= custo
                 a, b = iguais[0], iguais[1]
+                muts = [self.base[i][2].split("*")[1] for i in (a, b) if "*" in self.base[i][2]]
+                self.rng.shuffle(muts)
                 for i in sorted((a, b), reverse=True):
                     self.base.pop(i)
                 prox = ORDEM[ORDEM.index(raridade) + 1]
                 c = self.rng.choice(POR_RARIDADE[prox])
                 self.dex.add(c["id"])
                 self.primeira.setdefault(prox, t)
-                self.base.append((prox, c["renda"], c["id"]))
+                mut = next((m for m in muts if self.rng.random() < HERDAR), None)
+                if mut is None:
+                    mut = sortear_mut_id(self.rng, self.mult_sorte(), self.clima)
+                r = c["renda"] * (MUT_POR_ID[mut]["multiplicador"] if mut else 1)
+                self.base.append((prox, r, c["id"] + ("*" + mut if mut else "")))
                 return
 
     def comprar(self, t: float):

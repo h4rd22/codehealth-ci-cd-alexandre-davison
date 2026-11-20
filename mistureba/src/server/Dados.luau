@@ -32,6 +32,7 @@ export type Perfil = {
 	upgrades: { [string]: number }, -- melhorias compradas com moedas (id -> nível)
 	rastros: { [string]: boolean }, -- rastros comprados
 	rastro: string?, -- rastro equipado
+	pocoes: number, -- ovos que ainda vão chocar com a Poção de Mutação
 	trava: { servidor: string, hora: number }?,
 }
 
@@ -70,6 +71,7 @@ local function perfilNovo(): Perfil
 		upgrades = {},
 		rastros = {},
 		rastro = nil,
+		pocoes = 0,
 		trava = nil,
 	}
 end
@@ -170,6 +172,9 @@ local function corrigir(dado: any): Perfil
 	end
 	if type(dado.rastro) == "string" and p.rastros[dado.rastro] then
 		p.rastro = dado.rastro
+	end
+	if type(dado.pocoes) == "number" and dado.pocoes == dado.pocoes then
+		p.pocoes = math.clamp(math.floor(dado.pocoes), 0, 1000)
 	end
 	p.trava = dado.trava
 	return p

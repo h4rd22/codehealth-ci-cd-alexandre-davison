@@ -244,7 +244,10 @@ function Criaturas.modelo(id: string): Model
 	local def = Config.PorId[id]
 	assert(def, "Mistureba desconhecida: " .. tostring(id))
 	local raridade = Config.Raridades[def.raridade]
-	local escala = raridade.tamanho
+	local mut = def.mutacao and Config.MutacaoPorId[def.mutacao]
+	-- Mini e Gigante só mudam o tamanho
+	-- (com limite para a Gigante não invadir a vaga do lado)
+	local escala = math.min(raridade.tamanho * (if mut and mut.tamanho then mut.tamanho else 1), 2.5)
 	local e = escala
 
 	local modelo = Instance.new("Model")
@@ -351,8 +354,19 @@ function Criaturas.modelo(id: string): Model
 	soldar(corpo, aro)
 
 	-- mutação: muda a cor/material de todas as peças do corpo (antes dos olhos)
-	local mut = def.mutacao and Config.MutacaoPorId[def.mutacao]
-	if mut then
+	if mut and mut.tamanho then
+		-- brilho leve para destacar o tamanho diferente
+		local aura = Instance.new("ParticleEmitter")
+		aura.Texture = "rbxasset://textures/particles/sparkles_main.dds"
+		aura.Color = ColorSequence.new(mut.cor, Color3.new(1, 1, 1))
+		aura.Rate = 5
+		aura.Lifetime = NumberRange.new(0.8, 1.4)
+		aura.Speed = NumberRange.new(1, 2)
+		aura.SpreadAngle = Vector2.new(180, 180)
+		aura.Size = NumberSequence.new(0.4 * e, 0)
+		aura.LightEmission = 1
+		aura.Parent = corpo
+	elseif mut then
 		local arco = {
 			Color3.fromRGB(255, 70, 70),
 			Color3.fromRGB(255, 170, 50),

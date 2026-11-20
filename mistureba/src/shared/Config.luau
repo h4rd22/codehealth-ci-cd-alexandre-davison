@@ -1063,6 +1063,7 @@ export type Mutacao = {
 	cor: Color3,
 	material: string,
 	soClima: string?, -- só aparece durante esse clima
+	tamanho: number?, -- mutações de tamanho mudam a escala e mantêm a cor
 }
 
 Config.Mutacoes = {
@@ -1070,7 +1071,7 @@ Config.Mutacoes = {
 		id = "dourada",
 		nome = "Dourada",
 		multiplicador = 2,
-		chance = 6,
+		chance = 5,
 		cor = c(255, 205, 50),
 		material = "Foil",
 	},
@@ -1089,6 +1090,24 @@ Config.Mutacoes = {
 		chance = 0.5,
 		cor = c(255, 120, 230),
 		material = "Neon",
+	},
+	{
+		id = "mini",
+		nome = "Mini",
+		multiplicador = 1.5,
+		chance = 3,
+		cor = c(150, 255, 200),
+		material = "SmoothPlastic",
+		tamanho = 0.6,
+	},
+	{
+		id = "gigante",
+		nome = "Gigante",
+		multiplicador = 2.5,
+		chance = 1.5,
+		cor = c(255, 140, 70),
+		material = "SmoothPlastic",
+		tamanho = 1.6,
 	},
 	{
 		id = "acucarada",
@@ -1307,7 +1326,7 @@ Config.Gamepasses = {
 		id = 2093243022,
 		nome = "Sorte Dupla",
 		preco = 249,
-		descricao = "Mutações saem 2x mais nos ovos que VOCÊ choca.",
+		descricao = "Mutações (Dourada, Gigante, Mini, Arco-íris...) saem 2x mais e passam mais na fusão.",
 	},
 	rapido = {
 		id = 2092673039,
@@ -1321,6 +1340,13 @@ Config.VipMultiplicador = 2
 Config.CadeadoReforcadoSegundos = 90
 Config.BaseGrandeVagas = 4
 Config.SorteDuplaMutacao = 2
+Config.PocaoOvos = 3
+Config.PocaoMultiplicador = 4
+
+-- Fusão: cada mutação das duas Misturebas tem esta chance de passar para a nova.
+-- Se nenhuma passar, a nova ainda pode nascer com mutação, como um ovo.
+Config.FusaoHerdarMutacao = 0.4
+Config.FusaoHerdarMutacaoSorte = 0.65 -- com o passe Sorte Dupla
 Config.RapidoMultiplicador = 1.4
 
 Config.Produtos = {
@@ -1341,6 +1367,12 @@ Config.Produtos = {
 		nome = "Saco de Moedas",
 		preco = 25,
 		descricao = "Ganha 10 minutos da sua renda atual (mínimo 500 moedas).",
+	},
+	pocao = {
+		id = 3733992006,
+		nome = "Poção de Mutação",
+		preco = 39,
+		descricao = "Os próximos 3 ovos que você chocar têm 4x mais chance de mutação.",
 	},
 	presente = {
 		id = 3733965774,
@@ -1370,7 +1402,7 @@ Config.SacoMoedasMinimo = 500
 ------------------------------------------------------------------------
 -- Renascer: zera moedas e Misturebas, mas a renda fica maior para sempre.
 Config.Renascer = {
-	precoBase = 100000000, -- moedas para o 1º renascimento
+	precoBase = 150000000, -- moedas para o 1º renascimento
 	crescimento = 4, -- cada renascimento custa 4x o anterior
 	bonusPorRenascimento = 0.5, -- +50% de renda por renascimento
 }

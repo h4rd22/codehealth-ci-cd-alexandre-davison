@@ -397,6 +397,7 @@ type EstadoTela = {
 	baseIndice: number,
 	upgrades: { [string]: number },
 	clima: string?,
+	pocoes: number?,
 	climaAte: number?,
 	proximoClima: number?,
 	rastros: { [string]: boolean },
@@ -572,7 +573,7 @@ rotulo(rolagemOvos, {
 local painelFusao, rolagemFusao = novoPainel("Fusão", COR_ROXO)
 local escolhidas: { string } = {}
 local topoFusao = Instance.new("Frame")
-topoFusao.Size = UDim2.new(1, -12, 0, 96)
+topoFusao.Size = UDim2.new(1, -12, 0, 122)
 topoFusao.BackgroundTransparency = 1
 topoFusao.LayoutOrder = 0
 topoFusao.Parent = rolagemFusao
@@ -591,6 +592,23 @@ rotulo(topoFusao, {
 	TextColor3 = Color3.fromRGB(150, 255, 220),
 	TextXAlignment = Enum.TextXAlignment.Left,
 })
+local textoHeranca = rotulo(topoFusao, {
+	Size = UDim2.new(1, -8, 0, 24),
+	Position = UDim2.fromOffset(4, 92),
+	Text = "",
+	TextColor3 = Color3.fromRGB(255, 220, 120),
+	TextXAlignment = Enum.TextXAlignment.Left,
+})
+local function atualizarHeranca()
+	local sorte = estado ~= nil and estado.passes.sortedupla == true
+	local chance = if sorte then Config.FusaoHerdarMutacaoSorte else Config.FusaoHerdarMutacao
+	textoHeranca.Text = "Mutações (Dourada, Gigante, Mini...) têm "
+		.. math.floor(chance * 100 + 0.5)
+		.. "% de chance de passar na fusão"
+		.. (if sorte then " (Sorte Dupla!)" else "")
+end
+atualizarHeranca()
+table.insert(aoMudarEstado, atualizarHeranca)
 local botaoFundir = botao(topoFusao, "FUNDIR!", COR_ROXO, {
 	Size = UDim2.fromOffset(170, 60),
 	Position = UDim2.new(1, -174, 0, 10),
@@ -1027,7 +1045,7 @@ for _, chave in { "vip", "sortedupla", "mochila", "rapido", "cadeado", "basegran
 	itemLoja(ordemLoja, p.nome, p.descricao, p.preco, p.id, true, chave, nil)
 	ordemLoja += 1
 end
-for _, chave in { "sorte", "ovoarcoiris", "presente", "moedas" } do
+for _, chave in { "pocao", "sorte", "ovoarcoiris", "presente", "moedas" } do
 	local p = Config.Produtos[chave]
 	local extra = if chave == "ovoarcoiris"
 		then "Chances: " .. textoChances(Config.OvoArcoIrisPesos) .. "\nMutações: " .. textoMutacoes()
@@ -2203,6 +2221,9 @@ local function atualizarStatus()
 			partes,
 			string.format('<font color="#90D0FF">Proteção de novato: %d s</font>', math.ceil(estado.protegidoAte - t))
 		)
+	end
+	if (estado.pocoes or 0) > 0 then
+		table.insert(partes, string.format('<font color="#C890FF">Poção: %d ovo(s)</font>', estado.pocoes or 0))
 	end
 	if t < estado.sorteAte then
 		table.insert(
