@@ -872,6 +872,10 @@ local function maisRara(perfil: Dados.Perfil): string
 		if not def then
 			return
 		end
+		-- quem já tinha mutações antes da coleção existir ganha o registro (sem prêmio)
+		if def.mutacao then
+			perfil.mutacoes[def.mutacao] = true
+		end
 		-- secreta de receita conta como muito rara
 		local x = Util.umEm(id) or (if def.raridade == "secreto" then 1e7 else 0)
 		if x > melhor then
