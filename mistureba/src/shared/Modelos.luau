@@ -6,45 +6,17 @@ local CollectionService = game:GetService("CollectionService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage.Shared.Config)
+local Estilo = require(ReplicatedStorage.Shared.Estilo)
 local Tracos = require(ReplicatedStorage.Shared.Tracos)
 local Util = require(ReplicatedStorage.Shared.Util)
 
 local Criaturas = {}
-
-local FORMAS = {
-	bloco = Enum.PartType.Block,
-	cilindro = Enum.PartType.Cylinder,
-}
 
 -- Bola de verdade no Roblox é sempre redonda; com malha de esfera ela vira oval.
 local function oval(part: BasePart)
 	local malha = Instance.new("SpecialMesh")
 	malha.MeshType = Enum.MeshType.Sphere
 	malha.Parent = part
-end
-
-local function peca(def: Config.Peca, escala: number): BasePart
-	local p: BasePart
-	if def.forma == "cunha" then
-		p = Instance.new("WedgePart")
-	else
-		local part = Instance.new("Part")
-		part.Shape = FORMAS[def.forma] or Enum.PartType.Block
-		if def.forma == "bola" then
-			oval(part)
-		end
-		p = part
-	end
-	p.Size = def.tamanho * escala
-	p.Color = def.cor
-	p.Material = if def.material then (Enum.Material :: any)[def.material] else Enum.Material.SmoothPlastic
-	p.TopSurface = Enum.SurfaceType.Smooth
-	p.BottomSurface = Enum.SurfaceType.Smooth
-	p.CanCollide = false
-	p.CanTouch = false
-	p.CanQuery = true
-	p.Massless = true
-	return p
 end
 
 local function soldar(a: BasePart, b: BasePart)
@@ -468,7 +440,9 @@ function Criaturas.modelo(id: string): Model
 	modelo.Name = def.nome
 	modelo:SetAttribute("Criatura", id)
 
-	local cor = def.corpo.cor
+	-- cor vem da família (paleta única para o jogo todo ficar com a mesma cara)
+	local visual, familia = Estilo.de(def.base or def.id)
+	local cor = familia.cores[visual.tom] or familia.cores[1]
 	local ficha: Tracos.Ficha = Tracos.Fichas[def.base or def.id] or {}
 	-- formato do corpo de cada bicho (nunca menor que o padrão: pés e braços ficam no lugar)
 	local forma = ficha.forma or Vector3.one
@@ -479,7 +453,7 @@ function Criaturas.modelo(id: string): Model
 	corpo.Size = Vector3.new(3.2, 2.9, 3) * forma * e
 	corpo.Color = cor
 	corpo.Material = Enum.Material.SmoothPlastic
-	corpo.Reflectance = 0.04
+	corpo.Reflectance = familia.brilho
 	corpo.CanCollide = false
 	corpo.CanTouch = false
 	corpo.CanQuery = true
@@ -488,16 +462,9 @@ function Criaturas.modelo(id: string): Model
 	corpo.Parent = modelo
 	modelo.PrimaryPart = corpo
 
-	local clara = cor:Lerp(Color3.new(1, 1, 1), 0.55)
-	-- segunda cor: a da primeira peça da fantasia que for bem diferente do corpo (dá contraste)
-	local segunda = cor:Lerp(Color3.new(0, 0, 0), 0.3)
-	for _, extra in def.extras do
-		local d = math.abs(extra.cor.R - cor.R) + math.abs(extra.cor.G - cor.G) + math.abs(extra.cor.B - cor.B)
-		if d > 0.45 then
-			segunda = extra.cor
-			break
-		end
-	end
+	local clara = familia.barriga
+	-- segunda cor: o corpo puxado para o tom de destaque da família (pés, cauda, juba...)
+	local segunda = cor:Lerp(familia.acento, 0.35):Lerp(Color3.new(0, 0, 0), 0.08)
 	oval3(modelo, corpo, clara, Vector3.new(2.1, 1.7, 0.7) * e, Vector3.new(0, -0.45 * e, -corpo.Size.Z / 2 + 0.3 * e)).Name =
 		"Barriga"
 	local nivel = table.find(Config.OrdemRaridades, def.raridade) or 1
@@ -527,22 +494,6 @@ function Criaturas.modelo(id: string): Model
 			"Braco"
 	end
 
-	-- fantasia: as peças que dão a cara de cada Mistureba, um pouco menores e em cima do corpo
-	local peca0 = peca(def.corpo, escala * 0.7)
-	peca0.Name = "Fantasia"
-	local alturaFantasia = 1.15 * e + (forma.Y - 1) * 1.45 * e
-	peca0.CFrame = corpo.CFrame * CFrame.new(0, alturaFantasia, 0.35 * e)
-	peca0.Parent = modelo
-	soldar(corpo, peca0)
-	for i, extra in def.extras do
-		local p = peca(extra, escala * 0.8)
-		p.Name = "Extra" .. i
-		local pos = (extra.posicao or Vector3.zero) * escala * 0.8
-		p.CFrame = corpo.CFrame * CFrame.new(pos + Vector3.new(0, alturaFantasia, 0.35 * e))
-		p.Parent = modelo
-		soldar(corpo, p)
-	end
-
 	-- o bicho: orelhas, focinho, chifres, cauda, costas e padrão (Tracos.luau)
 	Tracos.aplicar({
 		modelo = modelo,
@@ -552,6 +503,15 @@ function Criaturas.modelo(id: string): Model
 		segunda = segunda,
 		clara = clara,
 	}, ficha)
+	-- o acessório que lembra o objeto da mistura (Estilo.luau)
+	Estilo.acessorio({
+		modelo = modelo,
+		corpo = corpo,
+		e = e,
+		cor = cor,
+		acento = familia.acento,
+		familia = familia,
+	}, visual.acessorio, visual.corAcessorio)
 
 	-- pezinho de enfeite embaixo dos pés: disco claro com borda brilhante da cor da raridade
 	-- (fica no nível dos pés para o modelo não flutuar)
@@ -575,7 +535,7 @@ function Criaturas.modelo(id: string): Model
 	disco.Name = "Aro"
 	disco.Shape = Enum.PartType.Cylinder
 	disco.Size = Vector3.new(0.14, 3.75 * e * largura, 3.75 * e * largura)
-	disco.Color = raridade.cor:Lerp(Color3.new(1, 1, 1), 0.55)
+	disco.Color = familia.pedestal
 	disco.Material = Enum.Material.SmoothPlastic
 	disco.CanCollide = false
 	disco.CanTouch = false
@@ -803,6 +763,24 @@ function Criaturas.modelo(id: string): Model
 		{ texto = Util.textoUmEm(id), cor = Util.corUmEm(id), tamanho = 20 },
 	}, alturaPlaca)
 
+	return modelo
+end
+
+-- Versão para carregar na cabeça (roubo): menor, sem pedestal, placa, luzes nem partículas,
+-- para não virar um bolo de efeitos em cima do jogador.
+function Criaturas.modeloCarregar(id: string): Model
+	local modelo = Criaturas.modelo(id)
+	for _, d in modelo:GetDescendants() do
+		if
+			d:IsA("BillboardGui")
+			or d:IsA("ParticleEmitter")
+			or d:IsA("Light")
+			or (d:IsA("BasePart") and d.Name == "Aro")
+		then
+			d:Destroy()
+		end
+	end
+	modelo:ScaleTo(0.6)
 	return modelo
 end
 

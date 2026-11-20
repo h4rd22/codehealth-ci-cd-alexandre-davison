@@ -519,7 +519,7 @@ local function atualizarCarga(jogador: Player)
 		peca.Massless = true
 	end
 	if estado.roubo then
-		local modelo = Criaturas.modelo(estado.roubo.id)
+		local modelo = Criaturas.modeloCarregar(estado.roubo.id)
 		for _, peca in modelo:GetDescendants() do
 			if peca:IsA("BasePart") then
 				soltinha(peca)

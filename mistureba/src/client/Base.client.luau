@@ -19,13 +19,21 @@ local jogador = Players.LocalPlayer
 local mapa = workspace:WaitForChild("Mapa")
 
 -- modelo -> posição original e um atraso para cada uma pular num ritmo diferente
-local animadas: { [Model]: { origem: CFrame, fase: number, olhos: { SpecialMesh }, giro: number?, tempo: number? } } = setmetatable(
-	{},
-	{ __mode = "k" }
-) :: any
+type Animada = {
+	origem: CFrame,
+	fase: number,
+	olhos: { SpecialMesh },
+	malha: SpecialMesh?, -- malha do corpo (para amassar no pulo)
+	giro: number?,
+	proximoPulo: number,
+	puloInicio: number?,
+	nasceu: number?, -- hora em que caiu na base (animação de chegada)
+}
+local animadas: { [Model]: Animada } = setmetatable({}, { __mode = "k" }) :: any
 local primeiraVarredura = true
+local QUEDA = 0.4 -- segundos caindo quando chega na base
 
--- Mistureba nova na base: pula do chão crescendo, com estrelinhas da cor da raridade
+-- Mistureba nova na base: cai do alto, amassa no chão e solta estrelinhas da cor da raridade
 local function nascer(modelo: Model)
 	local corpo = modelo.PrimaryPart
 	local def = Config.PorId[modelo:GetAttribute("Criatura") :: string]
@@ -35,19 +43,12 @@ local function nascer(modelo: Model)
 	local info = Config.Raridades[def.raridade]
 	local nivel = table.find(Config.OrdemRaridades, def.raridade) or 1
 
-	local escala = Instance.new("NumberValue")
-	escala.Value = 0.25
-	modelo:ScaleTo(0.25)
-	escala.Changed:Connect(function(v)
-		if modelo.Parent then
-			modelo:ScaleTo(math.max(0.05, v))
-		end
-	end)
-	local crescer = TweenService:Create(escala, TweenInfo.new(0.55, Enum.EasingStyle.Back), { Value = 1 })
-	crescer:Play()
-	crescer.Completed:Once(function()
-		escala:Destroy()
-	end)
+	-- cai do alto e amassa ao tocar o chão (o movimento é feito no laço de animação)
+	local anim = animadas[modelo]
+	if anim then
+		anim.nasceu = os.clock()
+		anim.proximoPulo = os.clock() + 1.5
+	end
 
 	local ponto = Instance.new("Attachment")
 	ponto.Parent = corpo
@@ -62,13 +63,16 @@ local function nascer(modelo: Model)
 	estrelas.Drag = 4
 	estrelas.Rate = 0
 	estrelas.Parent = ponto
-	estrelas:Emit(10 + nivel * 6)
-	task.delay(1.5, function()
+	task.delay(QUEDA, function()
+		estrelas:Emit(10 + nivel * 6)
+	end)
+	task.delay(QUEDA + 1.5, function()
 		ponto:Destroy()
 	end)
 
-	-- das Épicas para cima: uma onda de luz no chão
+	-- das Épicas para cima: uma onda de luz no chão quando ela pousa
 	if nivel >= 3 then
+		task.wait(QUEDA)
 		local onda = Instance.new("Part")
 		onda.Shape = Enum.PartType.Cylinder
 		onda.Anchored = true
@@ -80,7 +84,7 @@ local function nascer(modelo: Model)
 		onda.Color = info.cor
 		onda.Transparency = 0.2
 		onda.Size = Vector3.new(0.15, 2, 2)
-		onda.CFrame = CFrame.new(corpo.Position - Vector3.new(0, corpo.Size.Y / 2, 0))
+		onda.CFrame = CFrame.new(modelo:GetPivot().Position - Vector3.new(0, corpo.Size.Y / 2, 0))
 			* CFrame.Angles(0, 0, math.pi / 2)
 		onda.Parent = workspace
 		local raio = 8 + nivel * 3
@@ -119,9 +123,16 @@ local function ajustar()
 					table.insert(olhos, p)
 				end
 			end
-			animadas[obj] = { origem = obj:GetPivot(), fase = math.random() * math.pi * 2, olhos = olhos }
+			local corpo = obj.PrimaryPart
+			animadas[obj] = {
+				origem = obj:GetPivot(),
+				fase = math.random() * math.pi * 2,
+				olhos = olhos,
+				malha = corpo and corpo:FindFirstChildOfClass("SpecialMesh") or nil,
+				proximoPulo = os.clock() + math.random() * 4,
+			}
 			if not primeiraVarredura then
-				nascer(obj)
+				task.spawn(nascer, obj)
 			end
 		end
 	end
@@ -147,35 +158,83 @@ task.spawn(function()
 	end
 end)
 
--- as Misturebas viram para olhar você quando chega perto (e pulam mais felizes)
+-- Animação das Misturebas (só as perto da câmera, para ficar leve no celular):
+-- respiram de leve, viram para olhar você e de vez em quando dão um pulinho
+-- com agachada antes e amassadinha ao pousar. Chegando na base, caem do alto.
+local PERTO = 70
+local function amassar(t: number): (number, number)
+	-- devolve (altura, amasso) para o tempo t desde o começo do pulo
+	if t < 0.12 then
+		return 0, -0.12 * math.sin(t / 0.12 * math.pi / 2) -- agacha
+	elseif t < 0.52 then
+		local u = (t - 0.12) / 0.4
+		return math.sin(u * math.pi), 0.1 * (1 - u) -- sobe esticada
+	elseif t < 0.7 then
+		local u = (t - 0.52) / 0.18
+		return 0, -0.14 * math.sin(u * math.pi) -- amassa ao pousar
+	end
+	return 0, 0
+end
+
 RunService.RenderStepped:Connect(function(dt)
-	local t = os.clock()
+	local agora = os.clock()
+	local camera = workspace.CurrentCamera
+	local olho = camera and camera.CFrame.Position or Vector3.zero
 	local personagem = jogador.Character
 	local raizP = personagem and personagem:FindFirstChild("HumanoidRootPart") :: BasePart?
-	local suave = math.min(1, dt * 5)
+	local suave = math.min(1, dt * 6)
 	for modelo, info in animadas do
-		if modelo.Parent then
-			local alvo = math.sin(t * 0.8 + info.fase) * 0.25
-			local perto = false
-			if raizP then
-				local rel = info.origem:PointToObjectSpace(raizP.Position)
-				local distancia = Vector3.new(rel.X, 0, rel.Z).Magnitude
-				if distancia < 22 and distancia > 0.5 then
-					perto = true
-					alvo = math.atan2(-rel.X, -rel.Z)
+		if not modelo.Parent or (info.origem.Position - olho).Magnitude > PERTO then
+			continue
+		end
+		-- vira devagar para o jogador quando ele chega perto
+		local alvo = math.sin(agora * 0.5 + info.fase) * 0.3
+		local perto = false
+		if raizP then
+			local rel = info.origem:PointToObjectSpace(raizP.Position)
+			local distancia = Vector3.new(rel.X, 0, rel.Z).Magnitude
+			if distancia < 22 and distancia > 0.5 then
+				perto = true
+				alvo = math.atan2(-rel.X, -rel.Z)
+			end
+		end
+		local giroAtual = info.giro or 0
+		local diferenca = (alvo - giroAtual + math.pi) % (math.pi * 2) - math.pi
+		info.giro = giroAtual + diferenca * suave
+
+		local altura, amasso = 0, 0
+		if info.nasceu then
+			-- queda com aceleração e amassada forte no chão
+			local t = agora - info.nasceu
+			if t < QUEDA then
+				local u = t / QUEDA
+				altura = 6 * (1 - u * u)
+				amasso = 0.12
+			elseif t < QUEDA + 0.3 then
+				amasso = -0.25 * math.sin((t - QUEDA) / 0.3 * math.pi)
+			else
+				info.nasceu = nil
+			end
+		else
+			if not info.puloInicio and agora >= info.proximoPulo then
+				info.puloInicio = agora
+			end
+			if info.puloInicio then
+				local t = agora - info.puloInicio
+				local h, a = amassar(t)
+				altura = h * (if perto then 0.9 else 0.55)
+				amasso = a
+				if t >= 0.7 then
+					info.puloInicio = nil
+					info.proximoPulo = agora + (if perto then 0.6 + math.random() * 1.2 else 2 + math.random() * 4)
 				end
 			end
-			-- gira pelo caminho mais curto
-			local giroAtual = info.giro or 0
-			local diferenca = (alvo - giroAtual + math.pi) % (math.pi * 2) - math.pi
-			info.giro = giroAtual + diferenca * suave
-			-- pulinho de vez em quando: passa a maior parte do tempo com o pé no chão
-			local velocidade = if perto then 1.6 else 0.7
-			local altura = if perto then 0.9 else 0.5
-			info.tempo = (info.tempo or 0) + dt * velocidade
-			local ciclo = (info.tempo + info.fase) % 1
-			local pulo = if ciclo < 0.3 then math.sin(ciclo / 0.3 * math.pi) * altura else 0
-			modelo:PivotTo(info.origem * CFrame.new(0, pulo, 0) * CFrame.Angles(0, info.giro, 0))
+			-- respiração bem de leve
+			amasso += math.sin(agora * 2.2 + info.fase) * 0.02
+		end
+		modelo:PivotTo(info.origem * CFrame.new(0, altura, 0) * CFrame.Angles(0, info.giro, 0))
+		if info.malha then
+			info.malha.Scale = Vector3.new(1 - amasso * 0.6, 1 + amasso, 1 - amasso * 0.6)
 		end
 	end
 end)
