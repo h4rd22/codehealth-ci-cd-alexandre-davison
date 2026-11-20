@@ -23,6 +23,11 @@ export type Perfil = {
 	melhorias: number, -- quantas melhorias de vaga comprou com moedas
 	recibos: { string }, -- últimas compras com Robux já entregues (evita entregar duas vezes)
 	estatisticas: { roubos: number, fusoes: number, ovos: number },
+	descobertas: { [string]: boolean }, -- Misturedex: quais já teve
+	renascimentos: number,
+	ultimaSaida: number, -- os.time() da última vez salvo (para ganhos offline)
+	diaPremio: number, -- último dia (os.time()//86400) em que pegou o prêmio diário
+	sequencia: number, -- dias seguidos pegando o prêmio
 	trava: { servidor: string, hora: number }?,
 }
 
@@ -49,6 +54,11 @@ local function perfilNovo(): Perfil
 		melhorias = 0,
 		recibos = {},
 		estatisticas = { roubos = 0, fusoes = 0, ovos = 0 },
+		descobertas = { chaleiruga = true },
+		renascimentos = 0,
+		ultimaSaida = 0,
+		diaPremio = 0,
+		sequencia = 0,
 		trava = nil,
 	}
 end
@@ -92,6 +102,19 @@ local function corrigir(dado: any): Perfil
 			if type(valor) == "number" and (p.estatisticas :: any)[chave] ~= nil then
 				(p.estatisticas :: any)[chave] = valor
 			end
+		end
+	end
+	if type(dado.descobertas) == "table" then
+		for id, sim in dado.descobertas do
+			if type(id) == "string" and sim == true and Config.PorId[id] then
+				p.descobertas[id] = true
+			end
+		end
+	end
+	for _, campo in { "renascimentos", "ultimaSaida", "diaPremio", "sequencia" } do
+		local v = dado[campo]
+		if type(v) == "number" and v == v and v >= 0 then
+			(p :: any)[campo] = math.floor(v)
 		end
 	end
 	p.trava = dado.trava
@@ -184,6 +207,7 @@ function Dados.salvar(jogador: Player, soltar: boolean?): boolean
 				return nil -- outro servidor pegou o save; não sobrescreve
 			end
 			local copia = table.clone(perfil)
+			copia.ultimaSaida = os.time()
 			copia.trava = if soltar then nil else { servidor = servidorId, hora = os.time() }
 			return copia
 		end)

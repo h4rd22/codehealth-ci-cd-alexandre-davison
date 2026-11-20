@@ -147,7 +147,7 @@ local menu = Instance.new("Frame")
 menu.BackgroundTransparency = 1
 menu.AnchorPoint = Vector2.new(0, 0.5)
 menu.Position = UDim2.new(0, 10, 0.5, 0)
-menu.Size = UDim2.fromOffset(120, 300)
+menu.Size = UDim2.fromOffset(120, 370)
 menu.Parent = tela
 local listaMenu = Instance.new("UIListLayout")
 listaMenu.Padding = UDim.new(0, 10)
@@ -157,6 +157,7 @@ local botaoOvos = botao(menu, "OVOS", COR_AMARELO, { Size = UDim2.fromOffset(120
 local botaoFusao = botao(menu, "FUSÃO", COR_ROXO, { Size = UDim2.fromOffset(120, 62), LayoutOrder = 2 })
 local botaoBase = botao(menu, "BASE", COR_AZUL, { Size = UDim2.fromOffset(120, 62), LayoutOrder = 3 })
 local botaoLoja = botao(menu, "LOJA", COR_VERDE, { Size = UDim2.fromOffset(120, 62), LayoutOrder = 4 })
+local botaoDex = botao(menu, "DEX", Color3.fromRGB(60, 200, 190), { Size = UDim2.fromOffset(120, 62), LayoutOrder = 5 })
 
 -- Botões de ação (direita embaixo)
 local acoes = Instance.new("Frame")
@@ -187,6 +188,9 @@ type EstadoTela = {
 	guardadas: number,
 	vagas: number,
 	precoMelhoria: number?,
+	descobertas: { [string]: boolean },
+	renascimentos: number,
+	precoRenascer: number,
 	cadeadoAte: number,
 	cadeadoLivreEm: number,
 	sorteAte: number,
@@ -506,6 +510,48 @@ local function desenharBasePainel()
 		ev("MelhorarBase"):FireServer()
 	end)
 
+	-- Renascer
+	local cartaoRenascer = cartao(rolagemBase, 76, 1)
+	local bonusAtual = math.floor(estado.renascimentos * Config.Renascer.bonusPorRenascimento * 100)
+	local bonusNovo = math.floor((estado.renascimentos + 1) * Config.Renascer.bonusPorRenascimento * 100)
+	rotulo(cartaoRenascer, {
+		Size = UDim2.new(1, -250, 0, 30),
+		Position = UDim2.fromOffset(14, 6),
+		Text = string.format("Renascer (bônus atual: +%d%%)", bonusAtual),
+		TextColor3 = Color3.fromRGB(255, 140, 255),
+		TextXAlignment = Enum.TextXAlignment.Left,
+	})
+	rotulo(cartaoRenascer, {
+		Size = UDim2.new(1, -250, 0, 34),
+		Position = UDim2.fromOffset(14, 38),
+		Text = string.format("Começa do zero, mas ganha +%d%% de moedas para sempre.", bonusNovo),
+		TextWrapped = true,
+		TextColor3 = Color3.fromRGB(210, 210, 235),
+		TextXAlignment = Enum.TextXAlignment.Left,
+	})
+	local podeRenascer = estado.moedas >= estado.precoRenascer
+	local renascer = botao(
+		cartaoRenascer,
+		Util.numero(estado.precoRenascer),
+		if podeRenascer then Color3.fromRGB(200, 90, 230) else Color3.fromRGB(110, 110, 120),
+		{ Size = UDim2.fromOffset(220, 56), Position = UDim2.new(1, -230, 0, 10) }
+	)
+	local confirmarRenascer = false
+	renascer.MouseButton1Click:Connect(function()
+		if not confirmarRenascer then
+			confirmarRenascer = true
+			renascer.Text = "Tem certeza?"
+			task.delay(3, function()
+				if renascer.Parent then
+					confirmarRenascer = false
+					renascer.Text = Util.numero(estado and estado.precoRenascer or 0)
+				end
+			end)
+			return
+		end
+		ev("Renascer"):FireServer()
+	end)
+
 	local vagas = {}
 	for vaga in estado.criaturas do
 		table.insert(vagas, vaga)
@@ -550,6 +596,59 @@ local function desenharBasePainel()
 			end
 			ev("Vender"):FireServer(vaga)
 		end)
+	end
+end
+
+------------------------------------------------------------------------
+-- Painel: Misturedex (coleção)
+------------------------------------------------------------------------
+local painelDex, rolagemDex = novoPainel("Misturedex", Color3.fromRGB(60, 200, 190))
+local layoutDex = Instance.new("UIGridLayout")
+layoutDex.CellSize = UDim2.fromOffset(136, 110)
+layoutDex.CellPadding = UDim2.fromOffset(8, 8)
+layoutDex.SortOrder = Enum.SortOrder.LayoutOrder
+layoutDex.Parent = rolagemDex
+
+local function desenharDex()
+	limpar(rolagemDex)
+	if not estado then
+		return
+	end
+	local achadas = 0
+	for i, def in Config.Criaturas do
+		local info = Config.Raridades[def.raridade]
+		local tem = estado.descobertas[def.id] == true
+		if tem then
+			achadas += 1
+		end
+		local c = Instance.new("Frame")
+		c.LayoutOrder = i
+		c.BackgroundColor3 = if tem then COR_CARTAO else Color3.fromRGB(30, 28, 45)
+		cantos(c, 12)
+		borda(c, if tem then info.cor else Color3.fromRGB(70, 70, 90), 2)
+		c.Parent = rolagemDex
+		rotulo(c, {
+			Size = UDim2.new(1, -8, 0, 44),
+			Position = UDim2.fromOffset(4, 6),
+			Text = if tem then def.nome else "???",
+			TextWrapped = true,
+		})
+		rotulo(c, {
+			Size = UDim2.new(1, -8, 0, 24),
+			Position = UDim2.fromOffset(4, 52),
+			Text = info.nome,
+			TextColor3 = info.cor,
+		})
+		rotulo(c, {
+			Size = UDim2.new(1, -8, 0, 22),
+			Position = UDim2.fromOffset(4, 80),
+			Text = if tem then "+" .. Util.numero(def.renda) .. "/s" else "",
+			TextColor3 = COR_VERDE,
+		})
+	end
+	local titulo = painelDex:FindFirstChildOfClass("TextLabel")
+	if titulo then
+		titulo.Text = string.format("Misturedex  %d/%d", achadas, #Config.Criaturas)
 	end
 end
 
@@ -775,6 +874,10 @@ botaoBase.MouseButton1Click:Connect(function()
 	desenharBasePainel()
 	abrir(painelBase)
 end)
+botaoDex.MouseButton1Click:Connect(function()
+	desenharDex()
+	abrir(painelDex)
+end)
 botaoLoja.MouseButton1Click:Connect(function()
 	abrir(painelLoja)
 end)
@@ -887,7 +990,10 @@ ev("Estado").OnClientEvent:Connect(function(novo: EstadoTela)
 				mudouCriaturas = true
 			end
 		end
-		mudouCriaturas = mudouCriaturas or estado.vagas ~= novo.vagas or estado.precoMelhoria ~= novo.precoMelhoria
+		mudouCriaturas = mudouCriaturas
+			or estado.vagas ~= novo.vagas
+			or estado.precoMelhoria ~= novo.precoMelhoria
+			or estado.renascimentos ~= novo.renascimentos
 	end
 	estado = novo
 	textoMoedas.Text = Util.numero(novo.moedas) .. " moedas"
@@ -902,6 +1008,9 @@ ev("Estado").OnClientEvent:Connect(function(novo: EstadoTela)
 		end
 		if painelBase.Visible then
 			desenharBasePainel()
+		end
+		if painelDex.Visible then
+			desenharDex()
 		end
 	end
 end)

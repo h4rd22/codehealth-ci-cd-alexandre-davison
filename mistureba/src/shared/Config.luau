@@ -628,4 +628,31 @@ Config.OvoArcoIrisPesos = { epico = 55, lendario = 38, mitico = 7 }
 Config.SacoMoedasMinutos = 10
 Config.SacoMoedasMinimo = 500
 
+------------------------------------------------------------------------
+-- Coisas que fazem voltar todo dia
+------------------------------------------------------------------------
+-- Renascer: zera moedas e Misturebas, mas a renda fica maior para sempre.
+Config.Renascer = {
+	precoBase = 1000000, -- moedas para o 1º renascimento
+	crescimento = 4, -- cada renascimento custa 4x o anterior
+	bonusPorRenascimento = 0.5, -- +50% de renda por renascimento
+}
+
+-- Ganhos enquanto está fora do jogo
+Config.Offline = { maxHoras = 2, porcento = 0.3 }
+
+-- Prêmio por dias seguidos entrando (depois do 7º dia, recomeça no 1º)
+Config.PremioDiario = {
+	{ moedas = 300 },
+	{ moedas = 800 },
+	{ moedas = 2000 },
+	{ ovo = "basico" },
+	{ moedas = 6000 },
+	{ moedas = 12000 },
+	{ ovo = "brilhante" },
+}
+
+-- Misturedex: achar uma Mistureba nova pela primeira vez dá este tanto de segundos da renda dela
+Config.PremioDescobertaSegundos = 120
+
 return Config

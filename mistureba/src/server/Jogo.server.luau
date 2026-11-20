@@ -38,6 +38,7 @@ local evMelhorar = remote("MelhorarBase")
 local evTrancar = remote("Trancar")
 local evTapa = remote("Tapa")
 local evSoltar = remote("Soltar")
+local evRenascer = remote("Renascer")
 -- servidor -> tela
 local evEstado = remote("Estado")
 local evAviso = remote("Aviso")
@@ -147,7 +148,27 @@ local function rendaPorSegundo(jogador: Player, perfil: Dados.Perfil): number
 	if Loja.tem(jogador, "vip") then
 		total *= Config.VipMultiplicador
 	end
+	total *= 1 + perfil.renascimentos * Config.Renascer.bonusPorRenascimento
 	return total
+end
+
+local function precoRenascer(perfil: Dados.Perfil): number
+	return Config.Renascer.precoBase * Config.Renascer.crescimento ^ perfil.renascimentos
+end
+
+-- Misturedex: primeira vez com uma Mistureba dá um prêmio.
+local function descobrir(jogador: Player, perfil: Dados.Perfil, id: string)
+	if perfil.descobertas[id] then
+		return
+	end
+	perfil.descobertas[id] = true
+	local premio = Config.PorId[id].renda * Config.PremioDescobertaSegundos
+	perfil.moedas += premio
+	evAviso:FireClient(
+		jogador,
+		"NOVA na Misturedex: " .. Config.PorId[id].nome .. "! +" .. Util.numero(premio) .. " moedas",
+		Color3.fromRGB(120, 255, 220)
+	)
 end
 
 ------------------------------------------------------------------------
@@ -242,6 +263,7 @@ local function darCriatura(jogador: Player, id: string, mostrar: boolean): boole
 	if not perfil then
 		return false
 	end
+	descobrir(jogador, perfil, id)
 	local vaga = vagaLivre(jogador, perfil)
 	if vaga then
 		perfil.criaturas[vaga] = id
@@ -534,6 +556,7 @@ local function entregarRoubo(ladrao: Player)
 	perfilDono.criaturas[roubo.vaga] = nil
 	arrumarGuardadas(roubo.dono, perfilDono)
 	perfil.criaturas[vaga] = roubo.id
+	descobrir(ladrao, perfil, roubo.id)
 	perfil.estatisticas.roubos += 1
 	estado.roubo = nil
 	atualizarCarga(ladrao)
@@ -679,6 +702,48 @@ local function aoPersonagem(jogador: Player, personagem: Model)
 	end
 end
 
+-- Ganhos offline e prêmio diário, logo depois de entrar.
+local function boasVindas(jogador: Player, perfil: Dados.Perfil)
+	if perfil.ultimaSaida > 0 then
+		local segundos = math.clamp(os.time() - perfil.ultimaSaida, 0, Config.Offline.maxHoras * 3600)
+		local ganho = math.floor(rendaPorSegundo(jogador, perfil) * segundos * Config.Offline.porcento)
+		if ganho > 0 then
+			perfil.moedas += ganho
+			aviso(
+				jogador,
+				"Suas Misturebas trabalharam enquanto você estava fora: +" .. Util.numero(ganho) .. " moedas!",
+				Color3.fromRGB(255, 220, 80)
+			)
+		end
+	end
+	local hoje = os.time() // 86400
+	if hoje > perfil.diaPremio then
+		perfil.sequencia = if hoje == perfil.diaPremio + 1 then perfil.sequencia + 1 else 1
+		perfil.diaPremio = hoje
+		local dia = (perfil.sequencia - 1) % #Config.PremioDiario + 1
+		local premio = Config.PremioDiario[dia]
+		if premio.moedas then
+			perfil.moedas += premio.moedas
+			aviso(
+				jogador,
+				string.format("Prêmio do dia %d: +%s moedas! Volte amanhã!", dia, Util.numero(premio.moedas)),
+				Color3.fromRGB(120, 255, 160)
+			)
+		elseif premio.ovo then
+			for _, ovo in Config.OvosLoja do
+				if ovo.id == premio.ovo then
+					aviso(
+						jogador,
+						string.format("Prêmio do dia %d: um %s grátis!", dia, ovo.nome),
+						Color3.fromRGB(120, 255, 160)
+					)
+					darCriatura(jogador, sortearCriatura(Util.sortearPeso(ovo.pesos, rng)), true)
+				end
+			end
+		end
+	end
+end
+
 local function entrar(jogador: Player)
 	local indice: number? = nil
 	for i = 1, #bases do
@@ -740,6 +805,11 @@ local function entrar(jogador: Player)
 
 	Loja.carregarPasses(jogador)
 	arrumarGuardadas(jogador, perfil)
+	task.delay(4, function()
+		if estados[jogador] then
+			boasVindas(jogador, perfil)
+		end
+	end)
 	desenharBase(jogador)
 	desenharPorta(estados[jogador])
 	criarLeaderstats(jogador)
@@ -882,6 +952,7 @@ evFundir.OnServerEvent:Connect(function(jogador, vagaA, vagaB)
 	perfil.moedas -= custo
 	perfil.criaturas[vagaB] = nil
 	perfil.criaturas[vagaA] = resultado
+	descobrir(jogador, perfil, resultado :: string)
 	perfil.estatisticas.fusoes += 1
 	arrumarGuardadas(jogador, perfil)
 	desenharBase(jogador)
@@ -945,6 +1016,37 @@ evTrancar.OnServerEvent:Connect(function(jogador)
 	if estado and liberado(estado, "trancar", 0.5) then
 		trancar(jogador)
 	end
+end)
+
+evRenascer.OnServerEvent:Connect(function(jogador)
+	local estado, perfil = estados[jogador], Dados.obter(jogador)
+	if not estado or not perfil or not liberado(estado, "renascer", 2) then
+		return
+	end
+	local preco = precoRenascer(perfil)
+	if perfil.moedas < preco then
+		aviso(jogador, "Renascer custa " .. Util.numero(preco) .. " moedas.")
+		return
+	end
+	-- devolve o que alguém estava roubando dele e solta o que ele carrega
+	for outro, e in estados do
+		if e.roubo and e.roubo.dono == jogador then
+			e.roubo = nil
+			atualizarCarga(outro)
+		end
+	end
+	soltarTudo(jogador)
+	perfil.moedas = 0
+	perfil.criaturas = { ["1"] = "chaleiruga" }
+	perfil.guardadas = {}
+	perfil.melhorias = 0
+	perfil.renascimentos += 1
+	desenharBase(jogador)
+	local bonus = math.floor(perfil.renascimentos * Config.Renascer.bonusPorRenascimento * 100)
+	evAnuncio:FireAllClients(
+		jogador.DisplayName .. " RENASCEU! Agora ganha +" .. bonus .. "% de moedas para sempre!",
+		Color3.fromRGB(255, 120, 255)
+	)
 end)
 
 evSoltar.OnServerEvent:Connect(function(jogador)
@@ -1051,6 +1153,9 @@ local function montarEstado(jogador: Player, estado: Estado, perfil: Dados.Perfi
 		guardadas = #perfil.guardadas,
 		vagas = totalVagas(jogador, perfil),
 		precoMelhoria = Config.Base.melhorias[perfil.melhorias + 1],
+		descobertas = perfil.descobertas,
+		renascimentos = perfil.renascimentos,
+		precoRenascer = precoRenascer(perfil),
 		cadeadoAte = estado.cadeadoAte,
 		cadeadoLivreEm = estado.cadeadoLivreEm,
 		sorteAte = sorteAte,
