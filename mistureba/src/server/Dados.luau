@@ -32,6 +32,7 @@ export type Perfil = {
 	upgrades: { [string]: number }, -- melhorias compradas com moedas (id -> nível)
 	rastros: { [string]: boolean }, -- rastros comprados
 	rastro: string?, -- rastro equipado
+	mutacoes: { [string]: boolean }, -- mutações que o jogador já tirou (coleção)
 	pocoes: number, -- ovos que ainda vão chocar com a Poção de Mutação
 	ajustes: { ocultar: { [string]: boolean }, som: boolean, leve: boolean }, -- tela de Configurações
 	trava: { servidor: string, hora: number }?,
@@ -73,6 +74,7 @@ local function perfilNovo(): Perfil
 		rastros = {},
 		rastro = nil,
 		pocoes = 0,
+		mutacoes = {},
 		ajustes = { ocultar = {}, som = true, leve = false },
 		trava = nil,
 	}
@@ -177,6 +179,13 @@ local function corrigir(dado: any): Perfil
 	end
 	if type(dado.pocoes) == "number" and dado.pocoes == dado.pocoes then
 		p.pocoes = math.clamp(math.floor(dado.pocoes), 0, 1000)
+	end
+	if type(dado.mutacoes) == "table" then
+		for _, mut in Config.Mutacoes do
+			if dado.mutacoes[mut.id] == true then
+				p.mutacoes[mut.id] = true
+			end
+		end
 	end
 	if type(dado.ajustes) == "table" then
 		local a = dado.ajustes

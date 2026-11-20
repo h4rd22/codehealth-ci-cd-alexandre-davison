@@ -203,6 +203,19 @@ end
 -- Misturedex: primeira vez com uma Mistureba dá um prêmio.
 local function descobrir(jogador: Player, perfil: Dados.Perfil, idCompleto: string)
 	local id = Util.idBase(idCompleto)
+	-- coleção de mutações: a primeira de cada tipo dá prêmio
+	local mutId = Config.PorId[idCompleto] and Config.PorId[idCompleto].mutacao
+	if mutId and not perfil.mutacoes[mutId] then
+		perfil.mutacoes[mutId] = true
+		local m = Config.MutacaoPorId[mutId]
+		local premioMut = math.floor(math.max(Config.PremioMutacaoMinimo, Config.PorId[idCompleto].renda * 300))
+		perfil.moedas += premioMut
+		evAviso:FireClient(
+			jogador,
+			"Coleção de mutações: " .. m.nome .. " achada! +" .. Util.numero(premioMut) .. " moedas",
+			m.cor
+		)
+	end
 	if perfil.descobertas[id] then
 		return
 	end
@@ -845,7 +858,36 @@ local function criarLeaderstats(jogador: Player)
 	local renda = Instance.new("StringValue")
 	renda.Name = "Renda/s"
 	renda.Parent = pasta
+	-- a Mistureba mais difícil que o jogador tem (chance real "1 em X")
+	local rara = Instance.new("StringValue")
+	rara.Name = "Mais rara"
+	rara.Parent = pasta
 	pasta.Parent = jogador
+end
+
+local function maisRara(perfil: Dados.Perfil): string
+	local melhor, melhorId = 0, nil
+	local function olhar(id: string)
+		local def = Config.PorId[id]
+		if not def then
+			return
+		end
+		-- secreta de receita conta como muito rara
+		local x = Util.umEm(id) or (if def.raridade == "secreto" then 1e7 else 0)
+		if x > melhor then
+			melhor, melhorId = x, id
+		end
+	end
+	for _, id in perfil.criaturas do
+		olhar(id)
+	end
+	for _, id in perfil.guardadas do
+		olhar(id)
+	end
+	if not melhorId then
+		return "-"
+	end
+	return Util.textoUmEm(melhorId)
 end
 
 local colocarRastro: (Player) -> ()
@@ -1723,6 +1765,7 @@ local function montarEstado(jogador: Player, estado: Estado, perfil: Dados.Perfi
 		presenteEm = estado.presenteEm,
 		roletaEm = estado.roletaEm,
 		pocoes = perfil.pocoes,
+		mutacoes = perfil.mutacoes,
 		ajustes = perfil.ajustes,
 		clima = climaAtual,
 		climaAte = climaAte,
@@ -1841,7 +1884,8 @@ RunService.Heartbeat:Connect(function(dt)
 			local stats = jogador:FindFirstChild("leaderstats")
 			if stats then
 				(stats :: any).Moedas.Value = Util.numero(perfil.moedas);
-				(stats :: any)["Renda/s"].Value = Util.numero(rendaPorSegundo(jogador, perfil))
+				(stats :: any)["Renda/s"].Value = Util.numero(rendaPorSegundo(jogador, perfil));
+				(stats :: any)["Mais rara"].Value = maisRara(perfil)
 			end
 			evEstado:FireClient(jogador, montarEstado(jogador, estado, perfil))
 			estado.sujo = false

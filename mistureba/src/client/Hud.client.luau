@@ -398,6 +398,7 @@ type EstadoTela = {
 	upgrades: { [string]: number },
 	clima: string?,
 	pocoes: number?,
+	mutacoes: { [string]: boolean }?,
 	ajustes: { ocultar: { [string]: boolean }, som: boolean, leve: boolean }?,
 	climaAte: number?,
 	proximoClima: number?,
@@ -933,8 +934,18 @@ local function desenharDex()
 	local titulo = painelDex:FindFirstChildOfClass("TextLabel")
 	if titulo then
 		local bonus, proximo = Util.bonusDex(achadas)
-		local texto =
-			string.format("Misturedex  %d/%d  ·  +%d%% renda", achadas, #Config.Criaturas, math.floor(bonus * 100))
+		local mutAchadas = 0
+		for _ in estado.mutacoes or {} do
+			mutAchadas += 1
+		end
+		local texto = string.format(
+			"Misturedex  %d/%d  ·  +%d%% renda  ·  Mutações %d/%d",
+			achadas,
+			#Config.Criaturas,
+			math.floor(bonus * 100),
+			mutAchadas,
+			#Config.Mutacoes
+		)
 		if proximo then
 			texto ..= string.format("  (%d: +%d%%)", proximo.achadas, math.floor(proximo.bonus * 100))
 		end

@@ -1341,6 +1341,7 @@ Config.VipMultiplicador = 2
 Config.CadeadoReforcadoSegundos = 90
 Config.BaseGrandeVagas = 4
 Config.SorteDuplaMutacao = 2
+Config.PremioMutacaoMinimo = 2000 -- prêmio da 1ª vez de cada mutação (ou 5 min da renda dela)
 Config.PocaoOvos = 3
 Config.PocaoMultiplicador = 4
 
