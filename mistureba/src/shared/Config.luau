@@ -1062,6 +1062,7 @@ export type Mutacao = {
 	chance: number, -- em %, por ovo chocado
 	cor: Color3,
 	material: string,
+	soClima: string?, -- só aparece durante esse clima
 }
 
 Config.Mutacoes = {
@@ -1088,6 +1089,24 @@ Config.Mutacoes = {
 		chance = 0.5,
 		cor = c(255, 120, 230),
 		material = "Neon",
+	},
+	{
+		id = "acucarada",
+		nome = "Açucarada",
+		multiplicador = 2.5,
+		chance = 8,
+		cor = c(255, 160, 220),
+		material = "SmoothPlastic",
+		soClima = "doces",
+	},
+	{
+		id = "estelar",
+		nome = "Estelar",
+		multiplicador = 4,
+		chance = 4,
+		cor = c(110, 90, 255),
+		material = "Foil",
+		soClima = "estelar",
 	},
 } :: { Mutacao }
 
@@ -1139,6 +1158,66 @@ Config.Chuva = {
 	tempoNoChao = 60, -- segundos até o ovo sumir se ninguém pegar
 	pesos = { comum = 70, raro = 22, epico = 6.5, lendario = 1.3, mitico = 0.2 },
 	anunciarAPartirDe = "lendario", -- ovos desta raridade em diante viram ovo dourado com anúncio
+}
+
+------------------------------------------------------------------------
+-- Climas: eventos de servidor com hora marcada (todo mundo vê o relógio).
+-- Durante o clima, os ovos chocados ganham chances melhores. Tudo grátis.
+------------------------------------------------------------------------
+export type Clima = {
+	id: string,
+	nome: string,
+	descricao: string,
+	peso: number, -- chance de ser o próximo clima
+	cor: Color3,
+	chuvaMais: number, -- ovos caem esse tanto de vezes mais rápido
+	raros: number, -- multiplica os pesos que não são comum, na chuva
+	mutacao: { [string]: number }?, -- multiplica a chance dessas mutações
+}
+
+Config.Climas = {
+	intervalo = 900, -- segundos entre o fim de um clima e o próximo
+	duracao = 180,
+	lista = {
+		{
+			id = "dourada",
+			nome = "Chuva Dourada",
+			descricao = "Mutação Dourada 3x mais comum!",
+			peso = 35,
+			cor = c(255, 205, 50),
+			chuvaMais = 1.5,
+			raros = 1,
+			mutacao = { dourada = 3 },
+		},
+		{
+			id = "doces",
+			nome = "Tempestade de Doces",
+			descricao = "Chove ovo 2x mais e nasce Mistureba Açucarada (x2,5)!",
+			peso = 30,
+			cor = c(255, 150, 210),
+			chuvaMais = 2,
+			raros = 1,
+		},
+		{
+			id = "estelar",
+			nome = "Noite Estelar",
+			descricao = "Ovos raros caem mais e nasce Mistureba Estelar (x4)!",
+			peso = 25,
+			cor = c(120, 100, 255),
+			chuvaMais = 1,
+			raros = 2,
+		},
+		{
+			id = "arcoiris",
+			nome = "Arco-íris Mágico",
+			descricao = "Mutação Arco-íris (x5) 4x mais comum!",
+			peso = 10,
+			cor = c(255, 120, 230),
+			chuvaMais = 1.5,
+			raros = 1.5,
+			mutacao = { arcoiris = 4, diamante = 2 },
+		},
+	} :: { Clima },
 }
 
 ------------------------------------------------------------------------

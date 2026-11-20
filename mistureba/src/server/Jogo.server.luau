@@ -50,6 +50,7 @@ local evRastro = remote("Rastro")
 local evEstado = remote("Estado")
 local evAviso = remote("Aviso")
 local evAnuncio = remote("Anuncio")
+local evClima = remote("Clima")
 local evChocou = remote("Chocou")
 local evRoleta = remote("Roleta") -- qual prêmio saiu, para a tela girar até ele
 
@@ -91,6 +92,12 @@ pastaOvos.Parent = workspace
 local function agora(): number
 	return workspace:GetServerTimeNow()
 end
+
+-- Clima do servidor (evento com hora marcada)
+local climaAtual: string? = nil
+local climaAte = 0
+-- no Studio o primeiro clima vem logo, para dar para testar
+local proximoClima = agora() + (if RunService:IsStudio() then 25 else Config.Climas.intervalo)
 
 local function aviso(jogador: Player, texto: string, cor: Color3?)
 	evAviso:FireClient(jogador, texto, cor or Color3.fromRGB(255, 255, 255))
@@ -415,7 +422,7 @@ local function sortearCriatura(raridade: string, comMutacao: boolean?, dono: Pla
 		local mult = if dono and Loja.tem(dono, "sortedupla") then Config.SorteDuplaMutacao else 1
 		local perfilDono = dono and Dados.obter(dono)
 		mult *= 1 + Util.efeitoUpgrade(perfilDono and perfilDono.upgrades, "sorte")
-		local mut = Util.sortearMutacao(rng, mult)
+		local mut = Util.sortearMutacao(rng, mult, climaAtual)
 		if mut then
 			id ..= "*" .. mut
 		end
@@ -582,6 +589,14 @@ end
 
 local function ondaDeOvos()
 	local pesos = table.clone(Config.Chuva.pesos)
+	local clima = Util.clima(climaAtual)
+	if clima and clima.raros ~= 1 then
+		for raridade, peso in pesos do
+			if raridade ~= "comum" then
+				pesos[raridade] = peso * clima.raros
+			end
+		end
+	end
 	if agora() < sorteAte then
 		for raridade, peso in pesos do
 			if raridade ~= "comum" then
@@ -1614,6 +1629,9 @@ local function montarEstado(jogador: Player, estado: Estado, perfil: Dados.Perfi
 		protegidoAte = estado.entrouEm + Config.Base.protecaoNovatoSegundos,
 		presenteEm = estado.presenteEm,
 		roletaEm = estado.roletaEm,
+		clima = climaAtual,
+		climaAte = climaAte,
+		proximoClima = proximoClima,
 		upgrades = perfil.upgrades,
 		rastros = perfil.rastros,
 		rastro = perfil.rastro,
@@ -1658,8 +1676,40 @@ RunService.Heartbeat:Connect(function(dt)
 	end
 
 	if agora() >= proximaOnda then
-		proximaOnda = agora() + Config.Chuva.intervalo
+		local clima = Util.clima(climaAtual)
+		proximaOnda = agora() + Config.Chuva.intervalo / (if clima then clima.chuvaMais else 1)
 		ondaDeOvos()
+	end
+
+	if climaAtual and agora() >= climaAte then
+		local fim = Util.clima(climaAtual)
+		climaAtual = nil
+		proximoClima = agora() + Config.Climas.intervalo
+		evClima:FireAllClients(nil, 0, proximoClima)
+		if fim then
+			evAnuncio:FireAllClients(fim.nome .. " acabou! O próximo clima vem em 15 minutos.", fim.cor)
+		end
+	elseif not climaAtual and agora() >= proximoClima then
+		local total = 0
+		for _, c in Config.Climas.lista do
+			total += c.peso
+		end
+		local alvo = rng:NextNumber() * total
+		local cl = Config.Climas.lista[1]
+		for _, c in Config.Climas.lista do
+			alvo -= c.peso
+			if alvo <= 0 then
+				cl = c
+				break
+			end
+		end
+		if cl then
+			climaAtual = cl.id
+			climaAte = agora() + Config.Climas.duracao
+			proximoClima = climaAte + Config.Climas.intervalo
+			evClima:FireAllClients(cl.id, climaAte, proximoClima)
+			evAnuncio:FireAllClients(string.upper(cl.nome) .. "! " .. cl.descricao, cl.cor)
+		end
 	end
 
 	acumulado += dt

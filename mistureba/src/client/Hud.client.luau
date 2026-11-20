@@ -233,10 +233,36 @@ game:GetService("RunService").Heartbeat:Connect(function(dt)
 	end
 end)
 
+-- Clima do servidor: faixa embaixo das moedas com o relógio
+local faixaClima = Instance.new("Frame")
+faixaClima.AnchorPoint = Vector2.new(0.5, 0)
+faixaClima.Position = UDim2.new(0.5, 0, 0, 90)
+faixaClima.Size = UDim2.fromOffset(340, 30)
+faixaClima.BackgroundColor3 = COR_FUNDO
+faixaClima.BackgroundTransparency = 0.25
+cantos(faixaClima, 15)
+local bordaClima = Instance.new("UIStroke")
+bordaClima.Thickness = 2
+bordaClima.Color = Color3.fromRGB(120, 120, 150)
+bordaClima.Parent = faixaClima
+faixaClima.Parent = tela
+local textoClima = rotulo(faixaClima, {
+	Size = UDim2.new(1, -16, 0, 22),
+	Position = UDim2.fromOffset(8, 3),
+	Text = "",
+	RichText = true,
+})
+local descClima = rotulo(faixaClima, {
+	Size = UDim2.new(1, -16, 0, 20),
+	Position = UDim2.fromOffset(8, 27),
+	Text = "",
+	TextColor3 = Color3.fromRGB(230, 230, 250),
+})
+
 -- Linha de status (carregando, cadeado, sorte, proteção)
 local textoStatus = rotulo(tela, {
 	AnchorPoint = Vector2.new(0.5, 0),
-	Position = UDim2.new(0.5, 0, 0, 90),
+	Position = UDim2.new(0.5, 0, 0, 146),
 	Size = UDim2.fromOffset(560, 26),
 	Text = "",
 	RichText = true,
@@ -370,6 +396,9 @@ type EstadoTela = {
 	bonusDex: number,
 	baseIndice: number,
 	upgrades: { [string]: number },
+	clima: string?,
+	climaAte: number?,
+	proximoClima: number?,
 	rastros: { [string]: boolean },
 	rastro: string?,
 	multiplicador: number?,
@@ -470,6 +499,9 @@ end
 local function textoMutacoes(): string
 	local partes = {}
 	for _, m in Config.Mutacoes do
+		if m.soClima then
+			continue
+		end
 		local numero = string.gsub(tostring(m.chance), "%.", ",")
 		table.insert(
 			partes,
@@ -1925,6 +1957,135 @@ table.insert(aoMudarEstado, function()
 		for _, f in atualizarMelhorias do
 			f()
 		end
+	end
+end)
+
+------------------------------------------------------------------------
+-- Clima: relógio na faixa, céu e partículas mudam durante o evento
+------------------------------------------------------------------------
+local Lighting = game:GetService("Lighting")
+local climaAgora: string? = nil
+local climaFim = 0
+local climaProximo = 0
+
+local corClima = Instance.new("ColorCorrectionEffect")
+corClima.Name = "ClimaMistureba"
+corClima.Parent = Lighting
+local luzOriginal = {
+	ClockTime = Lighting.ClockTime,
+	Ambient = Lighting.Ambient,
+	OutdoorAmbient = Lighting.OutdoorAmbient,
+}
+
+-- uma placa invisível em cima da câmera solta as partículas do clima
+local chuvaClima = Instance.new("Part")
+chuvaClima.Name = "ChuvaClima"
+chuvaClima.Anchored = true
+chuvaClima.CanCollide = false
+chuvaClima.CanQuery = false
+chuvaClima.CanTouch = false
+chuvaClima.Transparency = 1
+chuvaClima.Size = Vector3.new(90, 1, 90)
+chuvaClima.Parent = workspace
+local particulasClima = Instance.new("ParticleEmitter")
+particulasClima.Texture = "rbxasset://textures/particles/sparkles_main.dds"
+particulasClima.EmissionDirection = Enum.NormalId.Bottom
+particulasClima.Speed = NumberRange.new(10, 16)
+particulasClima.Lifetime = NumberRange.new(3, 4)
+particulasClima.Size = NumberSequence.new(1.2, 0.6)
+particulasClima.LightEmission = 0.8
+particulasClima.RotSpeed = NumberRange.new(-90, 90)
+particulasClima.Rate = 0
+particulasClima.Parent = chuvaClima
+game:GetService("RunService").RenderStepped:Connect(function()
+	if climaAgora then
+		chuvaClima.CFrame = CFrame.new(camera.CFrame.Position + Vector3.new(0, 30, 0))
+	end
+end)
+
+local function aplicarClima(id: string?)
+	local def = Util.clima(id)
+	local info = TweenInfo.new(2)
+	if not def then
+		particulasClima.Rate = 0
+		TweenService:Create(corClima, info, { TintColor = Color3.new(1, 1, 1), Saturation = 0, Brightness = 0 }):Play()
+		TweenService:Create(Lighting, info, luzOriginal):Play()
+		bordaClima.Color = Color3.fromRGB(120, 120, 150)
+		return
+	end
+	bordaClima.Color = def.cor
+	local tinta = Color3.new(1, 1, 1):Lerp(def.cor, 0.18)
+	local saturacao = if def.id == "arcoiris" then 0.35 else 0.1
+	TweenService:Create(corClima, info, { TintColor = tinta, Saturation = saturacao, Brightness = 0.03 }):Play()
+	if def.id == "estelar" then
+		-- noite, mas com luz suficiente para enxergar tudo
+		TweenService:Create(Lighting, info, {
+			ClockTime = 0.5,
+			Ambient = Color3.fromRGB(110, 100, 170),
+			OutdoorAmbient = Color3.fromRGB(140, 130, 200),
+		}):Play()
+	else
+		TweenService:Create(Lighting, info, luzOriginal):Play()
+	end
+	if def.id == "arcoiris" then
+		particulasClima.Color = ColorSequence.new({
+			ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 80, 80)),
+			ColorSequenceKeypoint.new(0.33, Color3.fromRGB(255, 230, 80)),
+			ColorSequenceKeypoint.new(0.66, Color3.fromRGB(80, 220, 255)),
+			ColorSequenceKeypoint.new(1, Color3.fromRGB(200, 90, 255)),
+		})
+	else
+		particulasClima.Color = ColorSequence.new(def.cor, Color3.new(1, 1, 1))
+	end
+	particulasClima.Rate = if def.id == "doces" then 60 else 35
+end
+
+local function mudarClima(id: string?, ate: number?, proximo: number?)
+	local mudou = id ~= climaAgora
+	climaAgora = id
+	climaFim = ate or 0
+	climaProximo = proximo or 0
+	if mudou then
+		aplicarClima(id)
+		local escala = faixaClima:FindFirstChildOfClass("UIScale") or Instance.new("UIScale")
+		escala.Parent = faixaClima
+		escala.Scale = 1.3
+		TweenService:Create(escala, TweenInfo.new(0.5, Enum.EasingStyle.Back), { Scale = 1 }):Play()
+	end
+end
+ev("Clima").OnClientEvent:Connect(mudarClima)
+table.insert(aoMudarEstado, function()
+	if estado then
+		mudarClima(estado.clima, estado.climaAte, estado.proximoClima)
+	end
+end)
+
+local function relogio(segundos: number): string
+	segundos = math.max(0, math.ceil(segundos))
+	return string.format("%d:%02d", segundos // 60, segundos % 60)
+end
+task.spawn(function()
+	while true do
+		local t = workspace:GetServerTimeNow()
+		local def = Util.clima(climaAgora)
+		if def then
+			textoClima.Text = string.format(
+				'<font color="#%s">%s</font>  %s',
+				def.cor:ToHex(),
+				string.upper(def.nome),
+				relogio(climaFim - t)
+			)
+			descClima.Text = def.descricao
+			faixaClima.Size = UDim2.fromOffset(380, 52)
+		elseif climaProximo > 0 then
+			textoClima.Text = "Próximo clima em " .. relogio(climaProximo - t)
+			faixaClima.Size = UDim2.fromOffset(240, 28)
+			descClima.Text = ""
+		else
+			textoClima.Text = ""
+		end
+		faixaClima.Visible = textoClima.Text ~= ""
+		task.wait(0.5)
 	end
 end)
 

@@ -387,6 +387,62 @@ function Criaturas.modelo(id: string): Model
 		aura.Size = NumberSequence.new(0.5, 0)
 		aura.LightEmission = 1
 		aura.Parent = corpo
+		-- mutações de clima ganham enfeite próprio
+		if mut.id == "acucarada" then
+			-- granulado colorido espalhado pelo corpo
+			local granulado = {
+				Color3.fromRGB(255, 90, 90),
+				Color3.fromRGB(255, 230, 80),
+				Color3.fromRGB(90, 220, 255),
+				Color3.fromRGB(140, 255, 120),
+				Color3.new(1, 1, 1),
+			}
+			for k = 1, 14 do
+				local g = Instance.new("Part")
+				g.Name = "Granulado"
+				g.Shape = Enum.PartType.Cylinder
+				g.Size = Vector3.new(0.4, 0.14, 0.14) * e
+				g.Color = granulado[(k - 1) % #granulado + 1]
+				g.Material = Enum.Material.SmoothPlastic
+				g.CanCollide = false
+				g.Massless = true
+				local dir = Vector3.new(
+					math.cos(k * 2.4) * math.sin(0.4 + k * 0.17),
+					math.cos(0.4 + k * 0.17),
+					math.sin(k * 2.4) * math.sin(0.4 + k * 0.17)
+				).Unit
+				local ponto = dir * Vector3.new(corpo.Size.X / 2, corpo.Size.Y / 2, corpo.Size.Z / 2) * 0.97
+				g.CFrame = corpo.CFrame * CFrame.lookAt(ponto, ponto * 2) * CFrame.Angles(0, 0, k)
+				g.Parent = modelo
+				soldar(corpo, g)
+			end
+		elseif mut.id == "estelar" then
+			-- estrelinhas brilhando em volta
+			for k = 1, 3 do
+				local estrela = Instance.new("Part")
+				estrela.Name = "Estrela"
+				estrela.Shape = Enum.PartType.Ball
+				estrela.Size = Vector3.one * 0.35 * e
+				estrela.Color = Color3.fromRGB(255, 250, 200)
+				estrela.Material = Enum.Material.Neon
+				estrela.CanCollide = false
+				estrela.Massless = true
+				local ang = k * math.pi * 2 / 3
+				estrela.CFrame = corpo.CFrame
+					* CFrame.new(math.cos(ang) * 2.3 * e, 0.6 * e + k * 0.25 * e, math.sin(ang) * 2.3 * e)
+				estrela.Parent = modelo
+				soldar(corpo, estrela)
+			end
+			local poeira = Instance.new("ParticleEmitter")
+			poeira.Texture = "rbxasset://textures/particles/sparkles_main.dds"
+			poeira.Color = ColorSequence.new(Color3.fromRGB(180, 160, 255), Color3.fromRGB(255, 250, 200))
+			poeira.Rate = 6
+			poeira.Lifetime = NumberRange.new(1.5, 2.5)
+			poeira.Speed = NumberRange.new(0.3, 0.8)
+			poeira.Size = NumberSequence.new(0.8, 0)
+			poeira.LightEmission = 1
+			poeira.Parent = corpo
+		end
 	end
 
 	rosto(modelo, corpo, e, if nivel >= 3 then raridade.cor else nil)

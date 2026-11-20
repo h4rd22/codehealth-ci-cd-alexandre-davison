@@ -19,7 +19,7 @@ local jogador = Players.LocalPlayer
 local mapa = workspace:WaitForChild("Mapa")
 
 -- modelo -> posição original e um atraso para cada uma pular num ritmo diferente
-local animadas: { [Model]: { origem: CFrame, fase: number, olhos: { SpecialMesh } } } = setmetatable(
+local animadas: { [Model]: { origem: CFrame, fase: number, olhos: { SpecialMesh }, giro: number?, tempo: number? } } = setmetatable(
 	{},
 	{ __mode = "k" }
 ) :: any
@@ -147,13 +147,33 @@ task.spawn(function()
 	end
 end)
 
-RunService.RenderStepped:Connect(function()
+-- as Misturebas viram para olhar você quando chega perto (e pulam mais felizes)
+RunService.RenderStepped:Connect(function(dt)
 	local t = os.clock()
+	local personagem = jogador.Character
+	local raizP = personagem and personagem:FindFirstChild("HumanoidRootPart") :: BasePart?
+	local suave = math.min(1, dt * 5)
 	for modelo, info in animadas do
 		if modelo.Parent then
-			local pulo = math.abs(math.sin(t * 2.2 + info.fase)) * 0.6
-			local giro = math.sin(t * 0.8 + info.fase) * 0.25
-			modelo:PivotTo(info.origem * CFrame.new(0, pulo, 0) * CFrame.Angles(0, giro, 0))
+			local alvo = math.sin(t * 0.8 + info.fase) * 0.25
+			local perto = false
+			if raizP then
+				local rel = info.origem:PointToObjectSpace(raizP.Position)
+				local distancia = Vector3.new(rel.X, 0, rel.Z).Magnitude
+				if distancia < 22 and distancia > 0.5 then
+					perto = true
+					alvo = math.atan2(-rel.X, -rel.Z)
+				end
+			end
+			-- gira pelo caminho mais curto
+			local giroAtual = info.giro or 0
+			local diferenca = (alvo - giroAtual + math.pi) % (math.pi * 2) - math.pi
+			info.giro = giroAtual + diferenca * suave
+			local velocidade = if perto then 4 else 2.2
+			local altura = if perto then 1 else 0.6
+			info.tempo = (info.tempo or 0) + dt * velocidade
+			local pulo = math.abs(math.sin(info.tempo + info.fase)) * altura
+			modelo:PivotTo(info.origem * CFrame.new(0, pulo, 0) * CFrame.Angles(0, info.giro, 0))
 		end
 	end
 end)

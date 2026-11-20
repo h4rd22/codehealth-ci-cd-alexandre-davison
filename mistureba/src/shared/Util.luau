@@ -69,11 +69,26 @@ function Util.idBase(id: string): string
 end
 
 -- Sorteia a mutação de um ovo chocado (ou nada). mult aumenta as chances (Sorte Dupla).
-function Util.sortearMutacao(rng: Random, mult: number?): string?
+function Util.clima(id: string?): Config.Clima?
+	for _, cl in Config.Climas.lista do
+		if cl.id == id then
+			return cl
+		end
+	end
+	return nil
+end
+
+-- clima: id do clima que está acontecendo agora (ou nil)
+function Util.sortearMutacao(rng: Random, mult: number?, clima: string?): string?
 	local x = rng:NextNumber() * 100
 	local soma = 0
+	local def = Util.clima(clima)
 	for _, m in Config.Mutacoes do
-		soma += m.chance * (mult or 1)
+		if m.soClima and m.soClima ~= clima then
+			continue
+		end
+		local extra = if def and def.mutacao then def.mutacao[m.id] or 1 else 1
+		soma += m.chance * (mult or 1) * extra
 		if x < soma then
 			return m.id
 		end

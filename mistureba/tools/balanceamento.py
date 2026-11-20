@@ -146,6 +146,8 @@ VENDA_SEG = config("VendaSegundos")
 ROLETA = config("Roleta")
 VIP_MULT = config("VipMultiplicador")
 UPGRADES = {u["id"]: u for u in config("Upgrades")}
+CLIMAS = config("Climas")
+CLIMA_POR_ID = {c["id"]: c for c in CLIMAS["lista"]}
 
 
 def preco_upgrade(u: dict, nivel: int) -> float:
@@ -170,11 +172,14 @@ def sortear_peso(rng: random.Random, pesos: dict) -> str:
     return ordem[-1]
 
 
-def sortear_mut(rng: random.Random, mult: float = 1.0) -> float:
+def sortear_mut(rng: random.Random, mult: float = 1.0, clima: str | None = None) -> float:
     x = rng.random() * 100
     soma = 0.0
+    extras = (CLIMA_POR_ID[clima].get("mutacao") or {}) if clima else {}
     for m in MUTACOES:  # mesma ordem do Util.sortearMutacao
-        soma += m["chance"] * mult
+        if m.get("soClima") and m["soClima"] != clima:
+            continue
+        soma += m["chance"] * mult * extras.get(m["id"], 1)
         if x < soma:
             return m["multiplicador"]
     return 1.0
@@ -185,7 +190,7 @@ def renda_media(raridade: str) -> float:
     return sum(c["renda"] for c in lista) / len(lista)
 
 
-MUT_MEDIA = 1 + sum(m["chance"] / 100 * (m["multiplicador"] - 1) for m in MUTACOES)
+MUT_MEDIA = 1 + sum(m["chance"] / 100 * (m["multiplicador"] - 1) for m in MUTACOES if not m.get("soClima"))
 
 
 def renda_esperada_ovo(pesos: dict) -> float:
@@ -211,6 +216,7 @@ class Jogador:
         self.renasceu_em: list[float] = []
         self.upgrades = {k: 0 for k in UPGRADES}  # nao somem ao renascer
         self.gasto_upgrades = 0.0
+        self.clima: str | None = None
 
     def vagas(self) -> int:
         return BASE["vagasIniciais"] + self.melhorias * BASE["vagasPorMelhoria"]
@@ -226,7 +232,7 @@ class Jogador:
 
     def ganhar(self, raridade: str, t: float):
         c = self.rng.choice(POR_RARIDADE[raridade])
-        r = c["renda"] * sortear_mut(self.rng, 1 + self.upgrades["sorte"] * UPGRADES["sorte"]["porNivel"])
+        r = c["renda"] * sortear_mut(self.rng, 1 + self.upgrades["sorte"] * UPGRADES["sorte"]["porNivel"], self.clima)
         self.dex.add(c["id"])
         self.primeira.setdefault(raridade, t)
         if len(self.base) < self.vagas():
@@ -305,13 +311,32 @@ def simular(seed: int, vip: bool, horas: float, marcos: list[int]):
     presentes = 0
     missoes_feitas = 0
     segundos = int(horas * 3600)
+    ciclo = CLIMAS["intervalo"] + CLIMAS["duracao"]
+    total_peso = sum(c["peso"] for c in CLIMAS["lista"])
+    proxima_chuva = 30.0
     for t in range(1, segundos + 1):
+        # clima: comeca 15 min depois de entrar e dura 3 min, sorteado por peso
+        fase = t % ciclo
+        if fase == CLIMAS["intervalo"]:
+            alvo = rng.random() * total_peso
+            for c in CLIMAS["lista"]:
+                alvo -= c["peso"]
+                if alvo <= 0:
+                    j.clima = c["id"]
+                    break
+        elif fase == 0:
+            j.clima = None
         ganho = j.renda()
         j.moedas += ganho
         j.ganho_total += ganho
         # chuva: um ovo pego e levado para a base a cada 30 s
-        if t % 30 == 0:
-            j.ganhar(sortear_peso(rng, CHUVA["pesos"]), t)
+        if t >= proxima_chuva:
+            clima = CLIMA_POR_ID.get(j.clima) if j.clima else None
+            proxima_chuva = t + 30 / (clima["chuvaMais"] if clima else 1)
+            pesos = dict(CHUVA["pesos"])
+            if clima:
+                pesos = {r: p * (clima["raros"] if r != "comum" else 1) for r, p in pesos.items()}
+            j.ganhar(sortear_peso(rng, pesos), t)
         if t % PRESENTE["intervalo"] == 0:
             presentes += 1
             ovo = PRESENTE["ovoEspecial"] if presentes % PRESENTE["especialACada"] == 0 else PRESENTE["ovo"]
