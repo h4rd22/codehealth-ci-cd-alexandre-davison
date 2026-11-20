@@ -151,7 +151,34 @@ menu.Size = UDim2.fromOffset(120, 512)
 menu.Parent = tela
 local listaMenu = Instance.new("UIListLayout")
 listaMenu.Padding = UDim.new(0, 10)
+listaMenu.SortOrder = Enum.SortOrder.LayoutOrder
 listaMenu.Parent = menu
+-- no celular o menu vira 2 colunas lá em cima, longe do controle de andar (que fica embaixo à esquerda)
+local gradeMenu = Instance.new("UIGridLayout")
+gradeMenu.CellSize = UDim2.fromOffset(120, 62)
+gradeMenu.CellPadding = UDim2.fromOffset(8, 8)
+gradeMenu.FillDirectionMaxCells = 2
+gradeMenu.SortOrder = Enum.SortOrder.LayoutOrder
+local TOQUE = UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
+local function dica(tecla: string): string
+	return if TOQUE then "" else " (" .. tecla .. ")"
+end
+local function ajustarMenu()
+	local compacto = TOQUE or camera.ViewportSize.Y < 560
+	if compacto then
+		listaMenu.Parent = nil
+		gradeMenu.Parent = menu
+		menu.AnchorPoint = Vector2.new(0, 0)
+		menu.Position = UDim2.fromOffset(10, 10)
+		menu.Size = UDim2.fromOffset(250, 290)
+	else
+		gradeMenu.Parent = nil
+		listaMenu.Parent = menu
+		menu.AnchorPoint = Vector2.new(0, 0.5)
+		menu.Position = UDim2.new(0, 10, 0.5, 0)
+		menu.Size = UDim2.fromOffset(120, 512)
+	end
+end
 
 local botaoOvos = botao(menu, "OVOS", COR_AMARELO, { Size = UDim2.fromOffset(120, 62), LayoutOrder = 1 })
 local botaoFusao = botao(menu, "FUSÃO", COR_ROXO, { Size = UDim2.fromOffset(120, 62), LayoutOrder = 2 })
@@ -182,6 +209,8 @@ local alertaMissoes = rotulo(botaoMissoes, {
 	Visible = false,
 })
 cantos(alertaMissoes, 13)
+ajustarMenu()
+camera:GetPropertyChangedSignal("ViewportSize"):Connect(ajustarMenu)
 
 -- Botões de ação (direita embaixo)
 local acoes = Instance.new("Frame")
@@ -194,10 +223,15 @@ local listaAcoes = Instance.new("UIListLayout")
 listaAcoes.Padding = UDim.new(0, 10)
 listaAcoes.HorizontalAlignment = Enum.HorizontalAlignment.Right
 listaAcoes.Parent = acoes
-local botaoTapa =
-	botao(acoes, "BOLHA (F)", Color3.fromRGB(90, 170, 255), { Size = UDim2.fromOffset(150, 64), LayoutOrder = 1 })
-local botaoTrancar = botao(acoes, "TRANCAR (T)", COR_VERDE, { Size = UDim2.fromOffset(150, 64), LayoutOrder = 2 })
-local botaoSoltar = botao(acoes, "SOLTAR (G)", Color3.fromRGB(120, 120, 140), {
+local botaoTapa = botao(
+	acoes,
+	"BOLHA" .. dica("F"),
+	Color3.fromRGB(90, 170, 255),
+	{ Size = UDim2.fromOffset(150, 64), LayoutOrder = 1 }
+)
+local botaoTrancar =
+	botao(acoes, "TRANCAR" .. dica("T"), COR_VERDE, { Size = UDim2.fromOffset(150, 64), LayoutOrder = 2 })
+local botaoSoltar = botao(acoes, "SOLTAR" .. dica("G"), Color3.fromRGB(120, 120, 140), {
 	Size = UDim2.fromOffset(150, 64),
 	LayoutOrder = 3,
 	Visible = false,
@@ -1386,7 +1420,7 @@ local function atualizarStatus()
 		botaoTrancar.Text = string.format("RECARGA %d", math.ceil(estado.cadeadoLivreEm - t))
 		botaoTrancar.BackgroundColor3 = Color3.fromRGB(110, 110, 120)
 	else
-		botaoTrancar.Text = "TRANCAR (T)"
+		botaoTrancar.Text = "TRANCAR" .. dica("T")
 		botaoTrancar.BackgroundColor3 = COR_VERDE
 	end
 	botaoSoltar.Visible = estado.roubo ~= nil or #estado.ovos > 0
