@@ -1,6 +1,6 @@
 -- GameServer: arena, monstros, combate automático, XP, ouro, loot,
 -- inventário, equipamentos, forja e portal de fases.
--- Mundo 1 (fases 1-1 a 1-10, chefe na 1-10). Ainda não salva o progresso.
+-- Mundo 1 (fases 1-1 a 1-10, chefe na 1-10). O progresso é salvo pelo Salvamento.luau.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -52,7 +52,9 @@ local Cenario = require(script.Parent:WaitForChild("Cenario"))
 local Modelos = require(script.Parent:WaitForChild("Modelos"))
 local Chefe = require(script.Parent:WaitForChild("Chefe"))
 local Habilidades = require(script.Parent:WaitForChild("Habilidades")) -- magias do Mago (Jorge)
+local Salvamento = require(script.Parent:WaitForChild("Salvamento")) -- DataStore (Bruno)
 local ItemArte = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("ItemArte"))
+local Rinnegan = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Rinnegan"))
 
 local baseplate = workspace:FindFirstChild("Baseplate")
 local spawn = workspace:FindFirstChildOfClass("SpawnLocation")
@@ -266,6 +268,7 @@ local function enviarEstado(player)
 	Habilidades.garantir(st)
 	player:SetAttribute("Alcance", stats.alcance) -- o auto-farm da tela usa para saber até onde andar
 	player:SetAttribute("Classe", st.classe)
+	player:SetAttribute("AutoFarm", st.autoFarm ~= false) -- respeita o que ficou salvo
 	evEstado:FireClient(player, {
 		nivel = st.nivel,
 		xp = st.xp,
@@ -353,7 +356,15 @@ local function vestir(player)
 		if item and slotId ~= "olho" then
 			local rar, ri = raridadePorId(item.raridade)
 			if not st.esconderEquip then
-				ItemArte.vestir(char, pastaEq, slotId, ri, rar.corBorda or rar.cor, item.conjunto, item.classe)
+				ItemArte.vestir(
+					char,
+					pastaEq,
+					slotId,
+					Config.TierVisual(ri),
+					rar.corBorda or rar.cor,
+					item.conjunto,
+					item.classe
+				)
 			end
 			if ri > maiorRi then
 				maiorRi, corMaior = ri, rar.cor
@@ -368,7 +379,7 @@ local function vestir(player)
 	-- aura no corpo para Mítico ou melhor
 	ItemArte.limparAura(char)
 	if corMaior and not st.esconderEquip then
-		ItemArte.aura(char, pastaEq, maiorRi, corMaior)
+		ItemArte.aura(char, pastaEq, Config.TierVisual(maiorRi), corMaior)
 	end
 
 	-- Olho do Além-Ciclo: olhos roxos brilhando e uma aura na cabeça
@@ -377,19 +388,8 @@ local function vestir(player)
 		local cabeca = char:FindFirstChild("Head")
 		if cabeca then
 			local roxo = Color3.fromRGB(190, 90, 255)
-			for _, lado in ipairs({ -1, 1 }) do
-				-- disco virado para a frente (o eixo do cilindro aponta para fora do rosto)
-				local olho = grudar(
-					pastaEq,
-					cabeca,
-					Vector3.new(0.05, 0.24, 0.24),
-					CFrame.new(0.2 * lado, 0.12, -cabeca.Size.Z / 2 - 0.02) * CFrame.Angles(0, math.pi / 2, 0),
-					roxo,
-					Enum.Material.Neon,
-					false
-				)
-				olho.Shape = Enum.PartType.Cylinder
-			end
+			-- Rinnegan de verdade no lugar dos olhos (anéis, pupila e reflexo)
+			Rinnegan.vestir(pastaEq, cabeca, grudar)
 			local aura = Instance.new("ParticleEmitter")
 			aura.Name = "AuraOlho"
 			aura.Color = ColorSequence.new(roxo)
@@ -560,7 +560,7 @@ local function guardarItem(player, item, pos, origem)
 		end)
 	end
 	local _, riItem = raridadePorId(item.raridade)
-	if riItem and riItem >= 5 then
+	if riItem and riItem >= 4 then -- Lendário ou melhor: aviso para todos
 		for _, outro in ipairs(Players:GetPlayers()) do
 			evAviso:FireClient(outro, "lendario", player.DisplayName, item.nome)
 		end
@@ -866,7 +866,7 @@ local function ganharXP(player, quanto)
 end
 
 -- Baú especial do chefe: abre, solta ouro e um item Épico ou Lendário
-local function abrirBau(player, pos)
+local function abrirBau(player, pos, faseIdx)
 	local st = estado[player]
 	local cf = CFrame.new(pos.X, topoArena, pos.Z) * CFrame.Angles(0, math.pi, 0)
 	local bau, tampa = Modelos.bau(cf)
@@ -878,15 +878,16 @@ local function abrirBau(player, pos)
 		if not estado[player] then
 			return
 		end
-		local f = Config.Fases[st.fase]
+		-- usa a fase do chefe que morreu (st.fase já pode ter avançado)
+		local f = Config.Fases[faseIdx]
 		local ouroBau = math.floor(f.ouro * 0.5 + 0.5)
 		st.ouro += ouroBau
 		local nivel = nivelDoDrop(f.nivel, st.nivel) + 2
-		-- 1 equipamento garantido, uma raridade acima do normal da dificuldade (no máximo Mítico)
-		local ri = math.min(sortearRaridade(f) + 1, 6)
+		-- 1 equipamento garantido, uma raridade acima do normal da dificuldade (no máximo Lendário)
+		local ri = math.min(sortearRaridade(f) + 1, 4)
 		guardarItem(player, criarItem(st, ri, nivel), pos + Vector3.new(0, 3, 0), "bau")
 		-- especiais (Lâmina de Chakra Negro, Rinnegan...)
-		for k, esp in ipairs(Config.EspeciaisDaFase(st.fase)) do
+		for k, esp in ipairs(Config.EspeciaisDaFase(faseIdx)) do
 			if math.random() < esp.chance then
 				if esp.raridade == "secreto" then
 					st.secretos[esp.nome] = true -- revela o nome no portal e na barra do chefe
@@ -923,7 +924,7 @@ local function monstroMorreu(player, m)
 	st.ouro += ouro
 	local xpGanho = math.max(1, math.floor(f.xp * Config.MultXP(st.nivel, f.nivel) * stats.xp + 0.5))
 	ganharXP(player, xpGanho)
-	evDano:FireClient(player, "morte", pos, ouro, cor, xpGanho, f.chefe)
+	evDano:FireClient(player, "morte", pos, ouro, cor, xpGanho, f.chefe, f.monstro)
 
 	local tempoSumir = f.chefe and 0.8 or 0.2
 	for _, p in ipairs(m:GetDescendants()) do
@@ -983,7 +984,7 @@ local function monstroMorreu(player, m)
 	end
 
 	if f.chefe then
-		abrirBau(player, pos)
+		abrirBau(player, pos, faseIdx)
 	elseif math.random() < Config.ChanceDrop then
 		local conjuntoId, slotConjunto
 		for _, c in ipairs(Config.Conjuntos) do
@@ -1021,7 +1022,7 @@ local function monstroMorreu(player, m)
 				local raiz0 = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
 				guardarItem(
 					player,
-					criarItem(st, math.min(sortearRaridade(f) + 1, 6), nivelDoDrop(f.nivel, st.nivel)),
+					criarItem(st, math.min(sortearRaridade(f) + 1, 4), nivelDoDrop(f.nivel, st.nivel)),
 					raiz0 and raiz0.Position or pos,
 					"bau"
 				)
@@ -1256,7 +1257,12 @@ local function loopPerseguir(player)
 			local monstros = monstrosDe(player)
 			for _, m in ipairs(monstros) do
 				local raiz = m.PrimaryPart
-				if raiz and not m:GetAttribute("Chefe") and (m:GetAttribute("Vida") or 0) > 0 then
+				-- chefe com arte tem IA própria (Chefe.luau); chefe feito de peças usa a perseguição comum
+				if
+					raiz
+					and not (m:GetAttribute("Chefe") and m:GetAttribute("UsaArte"))
+					and (m:GetAttribute("Vida") or 0) > 0
+				then
 					local plano = Vector3.new(alvo.X, raiz.Position.Y, alvo.Z)
 					local dif = plano - raiz.Position
 					local d = dif.Magnitude
@@ -1347,7 +1353,37 @@ end
 ------------------------------------------------------------------------
 -- Pedidos da tela
 ------------------------------------------------------------------------
-evPedirEstado.OnServerEvent:Connect(enviarEstado)
+-- Anti-spam: cada remote pesado só pode ser chamado a cada 'intervalo' segundos por jogador
+local ultimaChamada = {}
+local function limitar(player, chave, intervalo)
+	local t = ultimaChamada[player]
+	if not t then
+		t = {}
+		ultimaChamada[player] = t
+	end
+	local agora = os.clock()
+	if t[chave] and agora - t[chave] < intervalo then
+		return false
+	end
+	t[chave] = agora
+	return true
+end
+
+-- pedidos de estado em rajada viram um só envio atrasado (nenhum script fica sem resposta)
+local estadoPendente = {}
+evPedirEstado.OnServerEvent:Connect(function(player)
+	if limitar(player, "estado", 0.3) then
+		enviarEstado(player)
+	elseif not estadoPendente[player] then
+		estadoPendente[player] = true
+		task.delay(0.35, function()
+			estadoPendente[player] = nil
+			if player.Parent and estado[player] then
+				enviarEstado(player)
+			end
+		end)
+	end
+end)
 
 -- Partes do corpo (R6 e R15). O valor é o nome equivalente no outro tipo de boneco.
 local CORPO_R6_R15 = {
@@ -1465,6 +1501,9 @@ local function aplicarAvatar(player)
 end
 
 evAvatar.OnServerEvent:Connect(function(player, faseIdx)
+	if not limitar(player, "avatar", 2) then
+		return
+	end
 	local st = estado[player]
 	if not st or type(faseIdx) ~= "number" then
 		return
@@ -1489,6 +1528,9 @@ evAvatar.OnServerEvent:Connect(function(player, faseIdx)
 end)
 
 evEsconderEquip.OnServerEvent:Connect(function(player, esconder)
+	if not limitar(player, "esconder", 0.3) then
+		return
+	end
 	local st = estado[player]
 	if st then
 		st.esconderEquip = esconder == true
@@ -1570,6 +1612,9 @@ evGravar.OnServerEvent:Connect(function(player, itemId, linha)
 	local G = Config.Gravacao
 	local item = st.itens[itemId]
 	linha = math.floor(linha)
+	if linha ~= linha then -- NaN vindo de exploit
+		return
+	end
 	if not item or linha < 1 or linha > G.Linhas then
 		return
 	end
@@ -1686,6 +1731,9 @@ evAutoFarm.OnServerEvent:Connect(function(player, ligado)
 end)
 
 evEquipar.OnServerEvent:Connect(function(player, itemId)
+	if not limitar(player, "equipar", 0.12) then
+		return
+	end
 	local st = estado[player]
 	local item = st and st.itens[itemId]
 	if not item then
@@ -1706,6 +1754,9 @@ evEquipar.OnServerEvent:Connect(function(player, itemId)
 end)
 
 evDesequipar.OnServerEvent:Connect(function(player, slotId)
+	if not limitar(player, "desequipar", 0.12) then
+		return
+	end
 	local st = estado[player]
 	if not st or type(slotId) ~= "string" then
 		return
@@ -1893,6 +1944,9 @@ end)
 
 -- Configurações da forja (engrenagem): combinação automática ao farmar
 evConfigForja.OnServerEvent:Connect(function(player, cfg)
+	if not limitar(player, "configForja", 0.3) then
+		return
+	end
 	local st = estado[player]
 	if not st or type(cfg) ~= "table" then
 		return
@@ -1935,6 +1989,9 @@ evAlquimia.OnServerEvent:Connect(function(player, ids)
 end)
 
 evIrFase.OnServerEvent:Connect(function(player, faseIdx)
+	if not limitar(player, "irFase", 0.6) then
+		return
+	end
 	local st = estado[player]
 	if not st or type(faseIdx) ~= "number" then
 		return
@@ -2148,7 +2205,7 @@ if RunService:IsStudio() then
 end
 
 Players.PlayerAdded:Connect(function(player)
-	estado[player] = {
+	local novo = {
 		nivel = 1,
 		xp = 0,
 		ouro = 0,
@@ -2169,9 +2226,17 @@ Players.PlayerAdded:Connect(function(player)
 		avatarAtivo = nil,
 		esconderEquip = false,
 		treino = { forca = 0, vitalidade = 0, precisao = 0, ganancia = 0 },
-		configForja = { auto = false, ate = "incomum", mesmoNivel = false },
+		configForja = { auto = false, ate = "raro", mesmoNivel = false },
 	}
-	player.CharacterAdded:Connect(function(char)
+	-- carrega o save; se falhar, o jogador sai sem estragar o save
+	if not Salvamento.carregar(player, novo) then
+		return
+	end
+	estado[player] = novo
+	if novo.classe then
+		novo.vida = vidaMaxDe(novo) -- volta com a vida cheia do nível salvo
+	end
+	local function aoNascer(char)
 		char:WaitForChild("HumanoidRootPart")
 		task.wait(0.2)
 		aplicarAvatar(player)
@@ -2183,8 +2248,11 @@ Players.PlayerAdded:Connect(function(player)
 				raizNova.CFrame = Cenario.linear and CFrame.new(Cenario.inicio()) or CFrame.new(0, topoArena + 3, 4)
 			end
 		end
-	end)
-	if not player.Character then
+	end
+	player.CharacterAdded:Connect(aoNascer)
+	if player.Character then
+		task.spawn(aoNascer, player.Character) -- nasceu enquanto o save carregava
+	else
 		player.CharacterAdded:Wait()
 	end
 	task.wait(0.3)
@@ -2205,6 +2273,8 @@ Players.PlayerAdded:Connect(function(player)
 end)
 
 Players.PlayerRemoving:Connect(function(player)
+	ultimaChamada[player] = nil
+	task.spawn(Salvamento.sair, player) -- grava e solta a trava
 	ultimaForja[player] = nil
 	ultimaJoia[player] = nil
 	ultimaGravacao[player] = nil

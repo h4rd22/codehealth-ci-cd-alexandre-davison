@@ -22,7 +22,7 @@ local pasta = workspace:WaitForChild("Monstros")
 local function raridade(id)
 	for i, r in ipairs(Config.Raridades) do
 		if r.id == id then
-			return r, i
+			return r, Config.TierVisual(i) -- aqui o índice só serve para a arte e os efeitos
 		end
 	end
 	return Config.Raridades[1], 1
@@ -598,7 +598,7 @@ end
 
 local morto = false
 
-evDano.OnClientEvent:Connect(function(tipo, pos, valor, extra, xp, chefe)
+evDano.OnClientEvent:Connect(function(tipo, pos, valor, extra, xp, chefe, nomeChefe)
 	if tipo == "heroi" then
 		NumerosDano.mostrar(pos, valor, "heroi", { prefixo = "-" })
 		piscarTela(valor >= 50 and 0.35 or 0.15)
@@ -626,7 +626,7 @@ evDano.OnClientEvent:Connect(function(tipo, pos, valor, extra, xp, chefe)
 		explosao(pos, extra, chefe and 40 or 10)
 		if chefe then
 			tremer(1.6, 0.8)
-			mostrarFaixa("PEN DERROTADO!", Color3.fromRGB(220, 170, 255), 3)
+			mostrarFaixa(string.upper(nomeChefe or "Chefe") .. " DERROTADO!", Color3.fromRGB(220, 170, 255), 3)
 		end
 		textoFlutuante(pos + Vector3.new(0, 1, 0), "+" .. valor .. " ouro", Color3.fromRGB(255, 205, 70), 22)
 		if xp then
