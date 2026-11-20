@@ -397,11 +397,11 @@ function Criaturas.modelo(id: string): Model
 				Color3.fromRGB(140, 255, 120),
 				Color3.new(1, 1, 1),
 			}
-			for k = 1, 14 do
+			for k = 1, 22 do
 				local g = Instance.new("Part")
 				g.Name = "Granulado"
 				g.Shape = Enum.PartType.Cylinder
-				g.Size = Vector3.new(0.4, 0.14, 0.14) * e
+				g.Size = Vector3.new(0.6, 0.2, 0.2) * e
 				g.Color = granulado[(k - 1) % #granulado + 1]
 				g.Material = Enum.Material.SmoothPlastic
 				g.CanCollide = false
@@ -422,7 +422,7 @@ function Criaturas.modelo(id: string): Model
 				local estrela = Instance.new("Part")
 				estrela.Name = "Estrela"
 				estrela.Shape = Enum.PartType.Ball
-				estrela.Size = Vector3.one * 0.35 * e
+				estrela.Size = Vector3.one * 0.55 * e
 				estrela.Color = Color3.fromRGB(255, 250, 200)
 				estrela.Material = Enum.Material.Neon
 				estrela.CanCollide = false
