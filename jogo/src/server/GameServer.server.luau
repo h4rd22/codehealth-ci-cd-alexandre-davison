@@ -2253,7 +2253,13 @@ Players.PlayerAdded:Connect(function(player)
 	if player.Character then
 		task.spawn(aoNascer, player.Character) -- nasceu enquanto o save carregava
 	else
-		player.CharacterAdded:Wait()
+		-- espera o boneco sem travar para sempre se o jogador sair antes de nascer
+		while player.Parent and not player.Character do
+			task.wait(0.1)
+		end
+	end
+	if not player.Parent then
+		return
 	end
 	task.wait(0.3)
 	enviarEstado(player)
@@ -2274,6 +2280,7 @@ end)
 
 Players.PlayerRemoving:Connect(function(player)
 	ultimaChamada[player] = nil
+	ultimoAdmin[player] = nil
 	task.spawn(Salvamento.sair, player) -- grava e solta a trava
 	ultimaForja[player] = nil
 	ultimaJoia[player] = nil
