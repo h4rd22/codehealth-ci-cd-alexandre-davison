@@ -16,6 +16,23 @@ local VFX = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("VFX")
 local player = Players.LocalPlayer
 local pasta = workspace:WaitForChild("Monstros")
 local clipe = Animacoes.clipe
+local evDano = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("Dano")
+local ultimoCritico = setmetatable({}, { __mode = "k" }) -- [modelo] = hora do último crítico
+evDano.OnClientEvent:Connect(function(tipo, pos, _valor, critico)
+	if tipo ~= "dano" or critico ~= true or typeof(pos) ~= "Vector3" then
+		return
+	end
+	local melhor, dist = nil, 4
+	for _, m in ipairs(pasta:GetChildren()) do
+		local r = m:IsA("Model") and m.PrimaryPart
+		if r and (r.Position - pos).Magnitude < dist then
+			melhor, dist = m, (r.Position - pos).Magnitude
+		end
+	end
+	if melhor then
+		ultimoCritico[melhor] = os.clock()
+	end
+end)
 
 local ROXO = Color3.fromRGB(180, 90, 255)
 local BRANCO = Color3.new(1, 1, 1)
@@ -489,7 +506,7 @@ local function morteComum(m, cor)
 	if not c.Parent then
 		return
 	end
-	local tipo = math.random(3)
+	local tipo = math.random() < 0.7 and 1 or 3 -- sempre arremessado girando
 	if Animacoes.rig(c) then
 		Animacoes.manter(c, "morte", function()
 			return tipo == 2 and POSE_CAIDO or POSE_VOANDO
@@ -545,16 +562,20 @@ local POSE_AGONIA = Animacoes.pose({
 	ombroE = { 70, 0, 40 },
 	pescoco = { -25, 0, 0 },
 })
-local POSE_ASCENSAO = Animacoes.pose({
-	raiz = { 20, 0, 0 },
-	ombroD = { 30, 0, 130 },
-	ombroE = { 30, 0, -130 },
-	pescoco = { 40, 0, 0 },
-	quadrilD = { -10, 0, 10 },
-	quadrilE = { -10, 0, -10 },
+local POSE_JOELHOS = Animacoes.pose({
+	raiz = { -18, 0, 0 },
+	tronco = { -15, 0, 0 },
+	quadrilD = { 85, 0, 8 },
+	quadrilE = { 85, 0, -8 },
+	joelhoD = { -95, 0, 0 },
+	joelhoE = { -95, 0, 0 },
+	pescoco = { -35, 0, 0 },
+	ombroD = { 15, 0, 10 },
+	ombroE = { 15, 0, -10 },
 })
 
 local function morteChefe(m, cor)
+	Animacoes.hitStop(0.04) -- golpe final pesa
 	local raiz = m.PrimaryPart
 	if not raiz then
 		return
@@ -574,7 +595,7 @@ local function morteChefe(m, cor)
 	local fase = "agonia"
 	if Animacoes.rig(c) then
 		Animacoes.manter(c, "morte", function()
-			return fase == "agonia" and POSE_AGONIA or POSE_ASCENSAO
+			return fase == "agonia" and POSE_AGONIA or POSE_JOELHOS
 		end, 6)
 	end
 	local h = Instance.new("Highlight")
@@ -618,10 +639,13 @@ local function morteChefe(m, cor)
 				Animacoes.brilhos(p, cor, 10, 14)
 			end
 		else
-			-- sobe de braços abertos, com raios girando
-			fase = "ascensao"
-			local s = math.min(1, (t - 0.9) / 1.1)
-			pos = cf0.Position + Vector3.new(0, (1 - (1 - s) ^ 2) * 7, 0)
+			-- cai de joelhos e afunda, com raios de luz saindo do corpo
+			if fase ~= "joelhos" then
+				fase = "joelhos"
+				Animacoes.anel(cf0.Position - Vector3.new(0, 3, 0), cor, 10, 0.4, 1)
+			end
+			local s = math.min(1, (t - 0.9) / 0.35)
+			pos = cf0.Position - Vector3.new(0, (1 - (1 - s) ^ 2) * c:GetExtentsSize().Y * 0.22, 0)
 			h.FillTransparency = 1 - s * 0.8
 			for i, r in ipairs(raios) do
 				local comp = 4 + s * 26
@@ -798,7 +822,14 @@ local function ligar(m)
 				end
 			elseif caiu > 0 and temRig then
 				local max = m:GetAttribute("VidaMax") or 1
-				apanhou(m, m:GetAttribute("Chefe") == true, caiu >= max * 0.25)
+				-- o aviso de crítico chega quase junto com a vida nova
+				task.defer(function()
+					local critico = ultimoCritico[m] ~= nil and os.clock() - ultimoCritico[m] < 0.3
+					apanhou(m, m:GetAttribute("Chefe") == true, critico or caiu >= max * 0.25)
+					if critico then
+						Animacoes.hitStop(0.04)
+					end
+				end)
 			end
 		elseif not temRig then
 			return

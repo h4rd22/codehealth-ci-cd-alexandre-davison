@@ -143,8 +143,12 @@ end
 local rigs = {}
 local laco
 
+local pausaAte = 0
 local function atualizar()
 	local agora = os.clock()
+	if agora < pausaAte then
+		return -- hit-stop: tudo parado por um instante
+	end
 	for m, r in pairs(rigs) do
 		if not m.Parent then
 			rigs[m] = nil
@@ -328,6 +332,37 @@ function Animacoes.corrigirRepouso(m, junta, cf)
 	if j then
 		j.correcao = cf
 	end
+end
+
+-- Hit-stop: congela todos os bonecos animados (e as animações do Roblox deles) por "seg" segundos.
+-- Usado no crítico e no golpe final do chefe para o impacto "pesar".
+function Animacoes.hitStop(seg)
+	local agora = os.clock()
+	if agora < pausaAte then
+		return
+	end
+	pausaAte = agora + seg
+	local pausadas = {}
+	for m, r in pairs(rigs) do
+		for _, c in pairs(r.camadas) do
+			c.t0 += seg -- o tempo da animação não anda durante a pausa
+		end
+		local hum = m:FindFirstChildOfClass("Humanoid")
+		local animador = hum and hum:FindFirstChildOfClass("Animator")
+		if animador then
+			for _, faixa in ipairs(animador:GetPlayingAnimationTracks()) do
+				table.insert(pausadas, { faixa, faixa.Speed })
+				faixa:AdjustSpeed(0)
+			end
+		end
+	end
+	task.delay(seg, function()
+		for _, par in ipairs(pausadas) do
+			if par[1].IsPlaying then
+				par[1]:AdjustSpeed(par[2])
+			end
+		end
+	end)
 end
 
 function Animacoes.esquecer(m)
