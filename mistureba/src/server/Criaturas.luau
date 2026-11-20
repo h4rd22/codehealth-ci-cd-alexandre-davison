@@ -352,6 +352,22 @@ function Criaturas.modelo(id: string): Model
 	aro.CFrame = corpo.CFrame * CFrame.new(0, -1.72 * e, 0) * CFrame.Angles(0, 0, math.rad(90))
 	aro.Parent = modelo
 	soldar(corpo, aro)
+	-- Lendária para cima: coluna de brilho subindo do aro, para achar de longe
+	if (table.find(Config.OrdemRaridades, def.raridade) or 1) >= 4 then
+		local coluna = Instance.new("ParticleEmitter")
+		coluna.Name = "Coluna"
+		coluna.Texture = "rbxasset://textures/particles/sparkles_main.dds"
+		coluna.Color = ColorSequence.new(raridade.cor, Color3.new(1, 1, 1))
+		coluna.EmissionDirection = Enum.NormalId.Right -- o cilindro está deitado: Right aponta para cima
+		coluna.Shape = Enum.ParticleEmitterShape.Disc
+		coluna.Rate = 8
+		coluna.Lifetime = NumberRange.new(1.2, 1.8)
+		coluna.Speed = NumberRange.new(3, 5)
+		coluna.Size = NumberSequence.new(0.5 * e, 0)
+		coluna.Transparency = NumberSequence.new(0.2, 1)
+		coluna.LightEmission = 1
+		coluna.Parent = aro
+	end
 
 	-- mutação: muda a cor/material de todas as peças do corpo (antes dos olhos)
 	if mut and mut.tamanho then
