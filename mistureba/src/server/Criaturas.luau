@@ -535,7 +535,7 @@ function Criaturas.modelo(id: string): Model
 						then Enum.Material.SmoothPlastic
 						else (Enum.Material :: any)[mut.material]
 					parte.Color = if mut.id == "dourada"
-						then parte.Color:Lerp(Color3.fromRGB(245, 180, 35), 0.88)
+						then parte.Color:Lerp(Color3.fromRGB(240, 165, 20), 0.94)
 						else parte.Color:Lerp(mut.cor, 0.7)
 				end
 				if mut.id == "dourada" then
