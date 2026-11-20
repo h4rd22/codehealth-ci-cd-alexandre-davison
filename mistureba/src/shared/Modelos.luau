@@ -781,6 +781,14 @@ function Criaturas.modeloCarregar(id: string): Model
 		end
 	end
 	modelo:ScaleTo(0.6)
+	-- o servidor põe o pivô a 2,5 + meia altura do corpo acima da cabeça; deslocamos o pivô
+	-- para os pés ficarem logo em cima da cabeça, sem a bichinha flutuar longe
+	local corpo = modelo.PrimaryPart
+	if corpo then
+		local caixa, tamanho = modelo:GetBoundingBox()
+		local fundo = caixa.Position.Y - tamanho.Y / 2 - corpo.Position.Y
+		corpo.PivotOffset = CFrame.new(0, 1.8 + corpo.Size.Y / 2 + fundo, 0)
+	end
 	return modelo
 end
 
