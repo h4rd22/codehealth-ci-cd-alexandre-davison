@@ -498,13 +498,7 @@ function Criaturas.modelo(id: string): Model
 			break
 		end
 	end
-	oval3(
-		modelo,
-		corpo,
-		clara,
-		Vector3.new(2.1, 1.7, 0.7) * e,
-		Vector3.new(0, -0.45 * e, -corpo.Size.Z / 2 + 0.3 * e)
-	).Name =
+	oval3(modelo, corpo, clara, Vector3.new(2.1, 1.7, 0.7) * e, Vector3.new(0, -0.45 * e, -corpo.Size.Z / 2 + 0.3 * e)).Name =
 		"Barriga"
 	local nivel = table.find(Config.OrdemRaridades, def.raridade) or 1
 	for _, lado in { -1, 1 } do

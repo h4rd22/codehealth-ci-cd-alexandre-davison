@@ -103,11 +103,8 @@ local function tocar(pai: Instance, tom: number, volume: number)
 end
 
 local function tween(obj: Instance, tempo: number, props: { [string]: any }, estilo: Enum.EasingStyle?)
-	local t = TweenService:Create(
-		obj,
-		TweenInfo.new(tempo, estilo or Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
-		props
-	)
+	local t =
+		TweenService:Create(obj, TweenInfo.new(tempo, estilo or Enum.EasingStyle.Quad, Enum.EasingDirection.Out), props)
 	t:Play()
 	return t
 end
@@ -295,10 +292,7 @@ local function revelar(id: string)
 		local chegada = 1 - (1 - math.min(t / 0.6, 1)) ^ 3
 		local d = distancia * (2.4 - 1.4 * chegada)
 		local ang = t * 1.6 + math.pi
-		camera.CFrame = CFrame.lookAt(
-			centro + Vector3.new(math.sin(ang) * d, raio * 0.35, math.cos(ang) * d),
-			centro
-		)
+		camera.CFrame = CFrame.lookAt(centro + Vector3.new(math.sin(ang) * d, raio * 0.35, math.cos(ang) * d), centro)
 		raios.Rotation = t * (25 + extra * 15)
 		local tremor = math.max(0, 0.4 - t) * (6 + extra * 6)
 		vp.Position = UDim2.new(0.5, math.random(-10, 10) * tremor / 10, 0.46, math.random(-10, 10) * tremor / 10)

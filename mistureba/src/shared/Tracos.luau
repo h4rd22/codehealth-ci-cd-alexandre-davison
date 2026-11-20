@@ -32,7 +32,12 @@ Tracos.Fichas = {
 		costas = { "barbatana" },
 	},
 	meiaranha = { orelhas = "nenhuma", costas = { "patas" }, padrao = "listras", corPadrao = c(255, 255, 255) },
-	pastelossauro = { forma = Vector3.new(1, 1.1, 1.15), orelhas = "nenhuma", cauda = "dragao", costas = { "espinhos" } },
+	pastelossauro = {
+		forma = Vector3.new(1, 1.1, 1.15),
+		orelhas = "nenhuma",
+		cauda = "dragao",
+		costas = { "espinhos" },
+	},
 	torracoelho = { orelhas = "coelho", focinho = "dentes", cauda = "pom" },
 	abacataoninja = { orelhas = "folha", cauda = "curta", costas = { "caroco" } },
 	geladeirapirata = {
@@ -108,7 +113,13 @@ Tracos.Fichas = {
 	foguetucano = { orelhas = "nenhuma", focinho = "tucano", cauda = "pena", costas = { "crista" } },
 	pipocavalo = { orelhas = "gato", focinho = "focinho", cauda = "crina", costas = { "crina" }, padrao = "pintas" },
 	castelobo = { orelhas = "gato", focinho = "focinho", cauda = "fofa", costas = { "juba" } },
-	trovanguru = { forma = Vector3.new(1, 1.15, 1), orelhas = "coelho", focinho = "focinho", cauda = "grossa", costas = { "bolsa" } },
+	trovanguru = {
+		forma = Vector3.new(1, 1.15, 1),
+		orelhas = "coelho",
+		focinho = "focinho",
+		cauda = "grossa",
+		costas = { "bolsa" },
+	},
 	aquariorca = {
 		forma = Vector3.new(1.15, 1, 1.3),
 		orelhas = "nenhuma",
@@ -220,7 +231,13 @@ local function orelhas(ctx: Ctx, tipo: string)
 		par(function(lado)
 			local p = pele(ctx, Vector3.new(0.55 * lado, 0.85, 0.05))
 			local giro = CFrame.Angles(0, 0, math.rad(-18 * lado))
-			bola(ctx, "Orelha", ctx.cor, Vector3.new(0.75, 1.05, 0.4) * e, CFrame.new(p + Vector3.new(0, 0.3 * e, 0)) * giro)
+			bola(
+				ctx,
+				"Orelha",
+				ctx.cor,
+				Vector3.new(0.75, 1.05, 0.4) * e,
+				CFrame.new(p + Vector3.new(0, 0.3 * e, 0)) * giro
+			)
 			bola(
 				ctx,
 				"Orelha",
@@ -233,7 +250,13 @@ local function orelhas(ctx: Ctx, tipo: string)
 		par(function(lado)
 			local p = pele(ctx, Vector3.new(0.38 * lado, 0.95, 0.05))
 			local giro = CFrame.Angles(math.rad(8), 0, math.rad(-10 * lado))
-			bola(ctx, "Orelha", ctx.cor, Vector3.new(0.6, 2, 0.4) * e, CFrame.new(p + Vector3.new(0.1 * lado, 0.85, 0) * e) * giro)
+			bola(
+				ctx,
+				"Orelha",
+				ctx.cor,
+				Vector3.new(0.6, 2, 0.4) * e,
+				CFrame.new(p + Vector3.new(0.1 * lado, 0.85, 0) * e) * giro
+			)
 			bola(
 				ctx,
 				"Orelha",
@@ -246,7 +269,13 @@ local function orelhas(ctx: Ctx, tipo: string)
 		par(function(lado)
 			local p = pele(ctx, Vector3.new(0.7 * lado, 0.75, 0.05))
 			bola(ctx, "Orelha", ctx.cor, Vector3.new(0.95, 0.95, 0.4) * e, CFrame.new(p + Vector3.new(0, 0.2 * e, 0)))
-			bola(ctx, "Orelha", ROSA, Vector3.new(0.55, 0.55, 0.2) * e, CFrame.new(p + Vector3.new(0, 0.2 * e, -0.15 * e)))
+			bola(
+				ctx,
+				"Orelha",
+				ROSA,
+				Vector3.new(0.55, 0.55, 0.2) * e,
+				CFrame.new(p + Vector3.new(0, 0.2 * e, -0.15 * e))
+			)
 		end)
 	elseif tipo == "caida" then
 		par(function(lado)
@@ -262,8 +291,20 @@ local function orelhas(ctx: Ctx, tipo: string)
 	elseif tipo == "elefante" then
 		par(function(lado)
 			local p = pele(ctx, Vector3.new(lado, 0.25, 0.15))
-			bola(ctx, "Orelha", ctx.cor:Lerp(Color3.new(0, 0, 0), 0.12), Vector3.new(0.3, 1.9, 1.7) * e, CFrame.new(p + Vector3.new(0.12 * lado, 0.1, 0.1) * e) * CFrame.Angles(0, math.rad(-25 * lado), 0))
-			bola(ctx, "Orelha", ROSA, Vector3.new(0.2, 1.3, 1.1) * e, CFrame.new(p + Vector3.new(0.05 * lado, 0.1, 0) * e) * CFrame.Angles(0, math.rad(-25 * lado), 0))
+			bola(
+				ctx,
+				"Orelha",
+				ctx.cor:Lerp(Color3.new(0, 0, 0), 0.12),
+				Vector3.new(0.3, 1.9, 1.7) * e,
+				CFrame.new(p + Vector3.new(0.12 * lado, 0.1, 0.1) * e) * CFrame.Angles(0, math.rad(-25 * lado), 0)
+			)
+			bola(
+				ctx,
+				"Orelha",
+				ROSA,
+				Vector3.new(0.2, 1.3, 1.1) * e,
+				CFrame.new(p + Vector3.new(0.05 * lado, 0.1, 0) * e) * CFrame.Angles(0, math.rad(-25 * lado), 0)
+			)
 		end)
 	elseif tipo == "folha" then
 		par(function(lado)
@@ -294,16 +335,46 @@ local function focinho(ctx: Ctx, tipo: string)
 	local e = ctx.e
 	local frente = -ctx.corpo.Size.Z / 2
 	if tipo == "bico" then
-		bola(ctx, "Focinho", c(255, 170, 50), Vector3.new(0.6, 0.4, 0.8) * e, CFrame.new(0, -0.12 * e, frente - 0.1 * e))
+		bola(
+			ctx,
+			"Focinho",
+			c(255, 170, 50),
+			Vector3.new(0.6, 0.4, 0.8) * e,
+			CFrame.new(0, -0.12 * e, frente - 0.1 * e)
+		)
 	elseif tipo == "bicopato" then
-		bola(ctx, "Focinho", c(255, 170, 50), Vector3.new(1.1, 0.3, 0.9) * e, CFrame.new(0, -0.2 * e, frente - 0.15 * e))
+		bola(
+			ctx,
+			"Focinho",
+			c(255, 170, 50),
+			Vector3.new(1.1, 0.3, 0.9) * e,
+			CFrame.new(0, -0.2 * e, frente - 0.15 * e)
+		)
 	elseif tipo == "tucano" then
-		bola(ctx, "Focinho", c(255, 160, 40), Vector3.new(0.75, 0.7, 1.8) * e, CFrame.new(0, -0.15 * e, frente - 0.55 * e))
+		bola(
+			ctx,
+			"Focinho",
+			c(255, 160, 40),
+			Vector3.new(0.75, 0.7, 1.8) * e,
+			CFrame.new(0, -0.15 * e, frente - 0.55 * e)
+		)
 		bola(ctx, "Focinho", c(40, 30, 30), Vector3.new(0.45, 0.4, 0.45) * e, CFrame.new(0, -0.2 * e, frente - 1.3 * e))
-		bola(ctx, "Focinho", c(255, 230, 60), Vector3.new(0.65, 0.3, 0.9) * e, CFrame.new(0, 0.05 * e, frente - 0.35 * e))
+		bola(
+			ctx,
+			"Focinho",
+			c(255, 230, 60),
+			Vector3.new(0.65, 0.3, 0.9) * e,
+			CFrame.new(0, 0.05 * e, frente - 0.35 * e)
+		)
 	elseif tipo == "focinho" then
 		bola(ctx, "Focinho", ctx.clara, Vector3.new(1.05, 0.7, 0.6) * e, CFrame.new(0, -0.25 * e, frente + 0.1 * e))
-		bola(ctx, "Focinho", c(60, 35, 45), Vector3.new(0.38, 0.26, 0.2) * e, CFrame.new(0, -0.05 * e, frente - 0.15 * e))
+		bola(
+			ctx,
+			"Focinho",
+			c(60, 35, 45),
+			Vector3.new(0.38, 0.26, 0.2) * e,
+			CFrame.new(0, -0.05 * e, frente - 0.15 * e)
+		)
 	elseif tipo == "tromba" then
 		for i = 0, 3 do
 			bola(
@@ -359,15 +430,40 @@ local function chifre(ctx: Ctx, tipo: string)
 		for _, lado in { -1, 1 } do
 			local p = pele(ctx, Vector3.new(0.45 * lado, 0.9, 0.15))
 			local giro = CFrame.Angles(math.rad(35), 0, math.rad(-20 * lado))
-			bola(ctx, "Chifre", c(250, 235, 200), Vector3.new(0.34, 0.75, 0.34) * e, CFrame.new(p) * giro * CFrame.new(0, 0.3 * e, 0))
-			bola(ctx, "Chifre", c(250, 235, 200), Vector3.new(0.22, 0.55, 0.22) * e, CFrame.new(p) * giro * CFrame.new(0, 0.7 * e, 0.18 * e))
+			bola(
+				ctx,
+				"Chifre",
+				c(250, 235, 200),
+				Vector3.new(0.34, 0.75, 0.34) * e,
+				CFrame.new(p) * giro * CFrame.new(0, 0.3 * e, 0)
+			)
+			bola(
+				ctx,
+				"Chifre",
+				c(250, 235, 200),
+				Vector3.new(0.22, 0.55, 0.22) * e,
+				CFrame.new(p) * giro * CFrame.new(0, 0.7 * e, 0.18 * e)
+			)
 		end
 	elseif tipo == "antena" then
 		for _, lado in { -1, 1 } do
 			local p = pele(ctx, Vector3.new(0.35 * lado, 0.95, -0.1))
 			local giro = CFrame.Angles(math.rad(-15), 0, math.rad(-20 * lado))
-			bola(ctx, "Chifre", c(40, 35, 40), Vector3.new(0.12, 1, 0.12) * e, CFrame.new(p) * giro * CFrame.new(0, 0.45 * e, 0))
-			bola(ctx, "Chifre", ctx.segunda, Vector3.one * 0.32 * e, CFrame.new(p) * giro * CFrame.new(0, 0.95 * e, 0), Enum.Material.Neon)
+			bola(
+				ctx,
+				"Chifre",
+				c(40, 35, 40),
+				Vector3.new(0.12, 1, 0.12) * e,
+				CFrame.new(p) * giro * CFrame.new(0, 0.45 * e, 0)
+			)
+			bola(
+				ctx,
+				"Chifre",
+				ctx.segunda,
+				Vector3.one * 0.32 * e,
+				CFrame.new(p) * giro * CFrame.new(0, 0.95 * e, 0),
+				Enum.Material.Neon
+			)
 		end
 	elseif tipo == "girafa" then
 		for _, lado in { -1, 1 } do
@@ -393,7 +489,9 @@ local function cauda(ctx: Ctx, tipo: string)
 				then CFrame.Angles(math.rad(-35 * lado), 0, 0)
 				else CFrame.Angles(0, math.rad(35 * lado), 0)
 			local tam = if tipo == "peixe" then Vector3.new(0.2, 1.3, 0.7) else Vector3.new(1.3, 0.2, 0.7)
-			local off = if tipo == "peixe" then Vector3.new(0, 0.45 * lado, 0.95) else Vector3.new(0.45 * lado, 0.1, 0.95)
+			local off = if tipo == "peixe"
+				then Vector3.new(0, 0.45 * lado, 0.95)
+				else Vector3.new(0.45 * lado, 0.1, 0.95)
 			bola(ctx, "Rabo", ctx.segunda, tam * e, CFrame.new(base + off * e) * giro)
 		end
 	elseif tipo == "gato" or tipo == "fina" or tipo == "dragao" then
@@ -408,7 +506,13 @@ local function cauda(ctx: Ctx, tipo: string)
 		if tipo == "gato" then
 			bola(ctx, "Rabo", ctx.segunda, Vector3.one * 0.5 * e, CFrame.new(ponta))
 		elseif tipo == "dragao" then
-			cunha(ctx, "Rabo", ctx.segunda, Vector3.new(0.12, 0.6, 0.6) * e, CFrame.new(ponta + Vector3.new(0, 0.15 * e, 0.1 * e)))
+			cunha(
+				ctx,
+				"Rabo",
+				ctx.segunda,
+				Vector3.new(0.12, 0.6, 0.6) * e,
+				CFrame.new(ponta + Vector3.new(0, 0.15 * e, 0.1 * e))
+			)
 		end
 	elseif tipo == "fofa" then
 		bola(
@@ -426,7 +530,8 @@ local function cauda(ctx: Ctx, tipo: string)
 				"Rabo",
 				ctx.segunda,
 				Vector3.new(0.35, 1.2, 0.35) * e,
-				CFrame.new(base + Vector3.new((i - 1) * 0.15, -0.1, 0.3) * e) * CFrame.Angles(math.rad(-30), 0, math.rad((i - 1) * 15))
+				CFrame.new(base + Vector3.new((i - 1) * 0.15, -0.1, 0.3) * e)
+					* CFrame.Angles(math.rad(-30), 0, math.rad((i - 1) * 15))
 					* CFrame.new(0, -0.3 * e, 0)
 			)
 		end
@@ -496,7 +601,13 @@ local function costas(ctx: Ctx, tipo: string)
 		end
 	elseif tipo == "barbatana" then
 		local p = pele(ctx, Vector3.new(0, 1, 0.35))
-		cunha(ctx, "Barbatana", ctx.cor, Vector3.new(0.25, 1.2, 1.1) * e, CFrame.new(p + Vector3.new(0, 0.45 * e, 0.1 * e)))
+		cunha(
+			ctx,
+			"Barbatana",
+			ctx.cor,
+			Vector3.new(0.25, 1.2, 1.1) * e,
+			CFrame.new(p + Vector3.new(0, 0.45 * e, 0.1 * e))
+		)
 	elseif tipo == "espinhos" then
 		for i = 0, 3 do
 			local p, n = pele(ctx, Vector3.new(0, 1 - i * 0.28, 0.15 + i * 0.45))
@@ -522,7 +633,13 @@ local function costas(ctx: Ctx, tipo: string)
 	elseif tipo == "crina" then
 		for i = 0, 4 do
 			local p = pele(ctx, Vector3.new(0, 1 - i * 0.18, -0.2 + i * 0.35), 0.05)
-			bola(ctx, "Crina", ctx.segunda, Vector3.new(0.3, 0.7, 0.55) * e, CFrame.new(p) * CFrame.Angles(math.rad(25 + i * 10), 0, 0))
+			bola(
+				ctx,
+				"Crina",
+				ctx.segunda,
+				Vector3.new(0.3, 0.7, 0.55) * e,
+				CFrame.new(p) * CFrame.Angles(math.rad(25 + i * 10), 0, 0)
+			)
 		end
 	elseif tipo == "capa" then
 		local capa = Instance.new("Part")
@@ -583,13 +700,18 @@ local function costas(ctx: Ctx, tipo: string)
 					"Pata",
 					if k == 1 then ctx.segunda else ctx.cor,
 					Vector3.one * (0.5 - k * 0.1) * e,
-					CFrame.new(math.cos(a) * (s.X + (0.05 + k * 0.4) * e), -s.Y * 0.75 - k * 0.15 * e, math.sin(a) * (s.Z + (0.05 + k * 0.4) * e))
+					CFrame.new(
+						math.cos(a) * (s.X + (0.05 + k * 0.4) * e),
+						-s.Y * 0.75 - k * 0.15 * e,
+						math.sin(a) * (s.Z + (0.05 + k * 0.4) * e)
+					)
 				)
 			end
 		end
 	elseif tipo == "jato" then
 		local p = pele(ctx, Vector3.new(0, 1, 0.2))
-		local bico = bola(ctx, "Jato", c(140, 210, 255), Vector3.new(0.35, 0.2, 0.35) * e, CFrame.new(p), Enum.Material.Glass)
+		local bico =
+			bola(ctx, "Jato", c(140, 210, 255), Vector3.new(0.35, 0.2, 0.35) * e, CFrame.new(p), Enum.Material.Glass)
 		local agua = Instance.new("ParticleEmitter")
 		agua.Texture = "rbxasset://textures/particles/smoke_main.dds"
 		agua.Color = ColorSequence.new(c(170, 225, 255), Color3.new(1, 1, 1))
@@ -639,7 +761,13 @@ local function costas(ctx: Ctx, tipo: string)
 		bola(ctx, "Caroco", c(150, 95, 50), Vector3.new(1.1, 1.1, 0.5) * e, CFrame.new(0, -0.65 * e, frente + 0.12 * e))
 	elseif tipo == "tapaolho" then
 		local frente = -s.Z
-		bola(ctx, "TapaOlho", c(25, 20, 25), Vector3.new(1, 1.2, 0.3) * e, CFrame.new(0.64 * e, 0.36 * e, frente - 0.1 * e))
+		bola(
+			ctx,
+			"TapaOlho",
+			c(25, 20, 25),
+			Vector3.new(1, 1.2, 0.3) * e,
+			CFrame.new(0.64 * e, 0.36 * e, frente - 0.1 * e)
+		)
 		local tira = Instance.new("Part")
 		tira.Name = "TapaOlho"
 		tira.Size = Vector3.new(s.X * 2.05, 0.14 * e, s.Z * 2.05)
@@ -674,7 +802,13 @@ local function costas(ctx: Ctx, tipo: string)
 	elseif tipo == "topete" then
 		for i = -1, 1 do
 			local p = pele(ctx, Vector3.new(i * 0.15, 1, -0.2))
-			bola(ctx, "Topete", ctx.cor, Vector3.new(0.25, 0.7, 0.25) * e, CFrame.new(p) * CFrame.Angles(math.rad(-20), 0, math.rad(-i * 25)) * CFrame.new(0, 0.3 * e, 0))
+			bola(
+				ctx,
+				"Topete",
+				ctx.cor,
+				Vector3.new(0.25, 0.7, 0.25) * e,
+				CFrame.new(p) * CFrame.Angles(math.rad(-20), 0, math.rad(-i * 25)) * CFrame.new(0, 0.3 * e, 0)
+			)
 		end
 	elseif tipo == "asinseto" then
 		for _, lado in { -1, 1 } do
@@ -691,7 +825,13 @@ local function costas(ctx: Ctx, tipo: string)
 		end
 	elseif tipo == "bolsa" then
 		local frente = -s.Z
-		bola(ctx, "Bolsa", ctx.clara:Lerp(ctx.cor, 0.3), Vector3.new(1.5, 0.9, 0.5) * e, CFrame.new(0, -0.8 * e, frente + 0.25 * e))
+		bola(
+			ctx,
+			"Bolsa",
+			ctx.clara:Lerp(ctx.cor, 0.3),
+			Vector3.new(1.5, 0.9, 0.5) * e,
+			CFrame.new(0, -0.8 * e, frente + 0.25 * e)
+		)
 	elseif tipo == "olhosapo" then
 		-- olhos em cima da cabeça (o rosto do sapo fica bem largo)
 		for _, lado in { -1, 1 } do
@@ -700,7 +840,13 @@ local function costas(ctx: Ctx, tipo: string)
 		end
 	elseif tipo == "manchaorca" then
 		for _, lado in { -1, 1 } do
-			mancha(ctx, "Mancha", Color3.new(1, 1, 1), Vector3.new(0.7, 0.45, 0.15), Vector3.new(0.55 * lado, 0.55, -0.6))
+			mancha(
+				ctx,
+				"Mancha",
+				Color3.new(1, 1, 1),
+				Vector3.new(0.7, 0.45, 0.15),
+				Vector3.new(0.55 * lado, 0.55, -0.6)
+			)
 		end
 	end
 end
@@ -716,7 +862,8 @@ local function padrao(ctx: Ctx, tipo: string, cor: Color3?)
 			mancha(ctx, "Listra", corL, Vector3.new(1.3, 0.3, 0.12), Vector3.new(0, 1, z + 0.3))
 		end
 	elseif tipo == "pintas" or tipo == "estrelas" then
-		local corP = cor or (if tipo == "estrelas" then Color3.fromRGB(255, 250, 200) else ctx.cor:Lerp(ctx.segunda, 0.6))
+		local corP = cor
+			or (if tipo == "estrelas" then Color3.fromRGB(255, 250, 200) else ctx.cor:Lerp(ctx.segunda, 0.6))
 		for k = 1, 7 do
 			local a = k * 2.4
 			local dir = Vector3.new(math.cos(a), 0.35 + (k % 3) * 0.25, math.sin(a) * 0.9 + 0.35)
