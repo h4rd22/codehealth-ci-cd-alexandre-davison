@@ -473,6 +473,11 @@ local function atualizarCarga(jogador: Player)
 	for _, raridade in estado.ovos do
 		local ovo = Criaturas.ovo(raridade)
 		soltinha(ovo)
+		for _, peca in ovo:GetDescendants() do
+			if peca:IsA("BasePart") then
+				soltinha(peca)
+			end
+		end
 		ovo.Parent = pasta
 		grudar(ovo, nil)
 	end

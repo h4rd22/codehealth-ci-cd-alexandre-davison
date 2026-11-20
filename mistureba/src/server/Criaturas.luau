@@ -320,12 +320,64 @@ function Criaturas.ovo(raridade: string): BasePart
 	ovo.Name = "Ovo"
 	oval(ovo)
 	ovo.Size = Vector3.new(2.2, 2.8, 2.2) * (0.85 + info.tamanho * 0.25)
-	ovo.Color = info.cor
-	ovo.Material = Enum.Material.Glass
-	ovo.Transparency = 0.15
-	ovo.Reflectance = 0.2
+	ovo.Color = info.cor:Lerp(Color3.new(1, 1, 1), 0.12)
+	ovo.Material = Enum.Material.SmoothPlastic
+	ovo.Reflectance = 0.08
 	ovo.CanCollide = true
 	ovo:SetAttribute("Raridade", raridade)
+
+	-- enfeites de ovo de páscoa: faixa no meio, bolinhas e um brilho no topo
+	local nivelOvo = table.find(Config.OrdemRaridades, raridade) or 1
+	local s = ovo.Size
+	local faixa = Instance.new("Part")
+	faixa.Shape = Enum.PartType.Cylinder
+	faixa.Size = Vector3.new(0.35 * s.Y / 2.8, s.X + 0.06, s.Z + 0.06)
+	faixa.Color = info.cor:Lerp(Color3.new(0, 0, 0), 0.3)
+	faixa.Material = if nivelOvo >= 4 then Enum.Material.Neon else Enum.Material.SmoothPlastic
+	faixa.CanCollide = false
+	faixa.CanTouch = false
+	faixa.Massless = true
+	faixa.CastShadow = false
+	faixa.CFrame = ovo.CFrame * CFrame.new(0, -s.Y * 0.04, 0) * CFrame.Angles(0, 0, math.pi / 2)
+	faixa.Parent = ovo
+	soldar(ovo, faixa)
+
+	local corBolinha = info.cor:Lerp(Color3.new(1, 1, 1), 0.75)
+	local a, b, c = s.X / 2, s.Y / 2, s.Z / 2
+	for i = 0, 5 do
+		local ang = i * math.pi / 3 + 0.4
+		local alt = if i % 2 == 0 then 0.45 else -0.4
+		local d = Vector3.new(math.cos(ang), alt, math.sin(ang)).Unit
+		local t = 1 / math.sqrt((d.X / a) ^ 2 + (d.Y / b) ^ 2 + (d.Z / c) ^ 2)
+		local ponto = d * t
+		local normal = Vector3.new(ponto.X / (a * a), ponto.Y / (b * b), ponto.Z / (c * c)).Unit
+		local tam = s.X * 0.22
+		oval3(
+			ovo,
+			ovo,
+			corBolinha,
+			Vector3.new(tam, tam, 0.12),
+			Vector3.zero,
+			Enum.Material.SmoothPlastic,
+			CFrame.lookAt(ponto - normal * 0.03, ponto + normal)
+		)
+	end
+	-- brilho de "plástico novo" no alto, do lado da frente
+	local dBrilho = Vector3.new(-0.35, 0.75, -0.55).Unit
+	local tB = 1 / math.sqrt((dBrilho.X / a) ^ 2 + (dBrilho.Y / b) ^ 2 + (dBrilho.Z / c) ^ 2)
+	local pB = dBrilho * tB
+	local nB = Vector3.new(pB.X / (a * a), pB.Y / (b * b), pB.Z / (c * c)).Unit
+	local brilho = oval3(
+		ovo,
+		ovo,
+		Color3.new(1, 1, 1),
+		Vector3.new(s.X * 0.16, s.X * 0.26, 0.08),
+		Vector3.zero,
+		Enum.Material.Neon,
+		CFrame.lookAt(pB - nB * 0.02, pB + nB)
+	)
+	brilho.Transparency = 0.25
+	brilho.Name = "Brilho"
 
 	local luz = Instance.new("PointLight")
 	luz.Color = info.cor
