@@ -147,7 +147,7 @@ local menu = Instance.new("Frame")
 menu.BackgroundTransparency = 1
 menu.AnchorPoint = Vector2.new(0, 0.5)
 menu.Position = UDim2.new(0, 10, 0.5, 0)
-menu.Size = UDim2.fromOffset(120, 512)
+menu.Size = UDim2.fromOffset(120, 590)
 menu.Parent = tela
 local listaMenu = Instance.new("UIListLayout")
 listaMenu.Padding = UDim.new(0, 10)
@@ -170,13 +170,13 @@ local function ajustarMenu()
 		gradeMenu.Parent = menu
 		menu.AnchorPoint = Vector2.new(0, 0)
 		menu.Position = UDim2.fromOffset(10, 10)
-		menu.Size = UDim2.fromOffset(250, 290)
+		menu.Size = UDim2.fromOffset(250, 300)
 	else
 		gradeMenu.Parent = nil
 		listaMenu.Parent = menu
 		menu.AnchorPoint = Vector2.new(0, 0.5)
 		menu.Position = UDim2.new(0, 10, 0.5, 0)
-		menu.Size = UDim2.fromOffset(120, 512)
+		menu.Size = UDim2.fromOffset(120, 590)
 	end
 end
 
@@ -187,6 +187,8 @@ local botaoLoja = botao(menu, "LOJA", COR_VERDE, { Size = UDim2.fromOffset(120, 
 local botaoDex = botao(menu, "DEX", Color3.fromRGB(60, 200, 190), { Size = UDim2.fromOffset(120, 62), LayoutOrder = 5 })
 local botaoMissoes =
 	botao(menu, "MISSÕES", Color3.fromRGB(255, 150, 60), { Size = UDim2.fromOffset(120, 62), LayoutOrder = 6 })
+local COR_TROCA = Color3.fromRGB(70, 200, 230)
+local botaoTrocar = botao(menu, "TROCAR", COR_TROCA, { Size = UDim2.fromOffset(120, 62), LayoutOrder = 8 })
 local botaoRoleta =
 	botao(menu, "ROLETA", Color3.fromRGB(255, 90, 160), { Size = UDim2.fromOffset(120, 62), LayoutOrder = 7 })
 local alertaRoleta = rotulo(botaoRoleta, {
@@ -1293,6 +1295,375 @@ ev("Roleta").OnClientEvent:Connect(function(escolhido: number)
 end)
 
 ------------------------------------------------------------------------
+-- Troca entre jogadores (o servidor confere tudo; aqui é só a tela)
+------------------------------------------------------------------------
+type TrocaTela = {
+	com: string,
+	minhasVagas: { string },
+	minhas: { string },
+	deles: { string },
+	rendaMinha: number,
+	rendaDeles: number,
+	euAceitei: boolean,
+	elesAceitaram: boolean,
+	faltam: number?,
+}
+
+-- Lista de jogadores para pedir troca
+local painelJogadores, rolagemJogadores = novoPainel("Trocar com quem?", COR_TROCA)
+lista(rolagemJogadores)
+local function desenharJogadores()
+	limpar(rolagemJogadores)
+	local n = 0
+	for _, p in Players:GetPlayers() do
+		if p ~= jogador then
+			n += 1
+			local c = cartao(rolagemJogadores, 70, n)
+			rotulo(c, {
+				Size = UDim2.new(1, -230, 0, 40),
+				Position = UDim2.fromOffset(14, 15),
+				Text = p.DisplayName,
+				TextXAlignment = Enum.TextXAlignment.Left,
+			})
+			local b = botao(c, "Pedir troca", COR_TROCA, {
+				Size = UDim2.fromOffset(190, 52),
+				Position = UDim2.new(1, -200, 0, 9),
+			})
+			b.MouseButton1Click:Connect(function()
+				ev("PedirTroca"):FireServer(p)
+				painelJogadores.Visible = false
+				painelAberto = nil
+			end)
+		end
+	end
+	if n == 0 then
+		local c = cartao(rolagemJogadores, 70, 1)
+		rotulo(c, {
+			Size = UDim2.new(1, -28, 1, -16),
+			Position = UDim2.fromOffset(14, 8),
+			Text = "Ninguém mais no servidor ainda. Chame um amigo!",
+			TextWrapped = true,
+		})
+	end
+end
+Players.PlayerAdded:Connect(function()
+	if painelJogadores.Visible then
+		desenharJogadores()
+	end
+end)
+Players.PlayerRemoving:Connect(function()
+	task.defer(function()
+		if painelJogadores.Visible then
+			desenharJogadores()
+		end
+	end)
+end)
+
+-- Pedido que chega de outro jogador
+local cartaoPedido = Instance.new("Frame")
+cartaoPedido.AnchorPoint = Vector2.new(0.5, 0)
+cartaoPedido.Position = UDim2.new(0.5, 0, 0, 90)
+cartaoPedido.Size = UDim2.fromOffset(440, 120)
+cartaoPedido.BackgroundColor3 = COR_FUNDO
+cartaoPedido.Visible = false
+cartaoPedido.ZIndex = 20
+cantos(cartaoPedido, 16)
+borda(cartaoPedido, COR_TROCA, 4)
+cartaoPedido.Parent = tela
+local textoPedido = rotulo(cartaoPedido, {
+	Size = UDim2.new(1, -20, 0, 44),
+	Position = UDim2.fromOffset(10, 6),
+	ZIndex = 21,
+})
+local aceitarPedido = botao(cartaoPedido, "Ver troca", COR_VERDE, {
+	Size = UDim2.fromOffset(200, 54),
+	Position = UDim2.fromOffset(12, 58),
+	ZIndex = 21,
+})
+local recusarPedido = botao(cartaoPedido, "Agora não", COR_VERMELHO, {
+	Size = UDim2.fromOffset(200, 54),
+	Position = UDim2.new(1, -212, 0, 58),
+	ZIndex = 21,
+})
+local pedidoDe: Player? = nil
+local idPedido = 0
+ev("PedidoTroca").OnClientEvent:Connect(function(de: Player)
+	pedidoDe = de
+	idPedido += 1
+	local meu = idPedido
+	textoPedido.Text = de.DisplayName .. " quer trocar Misturebas com você!"
+	cartaoPedido.Visible = true
+	tocar(1.4, 0.4)
+	task.delay(20, function()
+		if meu == idPedido then
+			cartaoPedido.Visible = false
+		end
+	end)
+end)
+aceitarPedido.MouseButton1Click:Connect(function()
+	if pedidoDe then
+		ev("ResponderTroca"):FireServer(pedidoDe, true)
+	end
+	pedidoDe = nil
+	cartaoPedido.Visible = false
+end)
+recusarPedido.MouseButton1Click:Connect(function()
+	if pedidoDe then
+		ev("ResponderTroca"):FireServer(pedidoDe, false)
+	end
+	pedidoDe = nil
+	cartaoPedido.Visible = false
+end)
+
+-- Janela da troca
+local painelTroca, rolagemTrocaVazia = novoPainel("Troca", COR_TROCA)
+rolagemTrocaVazia.Visible = false
+local tituloTroca = painelTroca:FindFirstChildOfClass("TextLabel") :: TextLabel
+local fecharTroca = painelTroca:FindFirstChildOfClass("TextButton") :: TextButton
+
+local function caixaLado(x: number): (Frame, TextLabel, Frame, TextLabel)
+	local caixa = Instance.new("Frame")
+	caixa.Position = UDim2.fromOffset(x, 56)
+	caixa.Size = UDim2.fromOffset(292, 150)
+	caixa.BackgroundColor3 = COR_CARTAO
+	cantos(caixa, 12)
+	caixa.Parent = painelTroca
+	local titulo = rotulo(caixa, {
+		Size = UDim2.new(1, -16, 0, 30),
+		Position = UDim2.fromOffset(8, 4),
+		TextXAlignment = Enum.TextXAlignment.Left,
+	})
+	local fila = Instance.new("Frame")
+	fila.BackgroundTransparency = 1
+	fila.Position = UDim2.fromOffset(6, 38)
+	fila.Size = UDim2.new(1, -12, 0, 80)
+	fila.Parent = caixa
+	local l = Instance.new("UIListLayout")
+	l.FillDirection = Enum.FillDirection.Horizontal
+	l.Padding = UDim.new(0, 4)
+	l.Parent = fila
+	local status = rotulo(caixa, {
+		Size = UDim2.new(1, -16, 0, 26),
+		Position = UDim2.fromOffset(8, 120),
+		TextXAlignment = Enum.TextXAlignment.Left,
+	})
+	return caixa, titulo, fila, status
+end
+local _, tituloMeu, filaMinha, statusMeu = caixaLado(12)
+local _, tituloDeles, filaDeles, statusDeles = caixaLado(316)
+
+local function cartaMistureba(pai: Instance, id: string, largura: number, altura: number): Frame
+	local def = Config.PorId[id]
+	local info = Config.Raridades[def.raridade]
+	local mut = def.mutacao and Config.MutacaoPorId[def.mutacao]
+	local c = Instance.new("Frame")
+	c.Size = UDim2.fromOffset(largura, altura)
+	c.BackgroundColor3 = info.cor:Lerp(Color3.new(0, 0, 0), 0.55)
+	cantos(c, 10)
+	borda(c, if mut then mut.cor else info.cor, 3)
+	rotulo(c, {
+		Size = UDim2.new(1, -6, 0.42, 0),
+		Position = UDim2.fromOffset(3, 2),
+		Text = def.nome,
+		TextWrapped = true,
+	})
+	rotulo(c, {
+		Size = UDim2.new(1, -6, 0.26, 0),
+		Position = UDim2.fromScale(0, 0.44) + UDim2.fromOffset(3, 0),
+		Text = if mut then mut.nome else info.nome,
+		TextColor3 = if mut then mut.cor else info.cor,
+	})
+	rotulo(c, {
+		Size = UDim2.new(1, -6, 0.26, 0),
+		Position = UDim2.fromScale(0, 0.72) + UDim2.fromOffset(3, 0),
+		Text = "+" .. Util.numero(def.renda) .. "/s",
+		TextColor3 = COR_VERDE,
+	})
+	c.Parent = pai
+	return c
+end
+
+rotulo(painelTroca, {
+	Size = UDim2.new(1, -24, 0, 24),
+	Position = UDim2.fromOffset(12, 212),
+	Text = "Toque nas suas Misturebas para oferecer (até 4):",
+	TextXAlignment = Enum.TextXAlignment.Left,
+})
+local gradeSuas = Instance.new("ScrollingFrame")
+gradeSuas.Position = UDim2.fromOffset(12, 240)
+gradeSuas.Size = UDim2.new(1, -24, 0, 124)
+gradeSuas.BackgroundTransparency = 1
+gradeSuas.BorderSizePixel = 0
+gradeSuas.ScrollBarThickness = 8
+gradeSuas.AutomaticCanvasSize = Enum.AutomaticSize.Y
+gradeSuas.CanvasSize = UDim2.new()
+gradeSuas.Parent = painelTroca
+local layoutSuas = Instance.new("UIGridLayout")
+layoutSuas.CellSize = UDim2.fromOffset(112, 58)
+layoutSuas.CellPadding = UDim2.fromOffset(6, 6)
+layoutSuas.SortOrder = Enum.SortOrder.LayoutOrder
+layoutSuas.Parent = gradeSuas
+
+local avisoTroca = rotulo(painelTroca, {
+	Size = UDim2.fromOffset(330, 76),
+	Position = UDim2.fromOffset(12, 372),
+	TextWrapped = true,
+	TextXAlignment = Enum.TextXAlignment.Left,
+})
+local botaoAceitarTroca = botao(painelTroca, "ACEITAR", COR_VERDE, {
+	Size = UDim2.fromOffset(140, 64),
+	Position = UDim2.fromOffset(350, 380),
+})
+local botaoCancelarTroca = botao(painelTroca, "CANCELAR", COR_VERMELHO, {
+	Size = UDim2.fromOffset(112, 64),
+	Position = UDim2.fromOffset(496, 380),
+})
+
+local troca: TrocaTela? = nil
+local fimContagem: number? = nil
+
+local function desenharTroca()
+	local t = troca
+	if not t then
+		return
+	end
+	tituloTroca.Text = "Troca com " .. t.com
+	tituloMeu.Text = "Você dá"
+	tituloDeles.Text = t.com .. " dá"
+	for _, fila in { filaMinha, filaDeles } do
+		for _, f in fila:GetChildren() do
+			if f:IsA("Frame") then
+				f:Destroy()
+			end
+		end
+	end
+	for _, id in t.minhas do
+		cartaMistureba(filaMinha, id, 67, 80)
+	end
+	for _, id in t.deles do
+		cartaMistureba(filaDeles, id, 67, 80)
+	end
+	statusMeu.Text = "+"
+		.. Util.numero(t.rendaMinha)
+		.. "/s"
+		.. (if t.euAceitei then '   <font color="#80FF90">ACEITOU</font>' else "")
+	statusMeu.RichText = true
+	statusDeles.Text = "+"
+		.. Util.numero(t.rendaDeles)
+		.. "/s"
+		.. (if t.elesAceitaram then '   <font color="#80FF90">ACEITOU</font>' else "")
+	statusDeles.RichText = true
+
+	-- suas Misturebas da base para escolher
+	limpar(gradeSuas)
+	if estado then
+		local vagas = {}
+		for vaga in estado.criaturas do
+			table.insert(vagas, vaga)
+		end
+		table.sort(vagas, function(a, b)
+			return (tonumber(a) or 0) < (tonumber(b) or 0)
+		end)
+		for i, vaga in vagas do
+			local id = estado.criaturas[vaga]
+			local carta = cartaMistureba(gradeSuas, id, 112, 58)
+			carta.LayoutOrder = i
+			local escolhida = table.find(t.minhasVagas, vaga) ~= nil
+			if escolhida then
+				carta.BackgroundColor3 = COR_VERDE:Lerp(Color3.new(0, 0, 0), 0.3)
+			end
+			local clique = Instance.new("TextButton")
+			clique.BackgroundTransparency = 1
+			clique.Text = ""
+			clique.Size = UDim2.fromScale(1, 1)
+			clique.ZIndex = 5
+			clique.Parent = carta
+			clique.MouseButton1Click:Connect(function()
+				local nova = table.clone(t.minhasVagas)
+				local pos = table.find(nova, vaga)
+				if pos then
+					table.remove(nova, pos)
+				elseif #nova < 4 then
+					table.insert(nova, vaga)
+				end
+				ev("OfertaTroca"):FireServer(nova)
+			end)
+		end
+	end
+
+	botaoAceitarTroca.Text = if t.euAceitei then "DESFAZER" else "ACEITAR"
+	botaoAceitarTroca.BackgroundColor3 = if t.euAceitei then COR_AMARELO else COR_VERDE
+	fimContagem = if t.faltam then os.clock() + t.faltam else nil
+end
+
+local function atualizarAvisoTroca()
+	local t = troca
+	if not t then
+		return
+	end
+	if fimContagem then
+		local falta = math.max(0, math.ceil(fimContagem - os.clock()))
+		avisoTroca.Text = string.format("Fechando em %d... Mudou de ideia? Clique em CANCELAR.", falta)
+		avisoTroca.TextColor3 = COR_AMARELO
+	elseif #t.minhas > 0 and #t.deles == 0 then
+		avisoTroca.Text = "Cuidado: você vai DAR sem receber nada em troca."
+		avisoTroca.TextColor3 = Color3.fromRGB(255, 120, 120)
+	elseif t.rendaMinha > t.rendaDeles * 1.5 and #t.deles > 0 then
+		avisoTroca.Text = "Cuidado: você dá mais renda do que recebe."
+		avisoTroca.TextColor3 = Color3.fromRGB(255, 170, 90)
+	else
+		avisoTroca.Text = "Confira tudo antes de aceitar. Se algo mudar, os dois aceitam de novo."
+		avisoTroca.TextColor3 = Color3.new(1, 1, 1)
+	end
+end
+
+ev("Troca").OnClientEvent:Connect(function(novo: TrocaTela?)
+	local antes = troca
+	troca = novo
+	if not novo then
+		painelTroca.Visible = false
+		fimContagem = nil
+		return
+	end
+	if not antes then
+		if painelAberto then
+			painelAberto.Visible = false
+			painelAberto = nil
+		end
+		painelTroca.Visible = true
+		cartaoPedido.Visible = false
+		tocar(1.2, 0.4)
+	elseif novo.elesAceitaram and not antes.elesAceitaram then
+		tocar(1.6, 0.4)
+	end
+	desenharTroca()
+	atualizarAvisoTroca()
+end)
+
+botaoAceitarTroca.MouseButton1Click:Connect(function()
+	if troca then
+		ev("AceitarTroca"):FireServer(not troca.euAceitei)
+	end
+end)
+botaoCancelarTroca.MouseButton1Click:Connect(function()
+	ev("CancelarTroca"):FireServer()
+end)
+-- o X da janela também cancela
+fecharTroca.MouseButton1Click:Connect(function()
+	if troca then
+		ev("CancelarTroca"):FireServer()
+	end
+end)
+task.spawn(function()
+	while true do
+		task.wait(0.25)
+		if troca and painelTroca.Visible then
+			atualizarAvisoTroca()
+		end
+	end
+end)
+
+------------------------------------------------------------------------
 -- Botões e teclas
 ------------------------------------------------------------------------
 botaoOvos.MouseButton1Click:Connect(function()
@@ -1313,6 +1684,14 @@ botaoDex.MouseButton1Click:Connect(function()
 end)
 botaoLoja.MouseButton1Click:Connect(function()
 	abrir(painelLoja)
+end)
+botaoTrocar.MouseButton1Click:Connect(function()
+	if troca then
+		painelTroca.Visible = true
+		return
+	end
+	desenharJogadores()
+	abrir(painelJogadores)
 end)
 botaoRoleta.MouseButton1Click:Connect(function()
 	abrir(painelRoleta)
@@ -1492,6 +1871,9 @@ ev("Estado").OnClientEvent:Connect(function(novo: EstadoTela)
 		end
 		if painelDex.Visible then
 			desenharDex()
+		end
+		if troca and painelTroca.Visible then
+			desenharTroca()
 		end
 	end
 end)

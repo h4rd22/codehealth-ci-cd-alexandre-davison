@@ -13,12 +13,86 @@ local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 
 local Util = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Util"))
+local Config = require(ReplicatedStorage.Shared:WaitForChild("Config"))
 
 local jogador = Players.LocalPlayer
 local mapa = workspace:WaitForChild("Mapa")
 
 -- modelo -> posição original e um atraso para cada uma pular num ritmo diferente
-local animadas: { [Model]: { origem: CFrame, fase: number } } = setmetatable({}, { __mode = "k" }) :: any
+local animadas: { [Model]: { origem: CFrame, fase: number, olhos: { SpecialMesh } } } = setmetatable(
+	{},
+	{ __mode = "k" }
+) :: any
+local primeiraVarredura = true
+
+-- Mistureba nova na base: pula do chão crescendo, com estrelinhas da cor da raridade
+local function nascer(modelo: Model)
+	local corpo = modelo.PrimaryPart
+	local def = Config.PorId[modelo:GetAttribute("Criatura") :: string]
+	if not corpo or not def or (corpo.Position - workspace.CurrentCamera.CFrame.Position).Magnitude > 140 then
+		return
+	end
+	local info = Config.Raridades[def.raridade]
+	local nivel = table.find(Config.OrdemRaridades, def.raridade) or 1
+
+	local escala = Instance.new("NumberValue")
+	escala.Value = 0.25
+	modelo:ScaleTo(0.25)
+	escala.Changed:Connect(function(v)
+		if modelo.Parent then
+			modelo:ScaleTo(math.max(0.05, v))
+		end
+	end)
+	local crescer = TweenService:Create(escala, TweenInfo.new(0.55, Enum.EasingStyle.Back), { Value = 1 })
+	crescer:Play()
+	crescer.Completed:Once(function()
+		escala:Destroy()
+	end)
+
+	local ponto = Instance.new("Attachment")
+	ponto.Parent = corpo
+	local estrelas = Instance.new("ParticleEmitter")
+	estrelas.Texture = "rbxasset://textures/particles/sparkles_main.dds"
+	estrelas.Color = ColorSequence.new(info.cor, Color3.new(1, 1, 1))
+	estrelas.LightEmission = 1
+	estrelas.Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.9), NumberSequenceKeypoint.new(1, 0) })
+	estrelas.Lifetime = NumberRange.new(0.5, 1)
+	estrelas.Speed = NumberRange.new(8, 14 + nivel * 2)
+	estrelas.SpreadAngle = Vector2.new(180, 180)
+	estrelas.Drag = 4
+	estrelas.Rate = 0
+	estrelas.Parent = ponto
+	estrelas:Emit(10 + nivel * 6)
+	task.delay(1.5, function()
+		ponto:Destroy()
+	end)
+
+	-- das Épicas para cima: uma onda de luz no chão
+	if nivel >= 3 then
+		local onda = Instance.new("Part")
+		onda.Shape = Enum.PartType.Cylinder
+		onda.Anchored = true
+		onda.CanCollide = false
+		onda.CanQuery = false
+		onda.CanTouch = false
+		onda.CastShadow = false
+		onda.Material = Enum.Material.Neon
+		onda.Color = info.cor
+		onda.Transparency = 0.2
+		onda.Size = Vector3.new(0.15, 2, 2)
+		onda.CFrame = CFrame.new(corpo.Position - Vector3.new(0, corpo.Size.Y / 2, 0))
+			* CFrame.Angles(0, 0, math.pi / 2)
+		onda.Parent = workspace
+		local raio = 8 + nivel * 3
+		TweenService:Create(onda, TweenInfo.new(0.7, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+			Size = Vector3.new(0.15, raio, raio),
+			Transparency = 1,
+		}):Play()
+		task.delay(0.8, function()
+			onda:Destroy()
+		end)
+	end
+end
 
 local function ajustar()
 	for _, obj in mapa:GetDescendants() do
@@ -35,10 +109,43 @@ local function ajustar()
 				obj.LocalTransparencyModifier = 0.5
 			end
 		elseif obj:IsA("Model") and obj:GetAttribute("Criatura") and not animadas[obj] then
-			animadas[obj] = { origem = obj:GetPivot(), fase = math.random() * math.pi * 2 }
+			local olhos = {}
+			for _, p in obj:GetDescendants() do
+				if
+					p:IsA("SpecialMesh")
+					and p.Parent
+					and (p.Parent.Name == "Olho" or p.Parent.Name == "Pupila" or p.Parent.Name == "BrilhoOlho")
+				then
+					table.insert(olhos, p)
+				end
+			end
+			animadas[obj] = { origem = obj:GetPivot(), fase = math.random() * math.pi * 2, olhos = olhos }
+			if not primeiraVarredura then
+				nascer(obj)
+			end
 		end
 	end
+	primeiraVarredura = false
 end
+
+-- piscadinha: de vez em quando cada Mistureba fecha os olhos rapidinho
+task.spawn(function()
+	while true do
+		task.wait(0.25)
+		for modelo, info in animadas do
+			if modelo.Parent and math.random() < 0.035 then
+				for _, malha in info.olhos do
+					malha.Scale = Vector3.new(1, 0.12, 1)
+				end
+				task.delay(0.13, function()
+					for _, malha in info.olhos do
+						malha.Scale = Vector3.new(1, 1, 1)
+					end
+				end)
+			end
+		end
+	end
+end)
 
 RunService.RenderStepped:Connect(function()
 	local t = os.clock()

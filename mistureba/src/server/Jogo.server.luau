@@ -15,6 +15,7 @@ local Dados = require(script.Parent.Dados)
 local Mapa = require(script.Parent.Mapa)
 local Criaturas = require(script.Parent.Criaturas)
 local Loja = require(script.Parent.Loja)
+local Troca = require(script.Parent.Troca)
 
 local rng = Random.new()
 
@@ -296,6 +297,8 @@ local function desenharBase(jogador: Player)
 	if not estado or not perfil then
 		return
 	end
+	-- a base mudou: se o jogador estava oferecendo algo numa troca, confere de novo
+	Troca.conferir(jogador)
 	local base = estado.base
 	local vagas = totalVagas(jogador, perfil)
 	for i, pedestal in base.pedestais do
@@ -1378,6 +1381,29 @@ end)
 ------------------------------------------------------------------------
 -- Compras com Robux
 ------------------------------------------------------------------------
+Troca.iniciar({
+	remotes = pastaRemotes,
+	aviso = aviso,
+	sendoRoubada = function(dono: Player, vaga: string): boolean
+		for _, outro in estados do
+			local r = outro.roubo
+			if r and r.dono == dono and r.vaga == vaga then
+				return true
+			end
+		end
+		return false
+	end,
+	vagaLivre = vagaLivre,
+	descobrir = descobrir,
+	depois = function(jogador: Player)
+		desenharBase(jogador)
+		local estado = estados[jogador]
+		if estado then
+			estado.sujo = true
+		end
+	end,
+})
+
 Loja.iniciar({
 	entregar = function(jogador: Player, chave: string): boolean
 		local perfil = Dados.obter(jogador)

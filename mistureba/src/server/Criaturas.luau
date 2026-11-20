@@ -114,7 +114,7 @@ local function rosto(modelo: Model, corpo: BasePart, e: number, iris: Color3?)
 			Vector3.new(0.85, 1.05, 0.45) * e,
 			Vector3.new(0.62 * lado * e, 0.42 * e, z + 0.22 * e)
 		)
-		branco.Name = "Rosto"
+		branco.Name = "Olho"
 		local pupila = oval3(
 			modelo,
 			corpo,
@@ -122,7 +122,7 @@ local function rosto(modelo: Model, corpo: BasePart, e: number, iris: Color3?)
 			Vector3.new(0.52, 0.68, 0.3) * e,
 			Vector3.new(0.6 * lado * e, 0.36 * e, z + 0.02 * e)
 		)
-		pupila.Name = "Rosto"
+		pupila.Name = "Pupila"
 		local brilho = oval3(
 			modelo,
 			corpo,
@@ -131,7 +131,7 @@ local function rosto(modelo: Model, corpo: BasePart, e: number, iris: Color3?)
 			Vector3.new((0.52 * lado + 0.08) * e, 0.56 * e, z - 0.17 * e),
 			Enum.Material.Neon
 		)
-		brilho.Name = "Rosto"
+		brilho.Name = "BrilhoOlho"
 		local bochecha = oval3(
 			modelo,
 			corpo,
