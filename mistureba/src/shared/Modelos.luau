@@ -319,7 +319,7 @@ local function enfeites(modelo: Model, corpo: BasePart, e: number, nivel: number
 		base.Shape = Enum.PartType.Cylinder
 		base.Size = Vector3.new(0.4, 1.25, 1.25) * e
 		base.Color = ouro
-		base.Material = Enum.Material.Foil
+		base.Material = Enum.Material.SmoothPlastic
 		base.Reflectance = 0.15
 		base.CanCollide = false
 		base.CanTouch = false
@@ -337,7 +337,7 @@ local function enfeites(modelo: Model, corpo: BasePart, e: number, nivel: number
 				ouro,
 				Vector3.new(0.26, 0.55, 0.26) * e,
 				Vector3.zero,
-				Enum.Material.Foil,
+				Enum.Material.SmoothPlastic,
 				lugar * inclina * CFrame.new(math.cos(a) * 0.5 * e, 0.38 * e, math.sin(a) * 0.5 * e)
 			).Name =
 				"Enfeite"

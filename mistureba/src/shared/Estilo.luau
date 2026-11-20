@@ -343,12 +343,14 @@ end
 
 -- tela na barriga (micro-ondas, televisão)
 A.telinha = function(ctx, cor)
+	-- telinha pequena na barriga, abaixo do focinho
 	local s = ctx.corpo.Size / 2
-	local z = -s.Z + 0.08 * ctx.e
-	bola(ctx, ESCURO, Vector3.new(1.7, 1.25, 0.25), CFrame.new(0, -0.6 * ctx.e, z))
-	local tela = bola(ctx, cor, Vector3.new(1.4, 1, 0.22), CFrame.new(0, -0.6 * ctx.e, z - 0.06 * ctx.e), Enum.Material.Neon)
+	local y = -1.05 * ctx.e
+	local z = -s.Z * 0.62
+	bola(ctx, ESCURO, Vector3.new(1.15, 0.8, 0.22), CFrame.new(0, y, z))
+	local tela = bola(ctx, cor, Vector3.new(0.92, 0.6, 0.2), CFrame.new(0, y, z - 0.05 * ctx.e), Enum.Material.Neon)
 	tela.Transparency = 0.15
-	bola(ctx, BRANCO, Vector3.new(0.35, 0.18, 0.1), CFrame.new(-0.4 * ctx.e, -0.38 * ctx.e, z - 0.13 * ctx.e), Enum.Material.Neon)
+	bola(ctx, BRANCO, Vector3.new(0.22, 0.12, 0.08), CFrame.new(-0.24 * ctx.e, y + 0.14 * ctx.e, z - 0.11 * ctx.e), Enum.Material.Neon)
 end
 
 A.abajur = function(ctx, _cor)
