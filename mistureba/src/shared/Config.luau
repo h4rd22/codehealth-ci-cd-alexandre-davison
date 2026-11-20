@@ -38,6 +38,8 @@ export type Criatura = {
 	descricao: string,
 	corpo: Peca,
 	extras: { Peca },
+	base: string?, -- só nas mutadas: id da Mistureba normal
+	mutacao: string?, -- só nas mutadas: id da mutação
 }
 
 local function c(r: number, g: number, b: number): Color3
@@ -500,10 +502,89 @@ Config.Criaturas = {
 } :: { Criatura }
 
 -- Atalho: Config.PorId["chaleiruga"]
-Config.PorId = {} :: { [string]: Criatura }
+local normais: { [string]: Criatura } = {}
 for _, criatura in Config.Criaturas do
-	Config.PorId[criatura.id] = criatura
+	normais[criatura.id] = criatura
 end
+
+------------------------------------------------------------------------
+-- Mutações: ao chocar um ovo, a Mistureba pode nascer especial e render mais.
+-- As chances aparecem na tela (painel de ovos e loja).
+-- Guardada no perfil como "id*mutacao", ex.: "tubarone*dourada".
+------------------------------------------------------------------------
+export type Mutacao = {
+	id: string,
+	nome: string,
+	multiplicador: number,
+	chance: number, -- em %, por ovo chocado
+	cor: Color3,
+	material: string,
+}
+
+Config.Mutacoes = {
+	{
+		id = "dourada",
+		nome = "Dourada",
+		multiplicador = 2,
+		chance = 6,
+		cor = c(255, 205, 50),
+		material = "Foil",
+	},
+	{
+		id = "diamante",
+		nome = "Diamante",
+		multiplicador = 3,
+		chance = 2,
+		cor = c(140, 230, 255),
+		material = "Glass",
+	},
+	{
+		id = "arcoiris",
+		nome = "Arco-íris",
+		multiplicador = 5,
+		chance = 0.5,
+		cor = c(255, 120, 230),
+		material = "Neon",
+	},
+} :: { Mutacao }
+
+Config.MutacaoPorId = {} :: { [string]: Mutacao }
+for _, m in Config.Mutacoes do
+	Config.MutacaoPorId[m.id] = m
+end
+
+-- Config.PorId["tubarone"] é a normal; Config.PorId["tubarone*dourada"] é montada
+-- na hora (e guardada) com nome e renda da mutação.
+Config.PorId = setmetatable({}, {
+	__index = function(cache: any, chave: any): Criatura?
+		if type(chave) ~= "string" then
+			return nil
+		end
+		local normal = normais[chave]
+		if normal then
+			return normal
+		end
+		local idBase, idMut = string.match(chave, "^([%w_]+)%*([%w_]+)$")
+		local def = idBase and normais[idBase]
+		local mut = idMut and Config.MutacaoPorId[idMut]
+		if not def or not mut then
+			return nil
+		end
+		local mutada: Criatura = {
+			id = chave,
+			nome = def.nome .. " " .. mut.nome,
+			raridade = def.raridade,
+			renda = def.renda * mut.multiplicador,
+			descricao = def.descricao,
+			corpo = def.corpo,
+			extras = def.extras,
+			base = def.id,
+			mutacao = mut.id,
+		}
+		rawset(cache, chave, mutada)
+		return mutada
+	end,
+}) :: any
 
 ------------------------------------------------------------------------
 -- Chuva de ovos no centro do mapa

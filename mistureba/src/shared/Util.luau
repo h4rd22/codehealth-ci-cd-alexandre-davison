@@ -63,7 +63,26 @@ function Util.proximaRaridade(raridade: string): string?
 	return nil
 end
 
+-- Id da Mistureba sem a mutação ("tubarone*dourada" -> "tubarone").
+function Util.idBase(id: string): string
+	return (string.match(id, "^[^*]+") or id)
+end
+
+-- Sorteia a mutação de um ovo chocado (ou nada).
+function Util.sortearMutacao(rng: Random): string?
+	local x = rng:NextNumber() * 100
+	local soma = 0
+	for _, m in Config.Mutacoes do
+		soma += m.chance
+		if x < soma then
+			return m.id
+		end
+	end
+	return nil
+end
+
 function Util.receita(a: string, b: string): string?
+	a, b = Util.idBase(a), Util.idBase(b)
 	for _, receita in Config.Receitas do
 		if (receita.a == a and receita.b == b) or (receita.a == b and receita.b == a) then
 			return receita.resultado

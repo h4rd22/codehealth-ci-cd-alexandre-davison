@@ -292,6 +292,19 @@ local function textoChances(pesos: { [string]: number }): string
 	return table.concat(partes, "  ·  ")
 end
 
+-- "Dourada 6% (x2) · Diamante 2% (x3) · Arco-íris 0,5% (x5)"
+local function textoMutacoes(): string
+	local partes = {}
+	for _, m in Config.Mutacoes do
+		local numero = string.gsub(tostring(m.chance), "%.", ",")
+		table.insert(
+			partes,
+			string.format('<font color="#%s">%s %s%% (x%d)</font>', m.cor:ToHex(), m.nome, numero, m.multiplicador)
+		)
+	end
+	return table.concat(partes, "  ·  ")
+end
+
 local function cartao(pai: Instance, altura: number, ordem: number): Frame
 	local f = Instance.new("Frame")
 	f.Size = UDim2.new(1, -12, 0, altura)
@@ -334,6 +347,12 @@ for i, ovo in Config.OvosLoja do
 		comprar.BackgroundColor3 = if pode then COR_VERDE else Color3.fromRGB(110, 110, 120)
 	end)
 end
+rotulo(rolagemOvos, {
+	Size = UDim2.new(1, -12, 0, 24),
+	LayoutOrder = 98,
+	Text = "Mutações (qualquer ovo): " .. textoMutacoes(),
+	RichText = true,
+})
 rotulo(rolagemOvos, {
 	Size = UDim2.new(1, -12, 0, 24),
 	LayoutOrder = 99,
@@ -668,7 +687,7 @@ local function itemLoja(
 	chave: string,
 	extra: string?
 )
-	local c = cartao(rolagemLoja, if extra then 112 else 86, ordem)
+	local c = cartao(rolagemLoja, if extra then 136 else 86, ordem)
 	rotulo(c, {
 		Size = UDim2.new(1, -230, 0, 34),
 		Position = UDim2.fromOffset(14, 6),
@@ -686,7 +705,7 @@ local function itemLoja(
 	})
 	if extra then
 		rotulo(c, {
-			Size = UDim2.new(1, -28, 0, 22),
+			Size = UDim2.new(1, -28, 0, 44),
 			Position = UDim2.fromOffset(14, 84),
 			Text = extra,
 			RichText = true,
@@ -737,7 +756,9 @@ for _, chave in { "vip", "mochila", "cadeado", "basegrande" } do
 end
 for _, chave in { "sorte", "ovoarcoiris", "moedas" } do
 	local p = Config.Produtos[chave]
-	local extra = if chave == "ovoarcoiris" then "Chances: " .. textoChances(Config.OvoArcoIrisPesos) else nil
+	local extra = if chave == "ovoarcoiris"
+		then "Chances: " .. textoChances(Config.OvoArcoIrisPesos) .. "\nMutações: " .. textoMutacoes()
+		else nil
 	itemLoja(ordemLoja, p.nome, p.descricao, p.preco, p.id, false, chave, extra)
 	ordemLoja += 1
 end
@@ -842,8 +863,9 @@ ev("Chocou").OnClientEvent:Connect(function(id: string)
 	idGanhou += 1
 	local meu = idGanhou
 	ganhouNome.Text = def.nome
-	ganhouRaridade.Text = info.nome
-	ganhouRaridade.TextColor3 = info.cor
+	local mut = def.mutacao and Config.MutacaoPorId[def.mutacao]
+	ganhouRaridade.Text = if mut then info.nome .. " · MUTAÇÃO " .. string.upper(mut.nome) else info.nome
+	ganhouRaridade.TextColor3 = if mut then mut.cor else info.cor
 	ganhouDescricao.Text = def.descricao
 	ganhouRenda.Text = "+" .. Util.numero(def.renda) .. " moedas por segundo"
 	bordaGanhou.Color = info.cor

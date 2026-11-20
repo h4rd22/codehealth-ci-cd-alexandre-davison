@@ -157,7 +157,8 @@ local function precoRenascer(perfil: Dados.Perfil): number
 end
 
 -- Misturedex: primeira vez com uma Mistureba dá um prêmio.
-local function descobrir(jogador: Player, perfil: Dados.Perfil, id: string)
+local function descobrir(jogador: Player, perfil: Dados.Perfil, idCompleto: string)
+	local id = Util.idBase(idCompleto)
 	if perfil.descobertas[id] then
 		return
 	end
@@ -280,7 +281,12 @@ local function darCriatura(jogador: Player, id: string, mostrar: boolean): boole
 		evChocou:FireClient(jogador, id)
 	end
 	local raridade = Config.PorId[id].raridade
-	if raridade == "mitico" or raridade == "secreto" then
+	local mut = Config.PorId[id].mutacao
+	if mut then
+		local m = Config.MutacaoPorId[mut]
+		aviso(jogador, "MUTAÇÃO " .. string.upper(m.nome) .. "! Rende " .. m.multiplicador .. "x mais!", m.cor)
+	end
+	if raridade == "mitico" or raridade == "secreto" or mut == "arcoiris" then
 		local info = Config.Raridades[raridade]
 		evAnuncio:FireAllClients(
 			jogador.DisplayName .. " conseguiu " .. Config.PorId[id].nome .. " (" .. info.nome .. ")!",
@@ -290,9 +296,17 @@ local function darCriatura(jogador: Player, id: string, mostrar: boolean): boole
 	return true
 end
 
-local function sortearCriatura(raridade: string): string
+-- comMutacao: ovos chocados podem nascer Dourada, Diamante ou Arco-íris.
+local function sortearCriatura(raridade: string, comMutacao: boolean?): string
 	local lista = Util.criaturasDaRaridade(raridade)
-	return lista[rng:NextInteger(1, #lista)].id
+	local id = lista[rng:NextInteger(1, #lista)].id
+	if comMutacao then
+		local mut = Util.sortearMutacao(rng)
+		if mut then
+			id ..= "*" .. mut
+		end
+	end
+	return id
 end
 
 ------------------------------------------------------------------------
@@ -582,7 +596,7 @@ local function entregarOvos(jogador: Player)
 	atualizarCarga(jogador)
 	for _, raridade in ovos do
 		perfil.estatisticas.ovos += 1
-		darCriatura(jogador, sortearCriatura(raridade), true)
+		darCriatura(jogador, sortearCriatura(raridade, true), true)
 	end
 end
 
@@ -737,7 +751,7 @@ local function boasVindas(jogador: Player, perfil: Dados.Perfil)
 						string.format("Prêmio do dia %d: um %s grátis!", dia, ovo.nome),
 						Color3.fromRGB(120, 255, 160)
 					)
-					darCriatura(jogador, sortearCriatura(Util.sortearPeso(ovo.pesos, rng)), true)
+					darCriatura(jogador, sortearCriatura(Util.sortearPeso(ovo.pesos, rng), true), true)
 				end
 			end
 		end
@@ -907,7 +921,7 @@ evComprarOvo.OnServerEvent:Connect(function(jogador, idOvo)
 	end
 	perfil.moedas -= ovo.preco
 	perfil.estatisticas.ovos += 1
-	darCriatura(jogador, sortearCriatura(Util.sortearPeso(ovo.pesos, rng)), true)
+	darCriatura(jogador, sortearCriatura(Util.sortearPeso(ovo.pesos, rng), true), true)
 end)
 
 evFundir.OnServerEvent:Connect(function(jogador, vagaA, vagaB)
@@ -1118,7 +1132,7 @@ Loja.iniciar({
 			end
 			return true
 		elseif chave == "ovoarcoiris" then
-			return darCriatura(jogador, sortearCriatura(Util.sortearPeso(Config.OvoArcoIrisPesos, rng)), true)
+			return darCriatura(jogador, sortearCriatura(Util.sortearPeso(Config.OvoArcoIrisPesos, rng), true), true)
 		elseif chave == "moedas" then
 			local valor =
 				math.max(Config.SacoMoedasMinimo, rendaPorSegundo(jogador, perfil) * Config.SacoMoedasMinutos * 60)
