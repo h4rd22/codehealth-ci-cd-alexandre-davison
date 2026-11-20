@@ -33,6 +33,7 @@ export type Perfil = {
 	rastros: { [string]: boolean }, -- rastros comprados
 	rastro: string?, -- rastro equipado
 	pocoes: number, -- ovos que ainda vão chocar com a Poção de Mutação
+	ajustes: { ocultar: { [string]: boolean }, som: boolean, leve: boolean }, -- tela de Configurações
 	trava: { servidor: string, hora: number }?,
 }
 
@@ -72,6 +73,7 @@ local function perfilNovo(): Perfil
 		rastros = {},
 		rastro = nil,
 		pocoes = 0,
+		ajustes = { ocultar = {}, som = true, leve = false },
 		trava = nil,
 	}
 end
@@ -175,6 +177,18 @@ local function corrigir(dado: any): Perfil
 	end
 	if type(dado.pocoes) == "number" and dado.pocoes == dado.pocoes then
 		p.pocoes = math.clamp(math.floor(dado.pocoes), 0, 1000)
+	end
+	if type(dado.ajustes) == "table" then
+		local a = dado.ajustes
+		if type(a.ocultar) == "table" then
+			for chave, valor in a.ocultar do
+				if type(chave) == "string" and #chave <= 20 and valor == true then
+					p.ajustes.ocultar[chave] = true
+				end
+			end
+		end
+		p.ajustes.som = a.som ~= false
+		p.ajustes.leve = a.leve == true
 	end
 	p.trava = dado.trava
 	return p

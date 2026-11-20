@@ -51,6 +51,7 @@ local evEstado = remote("Estado")
 local evAviso = remote("Aviso")
 local evAnuncio = remote("Anuncio")
 local evClima = remote("Clima")
+local evAjustes = remote("Ajustes")
 local evChocou = remote("Chocou")
 local evRoleta = remote("Roleta") -- qual prêmio saiu, para a tela girar até ele
 
@@ -223,7 +224,8 @@ local function descobrir(jogador: Player, perfil: Dados.Perfil, idCompleto: stri
 					achadas,
 					math.floor(marco.bonus * 100)
 				),
-				Color3.fromRGB(120, 255, 220)
+				Color3.fromRGB(120, 255, 220),
+				"jogadores"
 			)
 		end
 	end
@@ -404,11 +406,21 @@ local function darCriatura(jogador: Player, id: string, mostrar: boolean): boole
 		local m = Config.MutacaoPorId[mut]
 		aviso(jogador, "MUTAÇÃO " .. string.upper(m.nome) .. "! Rende " .. m.multiplicador .. "x mais!", m.cor)
 	end
-	if raridade == "mitico" or raridade == "secreto" or mut == "arcoiris" then
+	-- anúncio para o servidor: só Lendária para cima (cada jogador escolhe o que esconder)
+	local ordemRaridade = table.find(Config.OrdemRaridades, raridade) or 1
+	if ordemRaridade >= (table.find(Config.OrdemRaridades, "lendario") or 4) then
 		local info = Config.Raridades[raridade]
 		evAnuncio:FireAllClients(
-			jogador.DisplayName .. " conseguiu " .. Config.PorId[id].nome .. " (" .. info.nome .. ")!",
-			info.cor
+			jogador.DisplayName
+				.. " conseguiu "
+				.. Config.PorId[id].nome
+				.. " ("
+				.. info.nome
+				.. ", "
+				.. Util.textoUmEm(id)
+				.. ")!",
+			info.cor,
+			raridade
 		)
 	end
 	return true
@@ -621,7 +633,11 @@ local function ondaDeOvos()
 		ovoNoChao(raridade, pontoNoCampo(), true)
 		if (table.find(Config.OrdemRaridades, raridade) or 1) >= limiteAnuncio then
 			local info = Config.Raridades[raridade]
-			evAnuncio:FireAllClients("Um OVO " .. string.upper(info.nome) .. " caiu na chuva! Corre!", info.cor)
+			evAnuncio:FireAllClients(
+				"Um OVO " .. string.upper(info.nome) .. " caiu na chuva! Corre!",
+				info.cor,
+				raridade
+			)
 		end
 	end
 end
@@ -1176,13 +1192,32 @@ evFundir.OnServerEvent:Connect(function(jogador, vagaA, vagaB)
 		)
 	end
 	local raridade = Config.PorId[resultado :: string].raridade
-	if raridade == "mitico" or raridade == "secreto" then
+	if (table.find(Config.OrdemRaridades, raridade) or 1) >= (table.find(Config.OrdemRaridades, "lendario") or 4) then
 		local info = Config.Raridades[raridade]
 		evAnuncio:FireAllClients(
 			jogador.DisplayName .. " fundiu um(a) " .. Config.PorId[resultado :: string].nome .. "!",
-			info.cor
+			info.cor,
+			raridade
 		)
 	end
+end)
+
+-- Tela de Configurações do jogador (anúncios escondidos, som, modo leve)
+evAjustes.OnServerEvent:Connect(function(jogador, novos)
+	local estado, perfil = estados[jogador], Dados.obter(jogador)
+	if not estado or not perfil or type(novos) ~= "table" or not liberado(estado, "ajustes", 0.2) then
+		return
+	end
+	local ocultar = {}
+	if type(novos.ocultar) == "table" then
+		for _, chave in { "lendario", "mitico", "secreto", "jogadores" } do
+			if novos.ocultar[chave] == true then
+				ocultar[chave] = true
+			end
+		end
+	end
+	perfil.ajustes = { ocultar = ocultar, som = novos.som ~= false, leve = novos.leve == true }
+	estado.sujo = true
 end)
 
 evVender.OnServerEvent:Connect(function(jogador, vaga)
@@ -1263,7 +1298,8 @@ evRenascer.OnServerEvent:Connect(function(jogador)
 	local bonus = math.floor(perfil.renascimentos * Config.Renascer.bonusPorRenascimento * 100)
 	evAnuncio:FireAllClients(
 		jogador.DisplayName .. " RENASCEU! Agora ganha +" .. bonus .. "% de moedas para sempre!",
-		Color3.fromRGB(255, 120, 255)
+		Color3.fromRGB(255, 120, 255),
+		"jogadores"
 	)
 end)
 
@@ -1562,7 +1598,8 @@ evPegarMissao.OnServerEvent:Connect(function(jogador, i)
 			if ovo.id == Config.Missoes.ovoFinal then
 				evAnuncio:FireAllClients(
 					jogador.DisplayName .. " completou todas as missões do dia e ganhou um " .. ovo.nome .. "!",
-					Color3.fromRGB(255, 200, 80)
+					Color3.fromRGB(255, 200, 80),
+					"jogadores"
 				)
 				darCriatura(jogador, sortearCriatura(Util.sortearPeso(ovo.pesos, rng), true, jogador), true)
 			end
@@ -1686,6 +1723,7 @@ local function montarEstado(jogador: Player, estado: Estado, perfil: Dados.Perfi
 		presenteEm = estado.presenteEm,
 		roletaEm = estado.roletaEm,
 		pocoes = perfil.pocoes,
+		ajustes = perfil.ajustes,
 		clima = climaAtual,
 		climaAte = climaAte,
 		proximoClima = proximoClima,

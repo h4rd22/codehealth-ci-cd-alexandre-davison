@@ -398,6 +398,7 @@ type EstadoTela = {
 	upgrades: { [string]: number },
 	clima: string?,
 	pocoes: number?,
+	ajustes: { ocultar: { [string]: boolean }, som: boolean, leve: boolean }?,
 	climaAte: number?,
 	proximoClima: number?,
 	rastros: { [string]: boolean },
@@ -566,6 +567,39 @@ rotulo(rolagemOvos, {
 	Text = "Dica: ovos da chuva no meio do mapa são de graça!",
 	TextColor3 = Color3.fromRGB(200, 200, 230),
 })
+-- Sua sorte de mutação agora (multiplica a chance real de cada mutação)
+local textoSorte = rotulo(rolagemOvos, {
+	Size = UDim2.new(1, -12, 0, 26),
+	LayoutOrder = 97,
+	Text = "",
+	RichText = true,
+	TextColor3 = Color3.fromRGB(200, 255, 200),
+})
+table.insert(aoMudarEstado, function()
+	if not estado then
+		return
+	end
+	local partes = {}
+	local total = 1
+	if estado.passes.sortedupla then
+		total *= Config.SorteDuplaMutacao
+		table.insert(partes, "Sorte Dupla x" .. Config.SorteDuplaMutacao)
+	end
+	local trevo = Util.efeitoUpgrade(estado.upgrades, "sorte")
+	if trevo > 0 then
+		total *= 1 + trevo
+		table.insert(partes, "Trevo +" .. math.floor(trevo * 100 + 0.5) .. "%")
+	end
+	if (estado.pocoes or 0) > 0 then
+		total *= Config.PocaoMultiplicador
+		table.insert(partes, "Poção x" .. Config.PocaoMultiplicador)
+	end
+	local numero = string.gsub(string.format("%.1f", total), "%.0$", "")
+	textoSorte.Text = "Sua sorte de mutação: <b>x"
+		.. string.gsub(numero, "%.", ",")
+		.. "</b>"
+		.. (if #partes > 0 then "  (" .. table.concat(partes, " · ") .. ")" else "  (melhore com o Trevo da Sorte!)")
+end)
 
 ------------------------------------------------------------------------
 -- Painel: Fusão
@@ -1109,7 +1143,11 @@ local faixa = rotulo(tela, {
 	TextStrokeTransparency = 0,
 })
 local idFaixa = 0
-ev("Anuncio").OnClientEvent:Connect(function(texto: string, cor: Color3)
+ev("Anuncio").OnClientEvent:Connect(function(texto: string, cor: Color3, tipo: string?)
+	-- a tela de Configurações deixa esconder anúncios por raridade
+	if tipo and estado and estado.ajustes and estado.ajustes.ocultar[tipo] then
+		return
+	end
 	idFaixa += 1
 	local meu = idFaixa
 	faixa.Text = texto
@@ -1158,6 +1196,9 @@ local idGanhou = 0
 -- Efeitos de chocar: som que sobe de tom, flash, raios girando e confete.
 -- Quanto mais rara, mais festa.
 local function tocar(tom: number, volume: number)
+	if estado and estado.ajustes and estado.ajustes.som == false then
+		return
+	end
 	local som = Instance.new("Sound")
 	som.SoundId = "rbxasset://sounds/electronicpingshort.wav"
 	som.PlaybackSpeed = tom
@@ -1176,6 +1217,10 @@ camadaFesta.ZIndex = 0
 camadaFesta.Parent = tela
 
 local function festa(nivel: number, cor: Color3)
+	-- modo leve (celular fraco): sem flash nem raios
+	if estado and estado.ajustes and estado.ajustes.leve then
+		nivel = math.min(nivel, 2)
+	end
 	-- som: uma nota por nível, subindo
 	task.spawn(function()
 		for i = 1, math.min(nivel + 1, 7) do
@@ -2091,7 +2136,8 @@ local function aplicarClima(id: string?)
 	else
 		particulasClima.Color = ColorSequence.new(def.cor, Color3.new(1, 1, 1))
 	end
-	particulasClima.Rate = if def.id == "doces" then 60 else 35
+	local leve = estado ~= nil and estado.ajustes ~= nil and estado.ajustes.leve
+	particulasClima.Rate = (if def.id == "doces" then 60 else 35) * (if leve then 0.3 else 1)
 end
 
 local function mudarClima(id: string?, ate: number?, proximo: number?)
@@ -2141,6 +2187,111 @@ task.spawn(function()
 		faixaClima.Visible = textoClima.Text ~= ""
 		task.wait(0.5)
 	end
+end)
+
+------------------------------------------------------------------------
+-- Configurações (engrenagem no canto): anúncios, som e modo leve
+------------------------------------------------------------------------
+local COR_AJUSTES = Color3.fromRGB(150, 160, 190)
+local painelAjustes, rolagemAjustes = novoPainel("Configurações", COR_AJUSTES)
+lista(rolagemAjustes)
+local botaoAjustes = botao(tela, "⚙", Color3.fromRGB(90, 95, 130), {
+	AnchorPoint = Vector2.new(1, 0),
+	Position = UDim2.new(1, -12, 0, 12),
+	Size = UDim2.fromOffset(56, 56),
+})
+
+local function ajustesAtuais(): { ocultar: { [string]: boolean }, som: boolean, leve: boolean }
+	local a = estado and estado.ajustes
+	if not a then
+		return { ocultar = {}, som = true, leve = false }
+	end
+	return a
+end
+
+local function salvarAjustes(a: { ocultar: { [string]: boolean }, som: boolean, leve: boolean })
+	if estado then
+		estado.ajustes = a
+	end
+	ev("Ajustes"):FireServer(a)
+end
+
+local atualizarAjustes: { () -> () } = {}
+local function linhaAjuste(ordem: number, texto: string, cor: Color3, ligado: () -> boolean, trocar: () -> ())
+	local c = cartao(rolagemAjustes, 64, ordem)
+	rotulo(c, {
+		Size = UDim2.new(1, -170, 1, -16),
+		Position = UDim2.fromOffset(14, 8),
+		Text = texto,
+		TextColor3 = cor,
+		TextXAlignment = Enum.TextXAlignment.Left,
+	})
+	local b = botao(c, "", COR_VERDE, {
+		AnchorPoint = Vector2.new(1, 0.5),
+		Position = UDim2.new(1, -12, 0.5, 0),
+		Size = UDim2.fromOffset(140, 46),
+	})
+	local function atualizar()
+		local sim = ligado()
+		b.Text = if sim then "SIM" else "NÃO"
+		b.BackgroundColor3 = if sim then COR_VERDE else Color3.fromRGB(120, 120, 135)
+	end
+	b.MouseButton1Click:Connect(function()
+		trocar()
+		atualizar()
+	end)
+	table.insert(atualizarAjustes, atualizar)
+end
+
+rotulo(rolagemAjustes, {
+	Size = UDim2.new(1, -12, 0, 30),
+	LayoutOrder = 0,
+	Text = "Mostrar anúncios no meio da tela:",
+	TextXAlignment = Enum.TextXAlignment.Left,
+})
+local tiposAnuncio = {
+	{ "lendario", "Lendárias" },
+	{ "mitico", "Míticas" },
+	{ "secreto", "Secretas" },
+	{ "jogadores", "Renascer, Dex e missões" },
+}
+for i, t in tiposAnuncio do
+	local chave, nome = t[1], t[2]
+	local info = Config.Raridades[chave]
+	linhaAjuste(i, nome, if info then info.cor else Color3.new(1, 1, 1), function()
+		return not ajustesAtuais().ocultar[chave]
+	end, function()
+		local a = table.clone(ajustesAtuais())
+		a.ocultar = table.clone(a.ocultar)
+		a.ocultar[chave] = if a.ocultar[chave] then nil else true
+		salvarAjustes(a)
+	end)
+end
+linhaAjuste(20, "Sons", Color3.new(1, 1, 1), function()
+	return ajustesAtuais().som
+end, function()
+	local a = table.clone(ajustesAtuais())
+	a.som = not a.som
+	salvarAjustes(a)
+end)
+linhaAjuste(21, "Modo leve (menos efeitos, bom para celular)", Color3.new(1, 1, 1), function()
+	return ajustesAtuais().leve
+end, function()
+	local a = table.clone(ajustesAtuais())
+	a.leve = not a.leve
+	salvarAjustes(a)
+end)
+rotulo(rolagemAjustes, {
+	Size = UDim2.new(1, -12, 0, 24),
+	LayoutOrder = 30,
+	Text = "Os climas sempre aparecem, para ninguém perder o evento.",
+	TextColor3 = Color3.fromRGB(190, 190, 215),
+})
+botaoAjustes.MouseButton1Click:Connect(function()
+	for _, f in atualizarAjustes do
+		f()
+	end
+	abrir(painelAjustes)
 end)
 
 ------------------------------------------------------------------------

@@ -1175,7 +1175,8 @@ Config.Chuva = {
 	ovosPorOnda = 8,
 	maxOvosNoChao = 20,
 	tempoNoChao = 60, -- segundos até o ovo sumir se ninguém pegar
-	pesos = { comum = 70, raro = 22, epico = 6.5, lendario = 1.3, mitico = 0.2 },
+	-- secreto 0,005: 1 em 60 mil por Secreta (e uma Secreta Arco-íris é ~1 em 12 milhões, de verdade)
+	pesos = { comum = 70, raro = 22, epico = 6.5, lendario = 1.3, mitico = 0.2, secreto = 0.005 },
 	anunciarAPartirDe = "lendario", -- ovos desta raridade em diante viram ovo dourado com anúncio
 }
 
