@@ -55,7 +55,7 @@ RunService.Heartbeat:Connect(function(dt)
 		end
 		if corpo and corpo.Parent and (corpo.Position - olho).Magnitude < DISTANCIA then
 			for _, item in info.partes do
-				item.parte.Color = Color3.fromHSV((item.matiz + deslocamento) % 1, 0.5, 1)
+				item.parte.Color = Color3.fromHSV((item.matiz + deslocamento) % 1, 0.6, 1)
 			end
 		end
 	end

@@ -188,8 +188,8 @@ local function asa(
 	material: Enum.Material,
 	transparencia: number
 )
-	local raiz = Vector3.new(0.85 * lado, 0.35, 1.05) * e
-	local virar = CFrame.Angles(0, math.rad(-28 * lado), 0)
+	local raiz = Vector3.new(1.0 * lado, 0.4, 0.95) * e
+	local virar = CFrame.Angles(0, math.rad(-45 * lado), 0)
 	for k = 1, penas do
 		local l = comprimento * (1 - 0.16 * (k - 1)) * e
 		local abre = CFrame.Angles(0, 0, math.rad(-lado * (28 + 24 * (k - 1))))
@@ -223,11 +223,11 @@ local function enfeites(modelo: Model, corpo: BasePart, e: number, nivel: number
 	local temCoroa = nivel == 4 or nivel == 6
 	if nivel >= 5 then
 		for _, lado in { -1, 1 } do
-			asa(modelo, corpo, e, lado, 4, 2.2, cor:Lerp(Color3.new(1, 1, 1), 0.45), Enum.Material.Neon, 0.25)
+			asa(modelo, corpo, e, lado, 4, 2.7, cor:Lerp(Color3.new(1, 1, 1), 0.45), Enum.Material.Neon, 0.25)
 		end
 	elseif nivel >= 3 then
 		for _, lado in { -1, 1 } do
-			asa(modelo, corpo, e, lado, 3, 1.4, Color3.fromRGB(252, 250, 255), Enum.Material.SmoothPlastic, 0)
+			asa(modelo, corpo, e, lado, 3, 1.75, Color3.fromRGB(252, 250, 255), Enum.Material.SmoothPlastic, 0)
 		end
 	end
 	if temCoroa then
@@ -522,18 +522,22 @@ function Criaturas.modelo(id: string): Model
 			if parte:IsA("BasePart") and parte.Name ~= "Aro" then
 				if mut.id == "arcoiris" then
 					-- degradê pastel de baixo para cima; o cliente faz as cores andarem
-					local y = corpo.CFrame:PointToObjectSpace(parte.Position).Y
-					local matiz = math.clamp((y - baixo) / (alto - baixo), 0, 1) * 0.85
+					local rel = corpo.CFrame:PointToObjectSpace(parte.Position)
+					local altura = math.clamp((rel.Y - baixo) / (alto - baixo), 0, 1)
+					local volta = (math.atan2(rel.X, rel.Z) / (2 * math.pi)) % 1
+					local matiz = (altura * 0.6 + volta * 0.5) % 1
 					parte:SetAttribute("Matiz", matiz)
-					parte.Color = Color3.fromHSV(matiz, 0.5, 1)
+					parte.Color = Color3.fromHSV(matiz, 0.6, 1)
 					parte.Material = Enum.Material.SmoothPlastic
 					parte.Reflectance = 0.1
 				else
-					parte.Material = (Enum.Material :: any)[mut.material]
-					parte.Color = parte.Color:Lerp(mut.cor, if mut.id == "dourada" then 0.8 else 0.7)
+					parte.Material = if mut.id == "dourada"
+						then Enum.Material.SmoothPlastic
+						else (Enum.Material :: any)[mut.material]
+					parte.Color = parte.Color:Lerp(mut.cor, if mut.id == "dourada" then 0.9 else 0.7)
 				end
 				if mut.id == "dourada" then
-					parte.Reflectance = 0.12
+					parte.Reflectance = 0.3
 				elseif mut.id == "diamante" then
 					parte.Reflectance = 0.35
 					parte.Transparency = 0.1
@@ -574,7 +578,7 @@ function Criaturas.modelo(id: string): Model
 				local g = Instance.new("Part")
 				g.Name = "Granulado"
 				g.Shape = Enum.PartType.Cylinder
-				g.Size = Vector3.new(0.6, 0.2, 0.2) * e
+				g.Size = Vector3.new(0.75, 0.26, 0.26) * e
 				g.Color = granulado[(k - 1) % #granulado + 1]
 				g.Material = Enum.Material.SmoothPlastic
 				g.CanCollide = false
