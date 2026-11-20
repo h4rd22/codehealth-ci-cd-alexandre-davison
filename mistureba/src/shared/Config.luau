@@ -653,25 +653,25 @@ Config.Jogador = {
 ------------------------------------------------------------------------
 Config.Gamepasses = {
 	vip = {
-		id = 0,
+		id = 2092768901,
 		nome = "VIP",
 		preco = 299,
 		descricao = "Dobro de moedas para sempre e nome dourado.",
 	},
 	cadeado = {
-		id = 0,
+		id = 2094556849,
 		nome = "Cadeado Reforçado",
 		preco = 149,
 		descricao = "Sua porta fica trancada 90 segundos em vez de 60.",
 	},
 	mochila = {
-		id = 0,
+		id = 2097130741,
 		nome = "Mochila Dupla",
 		preco = 199,
 		descricao = "Carregue 2 ovos da chuva de uma vez.",
 	},
 	basegrande = {
-		id = 0,
+		id = 2092240913,
 		nome = "Base Grande",
 		preco = 149,
 		descricao = "+4 vagas na sua base.",
@@ -684,23 +684,32 @@ Config.BaseGrandeVagas = 4
 
 Config.Produtos = {
 	sorte = {
-		id = 0,
+		id = 3733959362,
 		nome = "Sorte do Servidor",
 		preco = 79,
 		descricao = "Ovos raros caem 2x mais para TODO o servidor por 15 minutos.",
 	},
 	ovoarcoiris = {
-		id = 0,
+		id = 3733959440,
 		nome = "Ovo Arco-íris",
 		preco = 49,
 		descricao = "Um ovo pago. As chances estão logo abaixo.",
 	},
 	moedas = {
-		id = 0,
+		id = 3733959502,
 		nome = "Saco de Moedas",
 		preco = 25,
 		descricao = "Ganha 10 minutos da sua renda atual (mínimo 500 moedas).",
 	},
+}
+
+-- Presente por tempo jogando: um ovo de graça a cada 5 minutos online,
+-- e a cada 3 presentes vem um Ovo Brilhante.
+Config.PresenteTempo = {
+	intervalo = 300,
+	ovo = "basico",
+	especialACada = 3,
+	ovoEspecial = "brilhante",
 }
 
 Config.SorteMinutos = 15

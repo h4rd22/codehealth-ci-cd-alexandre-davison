@@ -198,6 +198,8 @@ type EstadoTela = {
 	ovos: { string },
 	roubo: string?,
 	protegidoAte: number,
+	presenteEm: number,
+	proximoPresenteEspecial: boolean,
 	baseIndice: number,
 }
 
@@ -981,6 +983,18 @@ local function atualizarStatus()
 		table.insert(
 			partes,
 			string.format('<font color="#80FFB0">Sorte 2x: %d min</font>', math.ceil((estado.sorteAte - t) / 60))
+		)
+	end
+	if estado.presenteEm and estado.presenteEm > t then
+		local falta = math.ceil(estado.presenteEm - t)
+		table.insert(
+			partes,
+			string.format(
+				'<font color="#FFD070">%s grátis em %d:%02d</font>',
+				if estado.proximoPresenteEspecial then "Ovo Brilhante" else "Ovo",
+				falta // 60,
+				falta % 60
+			)
 		)
 	end
 	textoStatus.Text = table.concat(partes, "   ")

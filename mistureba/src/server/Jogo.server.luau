@@ -57,6 +57,8 @@ type Estado = {
 	cadeadoAte: number,
 	cadeadoLivreEm: number,
 	entrouEm: number,
+	presenteEm: number, -- quando sai o próximo presente por tempo jogando
+	presentes: number,
 	ultimoTapa: number,
 	ultimoPedido: { [string]: number },
 	modelos: { [string]: Model }, -- vaga -> modelo na base
@@ -795,6 +797,8 @@ local function entrar(jogador: Player)
 		cadeadoAte = 0,
 		cadeadoLivreEm = 0,
 		entrouEm = agora(),
+		presenteEm = agora() + Config.PresenteTempo.intervalo,
+		presentes = 0,
 		ultimoTapa = 0,
 		ultimoPedido = {},
 		modelos = {},
@@ -1177,6 +1181,8 @@ local function montarEstado(jogador: Player, estado: Estado, perfil: Dados.Perfi
 		ovos = carregando,
 		roubo = if estado.roubo then estado.roubo.id else nil,
 		protegidoAte = estado.entrouEm + Config.Base.protecaoNovatoSegundos,
+		presenteEm = estado.presenteEm,
+		proximoPresenteEspecial = (estado.presentes + 1) % Config.PresenteTempo.especialACada == 0,
 		baseIndice = estado.base.indice,
 	}
 end
@@ -1213,6 +1219,22 @@ RunService.Heartbeat:Connect(function(dt)
 		if perfil then
 			perfil.moedas += rendaPorSegundo(jogador, perfil)
 			desenharPorta(estado)
+			if agora() >= estado.presenteEm then
+				estado.presentes += 1
+				estado.presenteEm = agora() + Config.PresenteTempo.intervalo
+				local especial = estado.presentes % Config.PresenteTempo.especialACada == 0
+				local idOvo = if especial then Config.PresenteTempo.ovoEspecial else Config.PresenteTempo.ovo
+				for _, ovo in Config.OvosLoja do
+					if ovo.id == idOvo then
+						aviso(
+							jogador,
+							"PRESENTE por jogar: " .. ovo.nome .. " de graça!",
+							Color3.fromRGB(255, 220, 120)
+						)
+						darCriatura(jogador, sortearCriatura(Util.sortearPeso(ovo.pesos, rng), true), true)
+					end
+				end
+			end
 			local stats = jogador:FindFirstChild("leaderstats")
 			if stats then
 				(stats :: any).Moedas.Value = Util.numero(perfil.moedas);
