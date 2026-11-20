@@ -169,10 +169,12 @@ RunService.RenderStepped:Connect(function(dt)
 			local giroAtual = info.giro or 0
 			local diferenca = (alvo - giroAtual + math.pi) % (math.pi * 2) - math.pi
 			info.giro = giroAtual + diferenca * suave
-			local velocidade = if perto then 4 else 2.2
-			local altura = if perto then 1 else 0.6
+			-- pulinho de vez em quando: passa a maior parte do tempo com o pé no chão
+			local velocidade = if perto then 1.6 else 0.7
+			local altura = if perto then 0.9 else 0.5
 			info.tempo = (info.tempo or 0) + dt * velocidade
-			local pulo = math.abs(math.sin(info.tempo + info.fase)) * altura
+			local ciclo = (info.tempo + info.fase) % 1
+			local pulo = if ciclo < 0.3 then math.sin(ciclo / 0.3 * math.pi) * altura else 0
 			modelo:PivotTo(info.origem * CFrame.new(0, pulo, 0) * CFrame.Angles(0, info.giro, 0))
 		end
 	end

@@ -286,6 +286,17 @@ function Criaturas.modelo(id: string): Model
 	for _, lado in { -1, 1 } do
 		oval3(modelo, corpo, segunda, Vector3.new(1.1, 0.6, 1.4) * e, Vector3.new(0.8 * lado, -1.45, -0.25) * e).Name =
 			"Pe"
+		-- três dedinhos na ponta do pé
+		for d = -1, 1 do
+			oval3(
+				modelo,
+				corpo,
+				segunda:Lerp(Color3.new(1, 1, 1), 0.25),
+				Vector3.new(0.32, 0.3, 0.32) * e,
+				Vector3.new(0.8 * lado + d * 0.3, -1.52, -0.9 + math.abs(d) * 0.08) * e
+			).Name =
+				"Pe"
+		end
 		if nivel >= 2 then
 			-- orelhinhas a partir de Raro
 			oval3(
@@ -435,6 +446,8 @@ function Criaturas.modelo(id: string): Model
 				g.Color = granulado[(k - 1) % #granulado + 1]
 				g.Material = Enum.Material.SmoothPlastic
 				g.CanCollide = false
+				g.CanTouch = false
+				g.CastShadow = false
 				g.Massless = true
 				local dir = Vector3.new(
 					math.cos(k * 2.4) * math.sin(0.4 + k * 0.17),
@@ -456,6 +469,8 @@ function Criaturas.modelo(id: string): Model
 				estrela.Color = Color3.fromRGB(255, 250, 200)
 				estrela.Material = Enum.Material.Neon
 				estrela.CanCollide = false
+				estrela.CanTouch = false
+				estrela.CastShadow = false
 				estrela.Massless = true
 				local ang = k * math.pi * 2 / 3
 				estrela.CFrame = corpo.CFrame
@@ -475,6 +490,19 @@ function Criaturas.modelo(id: string): Model
 		end
 	end
 
+	-- brilho de boneco de vinil: reflexo branco no alto da cabeça, do lado da luz
+	local reflexo = oval3(
+		modelo,
+		corpo,
+		Color3.new(1, 1, 1),
+		Vector3.new(0.75, 0.45, 0.3) * e,
+		Vector3.new(-0.75, 1.05, -0.85) * e,
+		Enum.Material.Neon,
+		CFrame.Angles(math.rad(-40), math.rad(25), math.rad(25))
+	)
+	reflexo.Name = "Reflexo"
+	reflexo.Transparency = 0.55
+	reflexo.CanQuery = false
 	rosto(modelo, corpo, e, if nivel >= 3 then raridade.cor else nil)
 	enfeites(modelo, corpo, e, nivel, raridade.cor)
 

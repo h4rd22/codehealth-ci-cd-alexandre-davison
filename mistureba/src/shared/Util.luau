@@ -68,7 +68,7 @@ function Util.idBase(id: string): string
 	return (string.match(id, "^[^*]+") or id)
 end
 
--- Sorteia a mutação de um ovo chocado (ou nada). mult aumenta as chances (Sorte Dupla).
+-- Dados de um clima pelo id (ou nil).
 function Util.clima(id: string?): Config.Clima?
 	for _, cl in Config.Climas.lista do
 		if cl.id == id then
@@ -78,6 +78,7 @@ function Util.clima(id: string?): Config.Clima?
 	return nil
 end
 
+-- Sorteia a mutação de um ovo chocado (ou nada). mult aumenta as chances (Sorte Dupla).
 -- clima: id do clima que está acontecendo agora (ou nil)
 function Util.sortearMutacao(rng: Random, mult: number?, clima: string?): string?
 	local x = rng:NextNumber() * 100
