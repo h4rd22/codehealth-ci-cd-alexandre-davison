@@ -643,7 +643,8 @@ Config.Jogador = {
 	velocidade = 18,
 	velocidadeCarregando = 12,
 	alcanceTapa = 9,
-	esperaTapa = 1.2,
+	esperaTapa = 1.2, -- espera entre uma bolha e outra
+	tempoNaBolha = 1.5, -- quanto tempo o alvo fica preso na bolha
 	tempoParaRoubar = 1.5, -- segurar o botão
 }
 

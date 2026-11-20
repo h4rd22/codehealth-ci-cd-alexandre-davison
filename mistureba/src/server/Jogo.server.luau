@@ -1,8 +1,9 @@
 --!strict
 -- Coração do Mistureba no servidor: bases, chuva de ovos, carregar,
--- roubar, tapa, cadeado, fusão, loja de moedas e renda.
+-- roubar, bolha, cadeado, fusão, loja de moedas e renda.
 -- O servidor decide tudo; a tela só pede e mostra.
 
+local Debris = game:GetService("Debris")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -44,7 +45,6 @@ local evEstado = remote("Estado")
 local evAviso = remote("Aviso")
 local evAnuncio = remote("Anuncio")
 local evChocou = remote("Chocou")
-local evEmpurrao = remote("Empurrao")
 
 ------------------------------------------------------------------------
 -- Estado de cada jogador enquanto está no servidor
@@ -59,7 +59,8 @@ type Estado = {
 	entrouEm: number,
 	presenteEm: number, -- quando sai o próximo presente por tempo jogando
 	presentes: number,
-	ultimoTapa: number,
+	ultimoTapa: number, -- última bolha lançada
+	presoAte: number, -- preso numa bolha até este os.clock()
 	ultimoPedido: { [string]: number },
 	modelos: { [string]: Model }, -- vaga -> modelo na base
 	visual: Instance?, -- o que aparece em cima da cabeça
@@ -327,7 +328,11 @@ local function atualizarCarga(jogador: Player)
 	local cabeca = jogador.Character and jogador.Character:FindFirstChild("Head") :: BasePart?
 	local carregando = #estado.ovos > 0 or estado.roubo ~= nil
 	if hum then
-		hum.WalkSpeed = if carregando then Config.Jogador.velocidadeCarregando else Config.Jogador.velocidade
+		if os.clock() < estado.presoAte then
+			hum.WalkSpeed = 0
+		else
+			hum.WalkSpeed = if carregando then Config.Jogador.velocidadeCarregando else Config.Jogador.velocidade
+		end
 	end
 	if not carregando or not cabeca then
 		estado.sujo = true
@@ -542,7 +547,7 @@ local function tentarRoubar(ladrao: Player, dono: Player, vaga: string)
 	atualizarCarga(ladrao)
 	aviso(
 		dono,
-		ladrao.DisplayName .. " está levando sua " .. Config.PorId[id].nome .. "! Dê um tapa para recuperar!",
+		ladrao.DisplayName .. " está levando sua " .. Config.PorId[id].nome .. "! Jogue uma bolha (F) para recuperar!",
 		Color3.fromRGB(255, 90, 90)
 	)
 	aviso(ladrao, "Corra para sua base!", Color3.fromRGB(120, 255, 120))
@@ -602,7 +607,7 @@ local function entregarOvos(jogador: Player)
 	end
 end
 
--- Solta tudo no chão (tapa, morte ou botão Soltar).
+-- Solta tudo no chão (bolha, morte ou botão Soltar).
 local function soltarTudo(jogador: Player)
 	local estado = estados[jogador]
 	if not estado then
@@ -800,6 +805,7 @@ local function entrar(jogador: Player)
 		presenteEm = agora() + Config.PresenteTempo.intervalo,
 		presentes = 0,
 		ultimoTapa = 0,
+		presoAte = 0,
 		ultimoPedido = {},
 		modelos = {},
 		visual = nil,
@@ -1101,18 +1107,41 @@ evTapa.OnServerEvent:Connect(function(jogador)
 	if not alvo then
 		return
 	end
-	local ra = raiz(alvo)
-	if ra then
-		local direcao = (ra.Position - r.Position) * Vector3.new(1, 0, 1)
-		if direcao.Magnitude > 0.01 then
-			evEmpurrao:FireClient(alvo, direcao.Unit)
-		end
-	end
+	-- bolha: prende o alvo por um instante (sem empurrar nem machucar)
 	local estadoAlvo = estados[alvo]
+	local ra = raiz(alvo)
+	if estadoAlvo and ra then
+		estadoAlvo.presoAte = os.clock() + Config.Jogador.tempoNaBolha
+		local bolha = Instance.new("Part")
+		bolha.Name = "Bolha"
+		bolha.Shape = Enum.PartType.Ball
+		bolha.Size = Vector3.new(8, 8, 8)
+		bolha.Material = Enum.Material.Glass
+		bolha.Color = Color3.fromRGB(150, 210, 255)
+		bolha.Transparency = 0.55
+		bolha.Reflectance = 0.3
+		bolha.CanCollide = false
+		bolha.CanQuery = false
+		bolha.CanTouch = false
+		bolha.Massless = true
+		bolha.CFrame = ra.CFrame
+		local solda = Instance.new("WeldConstraint")
+		solda.Part0 = ra
+		solda.Part1 = bolha
+		solda.Parent = bolha
+		bolha.Parent = alvo.Character
+		Debris:AddItem(bolha, Config.Jogador.tempoNaBolha)
+		atualizarCarga(alvo)
+		task.delay(Config.Jogador.tempoNaBolha + 0.05, function()
+			if estados[alvo] then
+				atualizarCarga(alvo)
+			end
+		end)
+	end
 	if estadoAlvo and (#estadoAlvo.ovos > 0 or estadoAlvo.roubo) then
 		soltarTudo(alvo)
-		aviso(alvo, jogador.DisplayName .. " te deu um tapa e você soltou tudo!", Color3.fromRGB(255, 160, 80))
-		aviso(jogador, "TAPA! " .. alvo.DisplayName .. " soltou o que carregava.", Color3.fromRGB(120, 255, 120))
+		aviso(alvo, jogador.DisplayName .. " te prendeu numa bolha e você soltou tudo!", Color3.fromRGB(150, 210, 255))
+		aviso(jogador, "BOLHA! " .. alvo.DisplayName .. " soltou o que carregava.", Color3.fromRGB(120, 255, 120))
 	end
 end)
 

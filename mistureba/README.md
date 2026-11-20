@@ -1,6 +1,6 @@
 # Mistureba (Roblox)
 
-Jogo original de pegar, fundir e roubar criaturas. Ovos de cristal caem no meio do mapa, você leva para a sua base, e cada Mistureba na base gera moedas. Os outros jogadores podem invadir e roubar, e você recupera com um tapa.
+Jogo original de pegar, fundir e roubar criaturas. Ovos de cristal caem no meio do mapa, você leva para a sua base, e cada Mistureba na base gera moedas. Os outros jogadores podem invadir e roubar, e você recupera com uma bolha que prende o ladrão por um instante.
 
 ## Regra de dinheiro
 **Nunca gastar dinheiro real nem Robux sem perguntar ao dono antes, toda vez.** Criar gamepass e produto no Creator Hub é grátis; anúncios, UGC e plugins pagos precisam de um "sim" claro.
@@ -11,13 +11,13 @@ Jogo original de pegar, fundir e roubar criaturas. Ovos de cristal caem no meio 
 |---|---|---|
 | Números do jogo | `src/shared/Config.luau` | Criaturas, chances, preços, cadeado, Robux. Mude aqui para balancear. |
 | Mapa | `src/server/Mapa.luau` | Campo dos ovos no meio e 8 bases em volta, tudo criado por código. |
-| Regras | `src/server/Jogo.server.luau` | Chuva de ovos, carregar, roubar, tapa, cadeado, fusão, renda. |
+| Regras | `src/server/Jogo.server.luau` | Chuva de ovos, carregar, roubar, bolha, cadeado, fusão, renda. |
 | Modelos | `src/server/Criaturas.luau` | Monta as Misturebas com peças simples. Trocar por arte própria aqui. |
 | Salvamento | `src/server/Dados.luau` | DataStore com nova tentativa, trava de servidor, autosave e recibos. |
 | Robux | `src/server/Loja.luau` | Gamepasses e produtos, entregues uma vez só. |
 | Tela | `src/client/Hud.client.luau` | Moedas, painéis Ovos/Fusão/Base/Loja, avisos. |
 
-**Regras de roubo:** só dá para roubar com a porta aberta. Quem acabou de entrar fica 2 minutos protegido, e quem tem menos de 3 Misturebas não pode ser roubado. Quem carrega anda mais devagar e brilha em vermelho; um tapa (F) faz soltar tudo.
+**Regras de roubo:** só dá para roubar com a porta aberta. Quem acabou de entrar fica 2 minutos protegido, e quem tem menos de 3 Misturebas não pode ser roubado. Quem carrega anda mais devagar e brilha em vermelho; uma bolha (F) prende o ladrão por 1,5 s e faz ele soltar tudo, sem empurrar nem machucar.
 
 **Fusão:** duas da mesma raridade viram uma da raridade seguinte. As duas secretas só saem por receita.
 

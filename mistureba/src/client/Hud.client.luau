@@ -170,7 +170,8 @@ local listaAcoes = Instance.new("UIListLayout")
 listaAcoes.Padding = UDim.new(0, 10)
 listaAcoes.HorizontalAlignment = Enum.HorizontalAlignment.Right
 listaAcoes.Parent = acoes
-local botaoTapa = botao(acoes, "TAPA (F)", COR_VERMELHO, { Size = UDim2.fromOffset(150, 64), LayoutOrder = 1 })
+local botaoTapa =
+	botao(acoes, "BOLHA (F)", Color3.fromRGB(90, 170, 255), { Size = UDim2.fromOffset(150, 64), LayoutOrder = 1 })
 local botaoTrancar = botao(acoes, "TRANCAR (T)", COR_VERDE, { Size = UDim2.fromOffset(150, 64), LayoutOrder = 2 })
 local botaoSoltar = botao(acoes, "SOLTAR (G)", Color3.fromRGB(120, 120, 140), {
 	Size = UDim2.fromOffset(150, 64),
@@ -902,15 +903,6 @@ end)
 
 local function tapa()
 	ev("Tapa"):FireServer()
-	local personagem = jogador.Character
-	local hum = personagem and personagem:FindFirstChildOfClass("Humanoid")
-	if hum then
-		-- giradinha rápida como "tapa"
-		local raiz = personagem:FindFirstChild("HumanoidRootPart") :: BasePart?
-		if raiz then
-			raiz.AssemblyAngularVelocity = Vector3.new(0, 25, 0)
-		end
-	end
 end
 botaoTapa.MouseButton1Click:Connect(tapa)
 botaoTrancar.MouseButton1Click:Connect(function()
@@ -930,14 +922,6 @@ UserInputService.InputBegan:Connect(function(entrada, processado)
 		ev("Trancar"):FireServer()
 	elseif entrada.KeyCode == Enum.KeyCode.G then
 		ev("Soltar"):FireServer()
-	end
-end)
-
-ev("Empurrao").OnClientEvent:Connect(function(direcao: Vector3)
-	local personagem = jogador.Character
-	local raiz = personagem and personagem:FindFirstChild("HumanoidRootPart") :: BasePart?
-	if raiz then
-		raiz.AssemblyLinearVelocity = direcao * 55 + Vector3.new(0, 30, 0)
 	end
 end)
 
