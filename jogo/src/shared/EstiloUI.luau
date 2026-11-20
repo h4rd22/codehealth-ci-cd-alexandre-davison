@@ -59,7 +59,7 @@ E.tw = {
 
 -- Ícones (todos grátis da Creator Store, mesmo estilo: cartoon com contorno escuro)
 E.ICONES = {
-	mochila = "rbxassetid://15402958715",
+	mochila = "rbxassetid://127211318200556", -- ForgeGUI
 	ficha = "rbxassetid://15403009775",
 	portal = "rbxassetid://17368164592",
 	config = "rbxassetid://17368089841",
@@ -107,6 +107,16 @@ E.ICONES = {
 	magiaArcano = "rbxassetid://2624609025",
 }
 
+-- Número com separador de milhar (1.234.567) — fica fácil de ler no celular
+function E.numero(n: number): string
+	local inteiro = tostring(math.floor(math.abs(n) + 0.5))
+	local com = inteiro:reverse():gsub("(%d%d%d)", "%1."):reverse()
+	if com:sub(1, 1) == "." then
+		com = com:sub(2)
+	end
+	return (n < 0 and "-" or "") .. com
+end
+
 -- Magias: um ícone por elemento (alguns golpes têm o seu)
 E.ICONE_ELEMENTO = { gelo = "magiaGelo", raio = "magiaRaio", fogo = "magiaFogo", arcano = "magiaArcano" }
 E.ICONE_MAGIA = { meteoro = "fogo", tempestade = "energia", furiaTrovao = "energia", explosaoMorte = "caveira" }
@@ -137,8 +147,37 @@ E.KANJI_MAGIA = {
 	menteRapida = "速", -- rapidez
 	ecoArcano = "響", -- eco
 	maestria = "極", -- maestria
+	afinidadeGelo = "氷", -- gelo
+	afinidadeRaio = "雷", -- raio
+	afinidadeFogo = "炎", -- chama
+	harmonia = "和", -- harmonia
 }
 E.KANJI_ELEMENTO = { gelo = "氷", raio = "雷", fogo = "炎", arcano = "魔" }
+
+-- Símbolo desenhado de cada magia (anel de runas na cor do elemento, pedra escura).
+-- frioCortante e novaGelo vieram do ForgeGUI; os outros foram feitos no mesmo estilo.
+E.SIMBOLO_MAGIA = {
+	lancaGelo = "rbxassetid://138764210013256",
+	frioCortante = "rbxassetid://137626917713851",
+	novaGelo = "rbxassetid://79706450554064",
+	nevasca = "rbxassetid://114409299875987",
+	correnteRaio = "rbxassetid://99724607443871",
+	sobrecarga = "rbxassetid://86537908508502",
+	furiaTrovao = "rbxassetid://102198519836370",
+	tempestade = "rbxassetid://117105414969101",
+	bolaFogo = "rbxassetid://140156806790754",
+	combustao = "rbxassetid://125392034109782",
+	anelChamas = "rbxassetid://73688980593153",
+	meteoro = "rbxassetid://84958894894832",
+	poderArcano = "rbxassetid://140440413955507",
+	menteRapida = "rbxassetid://71205398645703",
+	ecoArcano = "rbxassetid://105131636169846",
+	maestria = "rbxassetid://114662440526044",
+	afinidadeGelo = "rbxassetid://128954620955365",
+	afinidadeRaio = "rbxassetid://81116373469207",
+	afinidadeFogo = "rbxassetid://122650059885875",
+	harmonia = "rbxassetid://111470479070882",
+}
 
 function E.kanjiDe(h: any): string
 	if not h then
@@ -152,6 +191,39 @@ function E.kanjiMagia(t: TextLabel | TextButton, h: any)
 	local img = t:FindFirstChild("Img")
 	if img then
 		(img :: ImageLabel).Visible = false
+	end
+	-- com símbolo desenhado: mostra a imagem inteira (cantos arredondados) e nada de texto
+	local simbolo = h and E.SIMBOLO_MAGIA[h.id]
+	local sImg = t:FindFirstChild("Simbolo") :: ImageLabel?
+	if simbolo then
+		if not sImg then
+			local novaS = E.novo("ImageLabel", t, {
+				Name = "Simbolo",
+				AnchorPoint = Vector2.new(0.5, 0.5),
+				Position = UDim2.fromScale(0.5, 0.5),
+				Size = UDim2.fromScale(1, 1),
+				BackgroundTransparency = 1,
+				ScaleType = Enum.ScaleType.Crop,
+				ZIndex = t.ZIndex,
+			})
+			E.canto(novaS, 10)
+			t:GetPropertyChangedSignal("TextTransparency"):Connect(function()
+				novaS.ImageTransparency = t.TextTransparency
+			end)
+			sImg = novaS
+		end
+		local si = sImg :: ImageLabel
+		si.Image = simbolo
+		si.Visible = true
+		si.ImageTransparency = t.TextTransparency
+		local pad = t:FindFirstChild("PadKanji")
+		if pad then
+			pad:Destroy()
+		end
+		t.Text = ""
+		return
+	elseif sImg then
+		sImg.Visible = false
 	end
 	t.Text = E.kanjiDe(h)
 	t.Font = E.fonteTitulo

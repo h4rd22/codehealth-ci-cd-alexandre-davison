@@ -121,9 +121,10 @@ local janela = novo("Frame", gui, {
 	BackgroundColor3 = COR.painel,
 })
 novo("UISizeConstraint", janela, { MaxSize = Vector2.new(700, 500) })
-canto(janela, 14)
-contorno(janela, COR.dourado, 3)
-degrade(janela, Color3.new(1, 1, 1), Color3.fromRGB(170, 160, 150))
+janela.BackgroundColor3 = E.cor.painelTopo
+canto(janela, 12)
+contorno(janela, E.cor.tinta, 3)
+degrade(janela, Color3.new(1, 1, 1), Color3.fromRGB(150, 150, 165))
 local escalaJanela = novo("UIScale", janela)
 
 -- faixa do topo: retrato, nome, classe e nível
@@ -171,18 +172,11 @@ local subtitulo = rotulo(topo, {
 	TextSize = 14,
 	TextXAlignment = Enum.TextXAlignment.Left,
 })
-local fechar = novo("TextButton", topo, {
+local fechar = E.fechar(topo, {
 	AnchorPoint = Vector2.new(1, 0.5),
 	Position = UDim2.new(1, -10, 0.5, 0),
-	Size = UDim2.fromOffset(34, 34),
-	Text = "X",
-	Font = FONTE,
-	TextSize = 18,
-	TextColor3 = COR.texto,
-	BackgroundColor3 = COR.vermelho,
+	Size = UDim2.fromOffset(36, 36),
 })
-canto(fechar, 8)
-contorno(fechar, COR.dourado, 1.5)
 
 -- Seções da ficha. Podem ser desenhadas em dois lugares: na janela (popup)
 -- e dentro da mochila (Frame "LugarFicha" da mochila da Jessica).
@@ -433,7 +427,16 @@ local function abrir()
 	TweenService:Create(escalaJanela, TweenInfo.new(0.2, Enum.EasingStyle.Back), { Scale = 1 }):Play()
 end
 local function fecharFicha()
-	gui.Enabled = false
+	-- encolhe um pouco e some
+	local t = TweenService:Create(escalaJanela, TweenInfo.new(0.14, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+		Scale = 0.88,
+	})
+	t:Play()
+	t.Completed:Connect(function()
+		if escalaJanela.Scale <= 0.89 then
+			gui.Enabled = false
+		end
+	end)
 end
 fechar.Activated:Connect(fecharFicha)
 fundo.Activated:Connect(fecharFicha)

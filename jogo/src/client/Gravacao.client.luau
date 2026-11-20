@@ -14,18 +14,20 @@ local evAviso = remotes:WaitForChild("Aviso")
 local player = Players.LocalPlayer
 local G = Config.Gravacao
 
+-- (cores e fontes vêm do EstiloUI, a linguagem visual do jogo)
+local E = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("EstiloUI"))
 local COR = {
-	fundo = Color3.fromRGB(22, 18, 44),
-	painel = Color3.fromRGB(40, 32, 80),
-	borda = Color3.fromRGB(14, 8, 28),
-	dourado = Color3.fromRGB(255, 206, 72),
-	texto = Color3.new(1, 1, 1),
-	fraco = Color3.fromRGB(190, 182, 235),
-	tinta = Color3.fromRGB(255, 84, 160),
-	vermelho = Color3.fromRGB(245, 60, 80),
+	fundo = E.cor.painel,
+	painel = E.cor.painelClaro,
+	borda = E.cor.tinta,
+	dourado = E.cor.ouro,
+	texto = E.cor.papel,
+	fraco = E.cor.papelFraco,
+	tinta = E.cor.sakura,
+	vermelho = E.cor.sakura,
 }
-local FONTE = Enum.Font.FredokaOne
-local FONTE_TEXTO = Enum.Font.GothamMedium
+local FONTE = E.fonteTitulo
+local FONTE_TEXTO = E.fonteTexto
 local POP = TweenInfo.new(0.12, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
 local VOLTA = TweenInfo.new(0.22, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
 local ABRIR = TweenInfo.new(0.25, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
@@ -73,7 +75,9 @@ local function botao(pai, props)
 		b[k] = v
 	end
 	canto(b, 10)
-	contorno(b, COR.borda, 2)
+	contorno(b, COR.borda, 2.5)
+	E.bala(b)
+	E.ligarEstados(b)
 	return b
 end
 
@@ -145,13 +149,10 @@ rotulo(faixa, {
 	TextXAlignment = Enum.TextXAlignment.Left,
 	ZIndex = 3,
 })
-local fechar = botao(janela, {
+local fechar = E.fechar(janela, {
 	AnchorPoint = Vector2.new(1, 0),
 	Position = UDim2.new(1, -10, 0, 12),
 	Size = UDim2.fromOffset(36, 36),
-	Text = "✕",
-	TextSize = 18,
-	BackgroundColor3 = COR.vermelho,
 	ZIndex = 4,
 })
 
@@ -327,9 +328,18 @@ local function abrir(id)
 	desenhar()
 end
 local function fecharJanela()
-	veu.Visible = false
 	itemId = nil
 	player:SetAttribute("ItemGravar", nil)
+	-- encolhe um pouco e some
+	local t = TweenService:Create(escala, TweenInfo.new(0.14, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+		Scale = 0.88,
+	})
+	t:Play()
+	t.Completed:Connect(function()
+		if itemId == nil then
+			veu.Visible = false
+		end
+	end)
 end
 fechar.Activated:Connect(fecharJanela)
 veu.Activated:Connect(fecharJanela)
