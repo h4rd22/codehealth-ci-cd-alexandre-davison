@@ -104,7 +104,7 @@ local function oval3(
 end
 
 -- Rosto fofo: olhões com brilho, bochechas e boquinha (fica de fora da cor da mutação)
-local function rosto(modelo: Model, corpo: BasePart, e: number)
+local function rosto(modelo: Model, corpo: BasePart, e: number, iris: Color3?)
 	local z = -corpo.Size.Z / 2
 	for _, lado in { -1, 1 } do
 		local branco = oval3(
@@ -118,7 +118,7 @@ local function rosto(modelo: Model, corpo: BasePart, e: number)
 		local pupila = oval3(
 			modelo,
 			corpo,
-			Color3.fromRGB(30, 22, 50),
+			if iris then iris:Lerp(Color3.new(0, 0, 0), 0.45) else Color3.fromRGB(30, 22, 50),
 			Vector3.new(0.52, 0.68, 0.3) * e,
 			Vector3.new(0.6 * lado * e, 0.36 * e, z + 0.02 * e)
 		)
@@ -160,6 +160,77 @@ local function rosto(modelo: Model, corpo: BasePart, e: number)
 	lingua.Name = "Rosto"
 end
 
+-- Enfeites que mostram a raridade de longe:
+-- Épico ganha asinhas, Lendário coroa, Mítico auréola e asas que brilham, Secreto tudo isso.
+local function enfeites(modelo: Model, corpo: BasePart, e: number, nivel: number, cor: Color3)
+	if nivel >= 3 then
+		local grande = nivel >= 5
+		for _, lado in { -1, 1 } do
+			local asa = oval3(
+				modelo,
+				corpo,
+				if grande then cor:Lerp(Color3.new(1, 1, 1), 0.35) else Color3.fromRGB(250, 250, 255),
+				Vector3.new(0.25, if grande then 2 else 1.4, if grande then 1.5 else 1.05) * e,
+				Vector3.new(1.05 * lado, 0.45, 1.2) * e,
+				if grande then Enum.Material.Neon else Enum.Material.SmoothPlastic,
+				CFrame.Angles(math.rad(-20), math.rad(35 * lado), math.rad(-30 * lado))
+			)
+			asa.Name = "Enfeite"
+			asa.Transparency = if grande then 0.3 else 0.05
+		end
+	end
+	if nivel == 4 or nivel == 6 then
+		-- coroa dourada torta, na frente da fantasia
+		local ouro = Color3.fromRGB(255, 200, 40)
+		local base = Instance.new("Part")
+		base.Name = "Enfeite"
+		base.Shape = Enum.PartType.Cylinder
+		base.Size = Vector3.new(0.35, 1.2, 1.2) * e
+		base.Color = ouro
+		base.Material = Enum.Material.Foil
+		base.CanCollide = false
+		base.CanTouch = false
+		base.Massless = true
+		local inclina = CFrame.Angles(math.rad(-12), 0, math.rad(14))
+		base.CFrame = corpo.CFrame
+			* CFrame.new(-0.45 * e, 1.42 * e, -0.55 * e)
+			* inclina
+			* CFrame.Angles(0, 0, math.pi / 2)
+		base.Parent = modelo
+		soldar(corpo, base)
+		for i = 0, 4 do
+			local a = i / 5 * math.pi * 2
+			local ponta = oval3(
+				modelo,
+				corpo,
+				ouro,
+				Vector3.new(0.2, 0.32, 0.2) * e,
+				Vector3.zero,
+				Enum.Material.Neon,
+				CFrame.new(-0.45 * e, 1.42 * e, -0.55 * e)
+					* inclina
+					* CFrame.new(math.cos(a) * 0.5 * e, 0.3 * e, math.sin(a) * 0.5 * e)
+			)
+			ponta.Name = "Enfeite"
+		end
+	end
+	if nivel >= 5 then
+		-- auréola de bolinhas brilhando bem em cima
+		for i = 0, 11 do
+			local a = i / 12 * math.pi * 2
+			oval3(
+				modelo,
+				corpo,
+				Color3.fromRGB(255, 245, 170),
+				Vector3.new(0.3, 0.3, 0.3) * e,
+				Vector3.new(math.cos(a) * 0.95, 2.75, math.sin(a) * 0.95 + 0.2) * e,
+				Enum.Material.Neon
+			).Name =
+				"Enfeite"
+		end
+	end
+end
+
 -- Cria o modelo de uma Mistureba: um bichinho gordinho e redondo da cor dela,
 -- com barriga, pezinhos e bracinhos, usando as peças da fantasia (Config) por cima.
 -- O corpo é a PrimaryPart e fica ancorado.
@@ -191,11 +262,44 @@ function Criaturas.modelo(id: string): Model
 	modelo.PrimaryPart = corpo
 
 	local clara = cor:Lerp(Color3.new(1, 1, 1), 0.55)
-	local escura = cor:Lerp(Color3.new(0, 0, 0), 0.25)
+	-- segunda cor: a da primeira peça da fantasia que for bem diferente do corpo (dá contraste)
+	local segunda = cor:Lerp(Color3.new(0, 0, 0), 0.3)
+	for _, extra in def.extras do
+		local d = math.abs(extra.cor.R - cor.R) + math.abs(extra.cor.G - cor.G) + math.abs(extra.cor.B - cor.B)
+		if d > 0.45 then
+			segunda = extra.cor
+			break
+		end
+	end
 	oval3(modelo, corpo, clara, Vector3.new(2.1, 1.7, 0.7) * e, Vector3.new(0, -0.45, -1.2) * e).Name = "Barriga"
+	oval3(modelo, corpo, segunda, Vector3.new(0.8, 0.8, 0.8) * e, Vector3.new(0, -0.7, 1.45) * e).Name = "Rabo"
+	local nivel = table.find(Config.OrdemRaridades, def.raridade) or 1
 	for _, lado in { -1, 1 } do
-		oval3(modelo, corpo, escura, Vector3.new(1.1, 0.6, 1.4) * e, Vector3.new(0.8 * lado, -1.45, -0.25) * e).Name =
+		oval3(modelo, corpo, segunda, Vector3.new(1.1, 0.6, 1.4) * e, Vector3.new(0.8 * lado, -1.45, -0.25) * e).Name =
 			"Pe"
+		if nivel >= 2 then
+			-- orelhinhas a partir de Raro
+			oval3(
+				modelo,
+				corpo,
+				cor,
+				Vector3.new(0.65, 1, 0.45) * e,
+				Vector3.new(0.95 * lado, 1.2, 0.1) * e,
+				nil,
+				CFrame.Angles(0, 0, math.rad(-28 * lado))
+			).Name =
+				"Orelha"
+			oval3(
+				modelo,
+				corpo,
+				segunda,
+				Vector3.new(0.38, 0.6, 0.3) * e,
+				Vector3.new(0.97 * lado, 1.2, -0.06) * e,
+				nil,
+				CFrame.Angles(0, 0, math.rad(-28 * lado))
+			).Name =
+				"Orelha"
+		end
 		oval3(
 			modelo,
 			corpo,
@@ -279,7 +383,8 @@ function Criaturas.modelo(id: string): Model
 		aura.Parent = corpo
 	end
 
-	rosto(modelo, corpo, e)
+	rosto(modelo, corpo, e, if nivel >= 3 then raridade.cor else nil)
+	enfeites(modelo, corpo, e, nivel, raridade.cor)
 
 	if def.raridade ~= "comum" then
 		local brilho = Instance.new("PointLight")
