@@ -440,14 +440,15 @@ local function darCriatura(jogador: Player, id: string, mostrar: boolean): boole
 end
 
 -- comMutacao: ovos chocados podem nascer Dourada, Diamante ou Arco-íris.
-local function sortearCriatura(raridade: string, comMutacao: boolean?, dono: Player?): string
+-- semPocao: a fusão não gasta a Poção (ela é só para ovos chocados)
+local function sortearCriatura(raridade: string, comMutacao: boolean?, dono: Player?, semPocao: boolean?): string
 	local lista = Util.criaturasDaRaridade(raridade)
 	local id = lista[rng:NextInteger(1, #lista)].id
 	if comMutacao then
 		local mult = if dono and Loja.tem(dono, "sortedupla") then Config.SorteDuplaMutacao else 1
 		local perfilDono = dono and Dados.obter(dono)
 		mult *= 1 + Util.efeitoUpgrade(perfilDono and perfilDono.upgrades, "sorte")
-		if perfilDono and perfilDono.pocoes > 0 and dono then
+		if perfilDono and perfilDono.pocoes > 0 and dono and not semPocao then
 			perfilDono.pocoes -= 1
 			mult *= Config.PocaoMultiplicador
 			local estadoDono = estados[dono]
@@ -1187,6 +1188,11 @@ evFundir.OnServerEvent:Connect(function(jogador, vagaA, vagaB)
 		end
 		resultado = sortearCriatura(proxima)
 	end
+	local custo = Config.CustoFusao[raridadeCusto] or 0
+	if perfil.moedas < custo then
+		aviso(jogador, "A fusão custa " .. Util.numero(custo) .. " moedas.")
+		return
+	end
 	-- mutação na fusão: cada mutação das duas tem chance de passar;
 	-- se nenhuma passar, ainda pode nascer uma mutação nova (como um ovo)
 	local herdada: string? = nil
@@ -1209,17 +1215,12 @@ evFundir.OnServerEvent:Connect(function(jogador, vagaA, vagaB)
 	if herdada then
 		resultado = baseResultado .. "*" .. herdada
 	else
-		resultado = sortearCriatura(Config.PorId[baseResultado].raridade, true, jogador)
+		resultado = sortearCriatura(Config.PorId[baseResultado].raridade, true, jogador, true)
 		if Util.receita(idA, idB) then
 			-- receita sempre dá a Mistureba da receita; só a mutação é sorteada
 			local mutNova = Config.PorId[resultado :: string].mutacao
 			resultado = if mutNova then baseResultado .. "*" .. mutNova else baseResultado
 		end
-	end
-	local custo = Config.CustoFusao[raridadeCusto] or 0
-	if perfil.moedas < custo then
-		aviso(jogador, "A fusão custa " .. Util.numero(custo) .. " moedas.")
-		return
 	end
 	perfil.moedas -= custo
 	perfil.criaturas[vagaB] = nil
@@ -1829,7 +1830,13 @@ RunService.Heartbeat:Connect(function(dt)
 		proximoClima = agora() + Config.Climas.intervalo
 		evClima:FireAllClients(nil, 0, proximoClima)
 		if fim then
-			evAnuncio:FireAllClients(fim.nome .. " acabou! O próximo clima vem em 15 minutos.", fim.cor)
+			evAnuncio:FireAllClients(
+				fim.nome
+					.. " acabou! O próximo clima vem em "
+					.. math.floor(Config.Climas.intervalo / 60)
+					.. " minutos.",
+				fim.cor
+			)
 		end
 	elseif not climaAtual and agora() >= proximoClima then
 		local total = 0
