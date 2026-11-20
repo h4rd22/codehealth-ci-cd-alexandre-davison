@@ -52,28 +52,6 @@ local function soldar(a: BasePart, b: BasePart)
 	solda.Parent = b
 end
 
-local function olho(corpo: BasePart, lado: number, escala: number)
-	local branco = Instance.new("Part")
-	branco.Shape = Enum.PartType.Ball
-	branco.Size = Vector3.new(0.7, 0.7, 0.7) * escala
-	branco.Color = Color3.new(1, 1, 1)
-	branco.Material = Enum.Material.SmoothPlastic
-	branco.CanCollide = false
-	branco.CanTouch = false
-	branco.Massless = true
-	local frente = corpo.Size.Z / 2
-	branco.CFrame = corpo.CFrame * CFrame.new(0.45 * lado * escala, corpo.Size.Y * 0.2, -frente + 0.1)
-	branco.Parent = corpo.Parent
-	soldar(corpo, branco)
-
-	local pupila = branco:Clone()
-	pupila.Size = branco.Size * 0.5
-	pupila.Color = Color3.new(0.05, 0.05, 0.08)
-	pupila.CFrame = branco.CFrame * CFrame.new(0, 0, -branco.Size.Z * 0.35)
-	pupila.Parent = corpo.Parent
-	soldar(corpo, pupila)
-end
-
 local function placa(alvo: BasePart, linhas: { { texto: string, cor: Color3, tamanho: number } }, altura: number)
 	local gui = Instance.new("BillboardGui")
 	gui.Name = "Placa"
@@ -99,31 +77,168 @@ local function placa(alvo: BasePart, linhas: { { texto: string, cor: Color3, tam
 	gui.Parent = alvo
 end
 
--- Cria o modelo de uma Mistureba. O corpo é a PrimaryPart e fica ancorado.
+-- Pecinha redonda (oval) presa no corpo. pos/tam já em studs (sem escala).
+local function oval3(
+	pai: Instance,
+	corpo: BasePart,
+	cor: Color3,
+	tam: Vector3,
+	pos: Vector3,
+	material: Enum.Material?,
+	rot: CFrame?
+): BasePart
+	local p = Instance.new("Part")
+	oval(p)
+	p.Size = tam
+	p.Color = cor
+	p.Material = material or Enum.Material.SmoothPlastic
+	p.CanCollide = false
+	p.CanTouch = false
+	p.CanQuery = true
+	p.Massless = true
+	p.CastShadow = false
+	p.CFrame = corpo.CFrame * CFrame.new(pos) * (rot or CFrame.identity)
+	p.Parent = pai
+	soldar(corpo, p)
+	return p
+end
+
+-- Rosto fofo: olhões com brilho, bochechas e boquinha (fica de fora da cor da mutação)
+local function rosto(modelo: Model, corpo: BasePart, e: number)
+	local z = -corpo.Size.Z / 2
+	for _, lado in { -1, 1 } do
+		local branco = oval3(
+			modelo,
+			corpo,
+			Color3.new(1, 1, 1),
+			Vector3.new(0.85, 1.05, 0.45) * e,
+			Vector3.new(0.62 * lado * e, 0.42 * e, z + 0.22 * e)
+		)
+		branco.Name = "Rosto"
+		local pupila = oval3(
+			modelo,
+			corpo,
+			Color3.fromRGB(30, 22, 50),
+			Vector3.new(0.52, 0.68, 0.3) * e,
+			Vector3.new(0.6 * lado * e, 0.36 * e, z + 0.02 * e)
+		)
+		pupila.Name = "Rosto"
+		local brilho = oval3(
+			modelo,
+			corpo,
+			Color3.new(1, 1, 1),
+			Vector3.new(0.2, 0.22, 0.12) * e,
+			Vector3.new((0.52 * lado + 0.08) * e, 0.56 * e, z - 0.17 * e),
+			Enum.Material.Neon
+		)
+		brilho.Name = "Rosto"
+		local bochecha = oval3(
+			modelo,
+			corpo,
+			Color3.fromRGB(255, 130, 170),
+			Vector3.new(0.55, 0.3, 0.2) * e,
+			Vector3.new(1.08 * lado * e, -0.05 * e, z + 0.38 * e)
+		)
+		bochecha.Name = "Rosto"
+		bochecha.Transparency = 0.15
+	end
+	local boca = oval3(
+		modelo,
+		corpo,
+		Color3.fromRGB(70, 20, 40),
+		Vector3.new(0.55, 0.32, 0.2) * e,
+		Vector3.new(0, -0.18 * e, z - 0.05 * e)
+	)
+	boca.Name = "Rosto"
+	local lingua = oval3(
+		modelo,
+		corpo,
+		Color3.fromRGB(255, 110, 130),
+		Vector3.new(0.32, 0.14, 0.12) * e,
+		Vector3.new(0, -0.26 * e, z - 0.11 * e)
+	)
+	lingua.Name = "Rosto"
+end
+
+-- Cria o modelo de uma Mistureba: um bichinho gordinho e redondo da cor dela,
+-- com barriga, pezinhos e bracinhos, usando as peças da fantasia (Config) por cima.
+-- O corpo é a PrimaryPart e fica ancorado.
 function Criaturas.modelo(id: string): Model
 	local def = Config.PorId[id]
 	assert(def, "Mistureba desconhecida: " .. tostring(id))
 	local raridade = Config.Raridades[def.raridade]
 	local escala = raridade.tamanho
+	local e = escala
 
 	local modelo = Instance.new("Model")
 	modelo.Name = def.nome
 	modelo:SetAttribute("Criatura", id)
 
-	local corpo = peca(def.corpo, escala)
+	local cor = def.corpo.cor
+	local corpo = Instance.new("Part")
+	oval(corpo)
 	corpo.Name = "Corpo"
+	corpo.Size = Vector3.new(3.2, 2.9, 3) * e
+	corpo.Color = cor
+	corpo.Material = Enum.Material.SmoothPlastic
+	corpo.Reflectance = 0.04
+	corpo.CanCollide = false
+	corpo.CanTouch = false
+	corpo.CanQuery = true
 	corpo.Anchored = true
 	corpo.CFrame = CFrame.new()
 	corpo.Parent = modelo
 	modelo.PrimaryPart = corpo
 
+	local clara = cor:Lerp(Color3.new(1, 1, 1), 0.55)
+	local escura = cor:Lerp(Color3.new(0, 0, 0), 0.25)
+	oval3(modelo, corpo, clara, Vector3.new(2.1, 1.7, 0.7) * e, Vector3.new(0, -0.45, -1.2) * e).Name = "Barriga"
+	for _, lado in { -1, 1 } do
+		oval3(modelo, corpo, escura, Vector3.new(1.1, 0.6, 1.4) * e, Vector3.new(0.8 * lado, -1.45, -0.25) * e).Name =
+			"Pe"
+		oval3(
+			modelo,
+			corpo,
+			cor,
+			Vector3.new(0.6, 1.1, 0.6) * e,
+			Vector3.new(1.55 * lado, -0.25, -0.3) * e,
+			nil,
+			CFrame.Angles(0, 0, math.rad(25 * lado))
+		).Name =
+			"Braco"
+	end
+
+	-- fantasia: as peças que dão a cara de cada Mistureba, um pouco menores e em cima do corpo
+	local peca0 = peca(def.corpo, escala * 0.7)
+	peca0.Name = "Fantasia"
+	peca0.CFrame = corpo.CFrame * CFrame.new(0, 1.15 * e, 0.35 * e)
+	peca0.Parent = modelo
+	soldar(corpo, peca0)
 	for i, extra in def.extras do
-		local p = peca(extra, escala)
+		local p = peca(extra, escala * 0.8)
 		p.Name = "Extra" .. i
-		p.CFrame = corpo.CFrame * CFrame.new((extra.posicao or Vector3.zero) * escala)
+		local pos = (extra.posicao or Vector3.zero) * escala * 0.8
+		p.CFrame = corpo.CFrame * CFrame.new(pos + Vector3.new(0, 1.15 * e, 0.35 * e))
 		p.Parent = modelo
 		soldar(corpo, p)
 	end
+
+	-- aro brilhante da cor da raridade embaixo dos pés
+	local aro = Instance.new("Part")
+	aro.Name = "Aro"
+	aro.Shape = Enum.PartType.Cylinder
+	aro.Size = Vector3.new(0.12, 4.2 * e, 4.2 * e)
+	aro.Color = raridade.cor
+	aro.Material = Enum.Material.Neon
+	aro.Transparency = 0.35
+	aro.CanCollide = false
+	aro.CanTouch = false
+	aro.CanQuery = false
+	aro.Massless = true
+	aro.CastShadow = false
+	aro.CFrame = corpo.CFrame * CFrame.new(0, -1.72 * e, 0) * CFrame.Angles(0, 0, math.rad(90))
+	aro.Parent = modelo
+	soldar(corpo, aro)
 
 	-- mutação: muda a cor/material de todas as peças do corpo (antes dos olhos)
 	local mut = def.mutacao and Config.MutacaoPorId[def.mutacao]
@@ -138,7 +253,7 @@ function Criaturas.modelo(id: string): Model
 		}
 		local i = 0
 		for _, parte in modelo:GetDescendants() do
-			if parte:IsA("BasePart") then
+			if parte:IsA("BasePart") and parte.Name ~= "Aro" then
 				i += 1
 				parte.Material = (Enum.Material :: any)[mut.material]
 				if mut.id == "arcoiris" then
@@ -164,8 +279,7 @@ function Criaturas.modelo(id: string): Model
 		aura.Parent = corpo
 	end
 
-	olho(corpo, 1, escala)
-	olho(corpo, -1, escala)
+	rosto(modelo, corpo, e)
 
 	if def.raridade ~= "comum" then
 		local brilho = Instance.new("PointLight")
@@ -185,7 +299,7 @@ function Criaturas.modelo(id: string): Model
 		brilhinhos.Parent = corpo
 	end
 
-	local alturaPlaca = corpo.Size.Y / 2 + 2.5 * escala
+	local alturaPlaca = corpo.Size.Y / 2 + 3.2 * escala
 	placa(corpo, {
 		{ texto = def.nome, cor = Color3.new(1, 1, 1), tamanho = 26 },
 		{

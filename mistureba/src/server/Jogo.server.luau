@@ -4,6 +4,7 @@
 -- O servidor decide tudo; a tela só pede e mostra.
 
 local Debris = game:GetService("Debris")
+local TweenService = game:GetService("TweenService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -63,6 +64,7 @@ type Estado = {
 	segundosJogados: number,
 	ultimoTapa: number, -- última bolha lançada
 	presoAte: number, -- preso numa bolha até este os.clock()
+	imuneAte: number, -- depois da bolha fica livre de outra por um tempinho
 	ultimoPedido: { [string]: number },
 	modelos: { [string]: Model }, -- vaga -> modelo na base
 	visual: Instance?, -- o que aparece em cima da cabeça
@@ -413,7 +415,9 @@ local function atualizarCarga(jogador: Player)
 	local cabeca = jogador.Character and jogador.Character:FindFirstChild("Head") :: BasePart?
 	local carregando = #estado.ovos > 0 or estado.roubo ~= nil
 	if hum then
-		if os.clock() < estado.presoAte then
+		local preso = os.clock() < estado.presoAte
+		hum.JumpHeight = if preso then 0 else 7.2
+		if preso then
 			hum.WalkSpeed = 0
 		else
 			local base = if carregando then Config.Jogador.velocidadeCarregando else Config.Jogador.velocidade
@@ -899,6 +903,7 @@ local function entrar(jogador: Player)
 		segundosJogados = 0,
 		ultimoTapa = 0,
 		presoAte = 0,
+		imuneAte = 0,
 		ultimoPedido = {},
 		modelos = {},
 		visual = nil,
@@ -1175,6 +1180,30 @@ evSoltar.OnServerEvent:Connect(function(jogador)
 	end
 end)
 
+-- Onda de bolha que sai de quem apertou F (todo mundo vê, mesmo sem acertar ninguém)
+local function ondaBolha(centro: Vector3)
+	local onda = Instance.new("Part")
+	onda.Name = "OndaBolha"
+	onda.Shape = Enum.PartType.Ball
+	onda.Size = Vector3.new(2, 2, 2)
+	onda.Material = Enum.Material.Glass
+	onda.Color = Color3.fromRGB(150, 210, 255)
+	onda.Transparency = 0.5
+	onda.Anchored = true
+	onda.CanCollide = false
+	onda.CanQuery = false
+	onda.CanTouch = false
+	onda.CastShadow = false
+	onda.CFrame = CFrame.new(centro)
+	onda.Parent = workspace
+	local alcance = Config.Jogador.alcanceTapa * 2
+	TweenService:Create(onda, TweenInfo.new(0.35, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+		Size = Vector3.new(alcance, alcance, alcance),
+		Transparency = 1,
+	}):Play()
+	Debris:AddItem(onda, 0.4)
+end
+
 evTapa.OnServerEvent:Connect(function(jogador)
 	local estado = estados[jogador]
 	local r = raiz(jogador)
@@ -1182,16 +1211,17 @@ evTapa.OnServerEvent:Connect(function(jogador)
 		return
 	end
 	local t = os.clock()
-	if t - estado.ultimoTapa < Config.Jogador.esperaTapa then
+	if t - estado.ultimoTapa < Config.Jogador.esperaTapa or t < estado.presoAte then
 		return
 	end
 	estado.ultimoTapa = t
-	-- acha o jogador mais perto na frente
+	ondaBolha(r.Position)
+	-- acha o jogador mais perto (quem acabou de sair de uma bolha fica livre por um tempinho)
 	local alvo: Player? = nil
 	local melhor = Config.Jogador.alcanceTapa
-	for outro in estados do
+	for outro, estadoOutro in estados do
 		local ro = raiz(outro)
-		if outro ~= jogador and ro then
+		if outro ~= jogador and ro and t >= estadoOutro.imuneAte then
 			local d = (ro.Position - r.Position).Magnitude
 			if d < melhor then
 				melhor = d
@@ -1200,13 +1230,15 @@ evTapa.OnServerEvent:Connect(function(jogador)
 		end
 	end
 	if not alvo then
+		aviso(jogador, "Ninguém perto o bastante para prender na bolha.", Color3.fromRGB(150, 210, 255))
 		return
 	end
 	-- bolha: prende o alvo por um instante (sem empurrar nem machucar)
 	local estadoAlvo = estados[alvo]
 	local ra = raiz(alvo)
 	if estadoAlvo and ra then
-		estadoAlvo.presoAte = os.clock() + Config.Jogador.tempoNaBolha
+		estadoAlvo.presoAte = t + Config.Jogador.tempoNaBolha
+		estadoAlvo.imuneAte = estadoAlvo.presoAte + Config.Jogador.imuneDepoisDaBolha
 		local bolha = Instance.new("Part")
 		bolha.Name = "Bolha"
 		bolha.Shape = Enum.PartType.Ball
@@ -1218,6 +1250,7 @@ evTapa.OnServerEvent:Connect(function(jogador)
 		bolha.CanCollide = false
 		bolha.CanQuery = false
 		bolha.CanTouch = false
+		bolha.CastShadow = false
 		bolha.Massless = true
 		bolha.CFrame = ra.CFrame
 		local solda = Instance.new("WeldConstraint")
@@ -1238,6 +1271,9 @@ evTapa.OnServerEvent:Connect(function(jogador)
 		aviso(alvo, jogador.DisplayName .. " te prendeu numa bolha e você soltou tudo!", Color3.fromRGB(150, 210, 255))
 		aviso(jogador, "BOLHA! " .. alvo.DisplayName .. " soltou o que carregava.", Color3.fromRGB(120, 255, 120))
 		progredir(jogador, "bolhas", 1)
+	else
+		aviso(alvo, jogador.DisplayName .. " te prendeu numa bolha!", Color3.fromRGB(150, 210, 255))
+		aviso(jogador, "Você prendeu " .. alvo.DisplayName .. " numa bolha!", Color3.fromRGB(150, 210, 255))
 	end
 end)
 

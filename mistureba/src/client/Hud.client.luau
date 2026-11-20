@@ -1098,8 +1098,23 @@ botaoMissoes.MouseButton1Click:Connect(function()
 	abrir(painelMissoes)
 end)
 
+local bolhaPronta = true
 local function tapa()
+	if not bolhaPronta then
+		return
+	end
+	bolhaPronta = false
 	ev("Tapa"):FireServer()
+	local espera = Config.Jogador.esperaTapa
+	botaoTapa.BackgroundColor3 = Color3.fromRGB(110, 110, 120)
+	local escala = botaoTapa:FindFirstChildOfClass("UIScale") or Instance.new("UIScale")
+	escala.Parent = botaoTapa
+	escala.Scale = 0.85
+	TweenService:Create(escala, TweenInfo.new(0.25, Enum.EasingStyle.Back), { Scale = 1 }):Play()
+	task.delay(espera, function()
+		bolhaPronta = true
+		botaoTapa.BackgroundColor3 = Color3.fromRGB(90, 170, 255)
+	end)
 end
 botaoTapa.MouseButton1Click:Connect(tapa)
 botaoTrancar.MouseButton1Click:Connect(function()
