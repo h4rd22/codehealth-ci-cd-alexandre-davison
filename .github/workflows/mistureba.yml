@@ -1,0 +1,40 @@
+name: Qualidade do código do Mistureba
+
+on:
+  push:
+    paths:
+      - "mistureba/**"
+      - ".github/workflows/mistureba.yml"
+  pull_request:
+    paths:
+      - "mistureba/**"
+      - ".github/workflows/mistureba.yml"
+
+jobs:
+  verificar:
+    name: Formatação, lint e build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mistureba
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Instalar Rokit
+        run: |
+          curl -sSf https://raw.githubusercontent.com/rojo-rbx/rokit/main/scripts/install.sh | bash
+          echo "$HOME/.rokit/bin" >> "$GITHUB_PATH"
+
+      - name: Instalar ferramentas (Rojo, Selene, StyLua)
+        run: rokit install --no-trust-check
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Formatação (StyLua)
+        run: stylua --check src
+
+      - name: Lint (Selene)
+        run: selene src
+
+      - name: Montar o jogo (Rojo)
+        run: rojo build -o mistureba.rbxl

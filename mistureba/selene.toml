@@ -1,0 +1,8 @@
+std = "roblox"
+
+exclude = ["Packages/*", "ServerPackages/*", "DevPackages/*"]
+
+[lints]
+# Erros que quebram o jogo ficam como erro; o resto como aviso.
+shadowing = "warn"
+unused_variable = "warn"
