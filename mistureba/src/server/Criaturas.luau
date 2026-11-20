@@ -223,7 +223,7 @@ local function enfeites(modelo: Model, corpo: BasePart, e: number, nivel: number
 	local temCoroa = nivel == 4 or nivel == 6
 	if nivel >= 5 then
 		for _, lado in { -1, 1 } do
-			asa(modelo, corpo, e, lado, 4, 2.7, cor:Lerp(Color3.new(1, 1, 1), 0.45), Enum.Material.Neon, 0.25)
+			asa(modelo, corpo, e, lado, 4, 2.7, cor:Lerp(Color3.new(1, 1, 1), 0.25), Enum.Material.Neon, 0.4)
 		end
 	elseif nivel >= 3 then
 		for _, lado in { -1, 1 } do
