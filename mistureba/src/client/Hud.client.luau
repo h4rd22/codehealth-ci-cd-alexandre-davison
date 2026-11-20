@@ -744,12 +744,6 @@ local function itemLoja(
 	end)
 end
 
-rotulo(rolagemLoja, {
-	Size = UDim2.new(1, -12, 0, 26),
-	LayoutOrder = 0,
-	Text = "Peça permissão a um adulto antes de comprar com Robux.",
-	TextColor3 = COR_AMARELO,
-})
 local ordemLoja = 1
 for _, chave in { "vip", "mochila", "cadeado", "basegrande" } do
 	local p = Config.Gamepasses[chave]

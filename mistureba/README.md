@@ -25,7 +25,6 @@ Jogo original de pegar, fundir e roubar criaturas. Ovos de cristal caem no meio 
 - Nada abre sozinho na tela. A loja só aparece quando o jogador clica.
 - Todo ovo com sorte (inclusive o pago) mostra as chances antes da compra, como o Roblox exige.
 - Sem "oferta acaba em 5 minutos" e sem compra de pânico. O cadeado é de graça para todo mundo.
-- A loja lembra: "Peça permissão a um adulto antes de comprar com Robux."
 
 | Item | Tipo | Robux |
 |---|---|---|
