@@ -77,7 +77,7 @@ end
 local function placa(alvo: BasePart, linhas: { { texto: string, cor: Color3, tamanho: number } }, altura: number)
 	local gui = Instance.new("BillboardGui")
 	gui.Name = "Placa"
-	gui.Size = UDim2.fromOffset(220, 26 * #linhas)
+	gui.Size = UDim2.fromScale(8, 1.1 * #linhas) -- em studs: diminui com a distância
 	gui.StudsOffsetWorldSpace = Vector3.new(0, altura, 0)
 	gui.AlwaysOnTop = false
 	gui.MaxDistance = 90
@@ -87,14 +87,13 @@ local function placa(alvo: BasePart, linhas: { { texto: string, cor: Color3, tam
 	for i, linha in linhas do
 		local rotulo = Instance.new("TextLabel")
 		rotulo.LayoutOrder = i
-		rotulo.Size = UDim2.new(1, 0, 0, 26)
 		rotulo.BackgroundTransparency = 1
 		rotulo.Font = Enum.Font.FredokaOne
 		rotulo.TextScaled = true
 		rotulo.Text = linha.texto
 		rotulo.TextColor3 = linha.cor
 		rotulo.TextStrokeTransparency = 0.2
-		rotulo.Size = UDim2.new(1, 0, 0, linha.tamanho)
+		rotulo.Size = UDim2.fromScale(1, linha.tamanho / 26 / #linhas)
 		rotulo.Parent = gui
 	end
 	gui.Parent = alvo

@@ -131,7 +131,7 @@ local function criarBase(indice: number, pasta: Folder): Base
 		Material = Enum.Material.Neon,
 		Parent = modelo,
 	})
-	texto(botao, "CADEADO", Color3.new(1, 1, 1), UDim2.fromOffset(120, 30), Vector3.new(0, 2.5, 0))
+	texto(botao, "CADEADO", Color3.new(1, 1, 1), UDim2.fromScale(6, 1.5), Vector3.new(0, 2.5, 0))
 
 	-- vagas: 5 colunas x 4 linhas, do fundo para a frente
 	local vagas = {}
@@ -169,7 +169,7 @@ local function criarBase(indice: number, pasta: Folder): Base
 		CFrame = centro * CFrame.new(0, alturaParede + 6, fundo / 2),
 		Parent = modelo,
 	})
-	local placa = texto(suporte, "Base livre", Color3.new(1, 1, 1), UDim2.fromOffset(400, 60), Vector3.zero)
+	local placa = texto(suporte, "Base livre", Color3.new(1, 1, 1), UDim2.fromScale(28, 5), Vector3.zero)
 
 	modelo.PrimaryPart = modelo:FindFirstChild("Chao") :: BasePart
 	modelo.Parent = pasta
@@ -197,9 +197,11 @@ function Mapa.construir(): { Base }
 	if antigo then
 		antigo:Destroy()
 	end
-	local baseplate = workspace:FindFirstChild("Baseplate")
-	if baseplate then
-		baseplate:Destroy()
+	-- tira a placa de base e os pontos de nascer do modelo padrão do Studio
+	for _, obj in workspace:GetChildren() do
+		if obj.Name == "Baseplate" or obj:IsA("SpawnLocation") then
+			obj:Destroy()
+		end
 	end
 
 	local pasta = Instance.new("Folder")
@@ -232,7 +234,7 @@ function Mapa.construir(): { Base }
 		CFrame = CFrame.new(0, 28, 0),
 		Parent = pasta,
 	})
-	texto(placaCampo, "CHUVA DE OVOS", Color3.fromRGB(255, 240, 120), UDim2.fromOffset(500, 80), Vector3.zero)
+	texto(placaCampo, "CHUVA DE OVOS", Color3.fromRGB(255, 240, 120), UDim2.fromScale(44, 7), Vector3.zero)
 	campo:SetAttribute("Raio", Mapa.RAIO_CAMPO)
 
 	local spawn = Instance.new("SpawnLocation")

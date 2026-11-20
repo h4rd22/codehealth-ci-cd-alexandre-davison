@@ -358,7 +358,8 @@ local function ovoNoChao(raridade: string, posicao: Vector3, caindo: boolean)
 	ovo.CFrame = CFrame.new(posicao + Vector3.new(0, ovo.Size.Y / 2 + 0.3, 0))
 	if caindo then
 		ovo.CFrame += Vector3.new(0, 60, 0)
-		task.spawn(function()
+		-- defer: a animação começa depois do ovo entrar no mapa (logo abaixo)
+		task.defer(function()
 			local inicio = os.clock()
 			local de = ovo.CFrame
 			local para = CFrame.new(posicao + Vector3.new(0, ovo.Size.Y / 2 + 0.3, 0))
