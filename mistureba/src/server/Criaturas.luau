@@ -112,13 +112,8 @@ local function rosto(modelo: Model, corpo: BasePart, e: number, iris: Color3)
 	local escuro = iris:Lerp(Color3.fromRGB(20, 14, 40), 0.78)
 	for _, lado in { -1, 1 } do
 		local x = 0.64 * lado
-		local olho = oval3(
-			modelo,
-			corpo,
-			escuro,
-			Vector3.new(0.92, 1.18, 0.45) * e,
-			Vector3.new(x * e, 0.36 * e, z + 0.2 * e)
-		)
+		local olho =
+			oval3(modelo, corpo, escuro, Vector3.new(0.92, 1.18, 0.45) * e, Vector3.new(x * e, 0.36 * e, z + 0.2 * e))
 		olho.Name = "Olho"
 		olho.Reflectance = 0.15
 		-- íris colorida na metade de baixo do olho (dá profundidade)
