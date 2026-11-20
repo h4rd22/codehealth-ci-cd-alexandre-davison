@@ -244,7 +244,7 @@ local function revelar(id: string)
 	camera.FieldOfView = 40
 	camera.Parent = vp
 	vp.CurrentCamera = camera
-	local distancia = raio / math.tan(math.rad(20)) * 1.05
+	local distancia = raio / math.tan(math.rad(20)) * 0.7
 
 	-- título
 	local titulo = Instance.new("TextLabel")

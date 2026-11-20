@@ -207,7 +207,11 @@ end
 -- Aura das raras: quanto mais rara, mais coisa acontece em volta (poucas partículas: leve no celular)
 -- Lendária: onda de luz saindo do chão. Mítica: + redemoinho e raios de luz.
 -- Secreta: + segunda onda colorida e poeira de galáxia.
-local TEX = "rbxasset://textures/particles/"
+-- texturas da biblioteca do VFX Studio (anel, estrela, feixe de luz e brilho em cruz)
+local TEX_ANEL = "rbxassetid://18391380989"
+local TEX_ESTRELA = "rbxassetid://12386386944"
+local TEX_FEIXE = "rbxassetid://74970414136395"
+local TEX_CRUZ = "rbxassetid://8733488500"
 local function auraRara(corpo: BasePart, aro: BasePart, nivel: number, cor: Color3, e: number)
 	if nivel < 4 then
 		return
@@ -215,7 +219,7 @@ local function auraRara(corpo: BasePart, aro: BasePart, nivel: number, cor: Colo
 	local function onda(nome: string, c0: Color3, c1: Color3, atraso: number)
 		local o = Instance.new("ParticleEmitter")
 		o.Name = nome
-		o.Texture = TEX .. "explosion01_shockwave_main.dds"
+		o.Texture = TEX_ANEL
 		o.Orientation = Enum.ParticleOrientation.VelocityPerpendicular
 		o.EmissionDirection = Enum.NormalId.Right -- o aro está deitado: Right aponta para cima
 		o.Speed = NumberRange.new(0.05)
@@ -246,7 +250,7 @@ local function auraRara(corpo: BasePart, aro: BasePart, nivel: number, cor: Colo
 		-- redemoinho em volta do corpo
 		local giro = Instance.new("ParticleEmitter")
 		giro.Name = "Redemoinho"
-		giro.Texture = TEX .. "sparkles_main.dds"
+		giro.Texture = TEX_CRUZ
 		giro.Color = ColorSequence.new(cor, Color3.new(1, 1, 1))
 		giro.Shape = Enum.ParticleEmitterShape.Cylinder
 		giro.ShapeInOut = Enum.ParticleEmitterShapeInOut.Outward
@@ -264,7 +268,7 @@ local function auraRara(corpo: BasePart, aro: BasePart, nivel: number, cor: Colo
 		-- raios de luz atrás (um brilho grande e lento)
 		local raios = Instance.new("ParticleEmitter")
 		raios.Name = "Raios"
-		raios.Texture = TEX .. "sparkles_main.dds"
+		raios.Texture = TEX_FEIXE
 		raios.Color = ColorSequence.new(cor:Lerp(Color3.new(1, 1, 1), 0.4))
 		raios.Size = NumberSequence.new(7 * e)
 		raios.Transparency = NumberSequence.new({
@@ -286,7 +290,7 @@ local function auraRara(corpo: BasePart, aro: BasePart, nivel: number, cor: Colo
 		onda("Onda2", Color3.fromRGB(255, 120, 230), Color3.fromRGB(120, 220, 255), 0.65)
 		local galaxia = Instance.new("ParticleEmitter")
 		galaxia.Name = "Galaxia"
-		galaxia.Texture = TEX .. "sparkles_main.dds"
+		galaxia.Texture = TEX_ESTRELA
 		galaxia.Color = ColorSequence.new({
 			ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 120, 230)),
 			ColorSequenceKeypoint.new(0.5, Color3.fromRGB(150, 120, 255)),
@@ -776,7 +780,7 @@ function Criaturas.modelo(id: string): Model
 	end
 	if def.raridade == "mitico" or def.raridade == "secreto" or def.raridade == "lendario" then
 		local brilhinhos = Instance.new("ParticleEmitter")
-		brilhinhos.Texture = "rbxasset://textures/particles/sparkles_main.dds"
+		brilhinhos.Texture = TEX_ESTRELA
 		brilhinhos.Color = ColorSequence.new(raridade.cor)
 		brilhinhos.Rate = 6
 		brilhinhos.Lifetime = NumberRange.new(1, 1.6)
