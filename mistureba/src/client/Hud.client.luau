@@ -661,7 +661,7 @@ local function desenharDex()
 			achadas += 1
 		end
 		local c = Instance.new("Frame")
-		c.LayoutOrder = i
+		c.LayoutOrder = (table.find(Config.OrdemRaridades, def.raridade) or 9) * 100 + i
 		c.BackgroundColor3 = if tem then COR_CARTAO else Color3.fromRGB(30, 28, 45)
 		cantos(c, 12)
 		borda(c, if tem then info.cor else Color3.fromRGB(70, 70, 90), 2)
@@ -941,6 +941,107 @@ local ganhouRenda = rotulo(
 	{ Size = UDim2.new(1, -20, 0, 28), Position = UDim2.fromOffset(10, 194), TextColor3 = COR_VERDE }
 )
 local idGanhou = 0
+
+-- Efeitos de chocar: som que sobe de tom, flash, raios girando e confete.
+-- Quanto mais rara, mais festa.
+local function tocar(tom: number, volume: number)
+	local som = Instance.new("Sound")
+	som.SoundId = "rbxasset://sounds/electronicpingshort.wav"
+	som.PlaybackSpeed = tom
+	som.Volume = volume
+	som.Parent = tela
+	som:Play()
+	som.Ended:Once(function()
+		som:Destroy()
+	end)
+end
+
+local camadaFesta = Instance.new("Frame")
+camadaFesta.Size = UDim2.fromScale(1, 1)
+camadaFesta.BackgroundTransparency = 1
+camadaFesta.ZIndex = 0
+camadaFesta.Parent = tela
+
+local function festa(nivel: number, cor: Color3)
+	-- som: uma nota por nível, subindo
+	task.spawn(function()
+		for i = 1, math.min(nivel + 1, 7) do
+			tocar(0.8 + i * 0.18, 0.35 + nivel * 0.05)
+			task.wait(0.09)
+		end
+	end)
+	local centro = cartaoGanhou.Position
+	-- flash da cor da raridade
+	if nivel >= 3 then
+		local flash = Instance.new("Frame")
+		flash.Size = UDim2.fromScale(1, 1)
+		flash.BackgroundColor3 = cor
+		flash.BackgroundTransparency = 0.35
+		flash.Parent = camadaFesta
+		TweenService:Create(flash, TweenInfo.new(0.6), { BackgroundTransparency = 1 }):Play()
+		task.delay(0.7, function()
+			flash:Destroy()
+		end)
+	end
+	-- raios girando atrás do cartão
+	if nivel >= 3 then
+		local raios = Instance.new("Frame")
+		raios.AnchorPoint = Vector2.new(0.5, 0.5)
+		raios.Position = centro
+		raios.Size = UDim2.fromOffset(10, 10)
+		raios.BackgroundTransparency = 1
+		raios.Parent = camadaFesta
+		for i = 1, 8 do
+			local r = Instance.new("Frame")
+			r.AnchorPoint = Vector2.new(0.5, 0.5)
+			r.Position = UDim2.fromScale(0.5, 0.5)
+			r.Size = UDim2.fromOffset(1100, 46)
+			r.Rotation = i * 22.5
+			r.BackgroundColor3 = cor
+			r.BackgroundTransparency = 0.6
+			r.BorderSizePixel = 0
+			local g = Instance.new("UIGradient")
+			g.Transparency = NumberSequence.new({
+				NumberSequenceKeypoint.new(0, 1),
+				NumberSequenceKeypoint.new(0.5, 0),
+				NumberSequenceKeypoint.new(1, 1),
+			})
+			g.Parent = r
+			r.Parent = raios
+		end
+		local duracao = 2.5 + nivel * 0.4
+		TweenService:Create(raios, TweenInfo.new(duracao, Enum.EasingStyle.Linear), { Rotation = 120 }):Play()
+		task.delay(duracao, function()
+			raios:Destroy()
+		end)
+	end
+	-- confete
+	local cores =
+		{ cor, COR_AMARELO, Color3.fromRGB(255, 120, 200), Color3.fromRGB(120, 220, 255), Color3.new(1, 1, 1) }
+	for _ = 1, 6 + nivel * 6 do
+		local p = Instance.new("Frame")
+		p.AnchorPoint = Vector2.new(0.5, 0.5)
+		p.Position = centro
+		local lado = math.random(8, 16)
+		p.Size = UDim2.fromOffset(lado, lado * 0.6)
+		p.Rotation = math.random(0, 360)
+		p.BackgroundColor3 = cores[math.random(1, #cores)]
+		p.BorderSizePixel = 0
+		p.Parent = camadaFesta
+		local angulo = math.random() * math.pi * 2
+		local dist = math.random(180, 300 + nivel * 60)
+		local destino = centro + UDim2.fromOffset(math.cos(angulo) * dist, math.sin(angulo) * dist + 120)
+		local t = 0.9 + math.random() * 0.8
+		TweenService:Create(p, TweenInfo.new(t, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+			Position = destino,
+			Rotation = p.Rotation + math.random(-360, 360),
+			BackgroundTransparency = 1,
+		}):Play()
+		task.delay(t, function()
+			p:Destroy()
+		end)
+	end
+end
 ev("Chocou").OnClientEvent:Connect(function(id: string)
 	local def = Config.PorId[id]
 	if not def then
@@ -961,7 +1062,9 @@ ev("Chocou").OnClientEvent:Connect(function(id: string)
 	escala.Parent = cartaoGanhou
 	escala.Scale = 0.3
 	TweenService:Create(escala, TweenInfo.new(0.45, Enum.EasingStyle.Back), { Scale = 1 }):Play()
-	task.delay(3.2, function()
+	local nivel = (table.find(Config.OrdemRaridades, def.raridade) or 1) + (if mut then 1 else 0)
+	festa(nivel, if mut then mut.cor else info.cor)
+	task.delay(3 + nivel * 0.4, function()
 		if meu == idGanhou then
 			cartaoGanhou.Visible = false
 		end

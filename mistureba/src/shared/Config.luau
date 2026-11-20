@@ -499,6 +499,549 @@ Config.Criaturas = {
 			},
 		},
 	},
+	{
+		id = "lapisquilo",
+		nome = "Lapisquilo",
+		raridade = "comum",
+		renda = 3,
+		descricao = "Um esquilo que é um lápis. Escreve recados nas árvores.",
+		corpo = { forma = "cilindro", cor = c(250, 200, 60), tamanho = Vector3.new(3, 1.2, 1.2) },
+		extras = {
+			{
+				forma = "cunha",
+				cor = c(240, 200, 160),
+				tamanho = Vector3.new(0.8, 0.8, 1),
+				posicao = Vector3.new(0, 0, -1.8),
+			},
+			{
+				forma = "bola",
+				cor = c(160, 100, 60),
+				tamanho = Vector3.new(1.2, 1.8, 1.2),
+				posicao = Vector3.new(0, 1, 1.4),
+			},
+		},
+	},
+	{
+		id = "bolachorro",
+		nome = "Bolachorro",
+		raridade = "comum",
+		renda = 3,
+		descricao = "Um cachorro de bolacha recheada. Late quando alguém come farelo.",
+		corpo = { forma = "cilindro", cor = c(190, 120, 70), tamanho = Vector3.new(0.9, 2.6, 2.6) },
+		extras = {
+			{ forma = "cilindro", cor = c(255, 250, 240), tamanho = Vector3.new(0.95, 2.2, 2.2) },
+			{
+				forma = "bola",
+				cor = c(150, 90, 50),
+				tamanho = Vector3.new(0.6, 1, 0.4),
+				posicao = Vector3.new(1, 1.1, 0),
+			},
+			{
+				forma = "bola",
+				cor = c(150, 90, 50),
+				tamanho = Vector3.new(0.6, 1, 0.4),
+				posicao = Vector3.new(-1, 1.1, 0),
+			},
+		},
+	},
+	{
+		id = "chinelefante",
+		nome = "Chinelefante",
+		raridade = "comum",
+		renda = 4,
+		descricao = "Um elefante que virou chinelo. Faz plof plof quando anda.",
+		corpo = { forma = "bloco", cor = c(120, 190, 255), tamanho = Vector3.new(1.8, 0.5, 3.4) },
+		extras = {
+			{
+				forma = "bola",
+				cor = c(170, 170, 190),
+				tamanho = Vector3.new(2, 1.8, 1.8),
+				posicao = Vector3.new(0, 1.1, 0),
+			},
+			{
+				forma = "cilindro",
+				cor = c(170, 170, 190),
+				tamanho = Vector3.new(1.6, 0.5, 0.5),
+				posicao = Vector3.new(0, 0.8, -1.2),
+			},
+		},
+	},
+	{
+		id = "cenourato",
+		nome = "Cenourato",
+		raridade = "comum",
+		renda = 4,
+		descricao = "Um ratinho cenoura que guarda tudo debaixo da terra.",
+		corpo = { forma = "cunha", cor = c(255, 140, 40), tamanho = Vector3.new(1.6, 1.6, 2.6) },
+		extras = {
+			{
+				forma = "bola",
+				cor = c(80, 200, 80),
+				tamanho = Vector3.new(1, 1.2, 1),
+				posicao = Vector3.new(0, 1.2, 0.8),
+			},
+			{
+				forma = "bola",
+				cor = c(230, 230, 230),
+				tamanho = Vector3.new(0.8, 0.8, 0.3),
+				posicao = Vector3.new(0.6, 1, -0.6),
+			},
+			{
+				forma = "bola",
+				cor = c(230, 230, 230),
+				tamanho = Vector3.new(0.8, 0.8, 0.3),
+				posicao = Vector3.new(-0.6, 1, -0.6),
+			},
+		},
+	},
+	{
+		id = "abajurubu",
+		nome = "Abajurubu",
+		raridade = "comum",
+		renda = 5,
+		descricao = "Um urubu abajur que acende quando fica com medo do escuro.",
+		corpo = { forma = "bola", cor = c(60, 60, 70), tamanho = Vector3.new(2.2, 2, 2.2) },
+		extras = {
+			{
+				forma = "cilindro",
+				cor = c(255, 240, 150),
+				tamanho = Vector3.new(1.6, 2, 2),
+				posicao = Vector3.new(0, 1.6, 0),
+				material = "Neon",
+			},
+			{
+				forma = "cunha",
+				cor = c(255, 200, 80),
+				tamanho = Vector3.new(0.5, 0.4, 0.6),
+				posicao = Vector3.new(0, 0.2, -1.2),
+			},
+		},
+	},
+	{
+		id = "sorvetigre",
+		nome = "Sorvetigre",
+		raridade = "raro",
+		renda = 22,
+		descricao = "Um tigre de sorvete de três sabores. Ruge e derrete.",
+		corpo = { forma = "cunha", cor = c(230, 190, 120), tamanho = Vector3.new(1.6, 2.4, 1.6) },
+		extras = {
+			{
+				forma = "bola",
+				cor = c(255, 170, 60),
+				tamanho = Vector3.new(2, 1.8, 2),
+				posicao = Vector3.new(0, 1.6, 0),
+			},
+			{
+				forma = "bola",
+				cor = c(255, 220, 240),
+				tamanho = Vector3.new(1.6, 1.4, 1.6),
+				posicao = Vector3.new(0, 2.8, 0),
+			},
+			{
+				forma = "bola",
+				cor = c(140, 90, 60),
+				tamanho = Vector3.new(1.2, 1, 1.2),
+				posicao = Vector3.new(0, 3.7, 0),
+			},
+		},
+	},
+	{
+		id = "relocoruja",
+		nome = "Relocoruja",
+		raridade = "raro",
+		renda = 25,
+		descricao = "Uma coruja relógio que nunca deixa você perder a hora do lanche.",
+		corpo = { forma = "bola", cor = c(140, 100, 70), tamanho = Vector3.new(2.4, 2.6, 2) },
+		extras = {
+			{
+				forma = "cilindro",
+				cor = c(255, 255, 240),
+				tamanho = Vector3.new(0.3, 1.8, 1.8),
+				posicao = Vector3.new(0, 0.3, -1),
+			},
+			{
+				forma = "bloco",
+				cor = c(140, 100, 70),
+				tamanho = Vector3.new(0.4, 0.8, 0.4),
+				posicao = Vector3.new(0.7, 1.5, 0),
+			},
+			{
+				forma = "bloco",
+				cor = c(140, 100, 70),
+				tamanho = Vector3.new(0.4, 0.8, 0.4),
+				posicao = Vector3.new(-0.7, 1.5, 0),
+			},
+		},
+	},
+	{
+		id = "mochilontra",
+		nome = "Mochilontra",
+		raridade = "raro",
+		renda = 28,
+		descricao = "Uma lontra mochila. Leva seus lanches e boia na piscina.",
+		corpo = { forma = "bloco", cor = c(60, 140, 255), tamanho = Vector3.new(2.2, 2.6, 1.4) },
+		extras = {
+			{
+				forma = "bola",
+				cor = c(150, 100, 60),
+				tamanho = Vector3.new(1.6, 1.4, 1.4),
+				posicao = Vector3.new(0, 1.8, 0),
+			},
+			{
+				forma = "bloco",
+				cor = c(255, 200, 50),
+				tamanho = Vector3.new(1.6, 0.8, 0.3),
+				posicao = Vector3.new(0, -0.3, -0.8),
+			},
+		},
+	},
+	{
+		id = "patinepato",
+		nome = "Patinepato",
+		raridade = "raro",
+		renda = 30,
+		descricao = "Um pato de patinete que buzina quac pelas ruas.",
+		corpo = { forma = "bola", cor = c(255, 230, 60), tamanho = Vector3.new(2, 1.8, 2) },
+		extras = {
+			{
+				forma = "cunha",
+				cor = c(255, 140, 30),
+				tamanho = Vector3.new(0.8, 0.4, 0.8),
+				posicao = Vector3.new(0, 0.2, -1.3),
+			},
+			{
+				forma = "bloco",
+				cor = c(200, 60, 60),
+				tamanho = Vector3.new(0.6, 0.3, 3.6),
+				posicao = Vector3.new(0, -1.2, 0),
+			},
+			{
+				forma = "cilindro",
+				cor = c(80, 80, 80),
+				tamanho = Vector3.new(0.4, 2.4, 0.4),
+				posicao = Vector3.new(0, 0.4, -1.6),
+			},
+		},
+	},
+	{
+		id = "cupcameleao",
+		nome = "Cupcameleão",
+		raridade = "raro",
+		renda = 35,
+		descricao = "Um camaleão cupcake que muda a cor da cobertura.",
+		corpo = { forma = "cilindro", cor = c(255, 120, 170), tamanho = Vector3.new(1.6, 2.2, 2.2) },
+		extras = {
+			{
+				forma = "bola",
+				cor = c(120, 230, 140),
+				tamanho = Vector3.new(2.4, 1.6, 2.4),
+				posicao = Vector3.new(0, 1.4, 0),
+			},
+			{
+				forma = "bola",
+				cor = c(255, 60, 60),
+				tamanho = Vector3.new(0.6, 0.6, 0.6),
+				posicao = Vector3.new(0, 2.4, 0),
+			},
+		},
+	},
+	{
+		id = "robelha",
+		nome = "Robelha",
+		raridade = "epico",
+		renda = 100,
+		descricao = "Uma abelha robô que faz mel de óleo... e de chocolate.",
+		corpo = { forma = "bola", cor = c(255, 210, 40), tamanho = Vector3.new(2.4, 2.2, 2.8), material = "Metal" },
+		extras = {
+			{
+				forma = "bloco",
+				cor = c(40, 40, 40),
+				tamanho = Vector3.new(2.5, 0.4, 2.9),
+				posicao = Vector3.new(0, 0, 0),
+			},
+			{
+				forma = "bloco",
+				cor = c(190, 230, 255),
+				tamanho = Vector3.new(0.2, 1.4, 1.6),
+				posicao = Vector3.new(1.3, 1.2, 0),
+				material = "Glass",
+			},
+			{
+				forma = "bloco",
+				cor = c(190, 230, 255),
+				tamanho = Vector3.new(0.2, 1.4, 1.6),
+				posicao = Vector3.new(-1.3, 1.2, 0),
+				material = "Glass",
+			},
+		},
+	},
+	{
+		id = "televisapo",
+		nome = "Televisapo",
+		raridade = "epico",
+		renda = 115,
+		descricao = "Um sapo televisão que só passa desenho.",
+		corpo = { forma = "bloco", cor = c(60, 60, 70), tamanho = Vector3.new(3, 2.2, 1.4) },
+		extras = {
+			{
+				forma = "bloco",
+				cor = c(120, 255, 160),
+				tamanho = Vector3.new(2.4, 1.6, 0.2),
+				posicao = Vector3.new(0, 0, -0.7),
+				material = "Neon",
+			},
+			{
+				forma = "bola",
+				cor = c(80, 200, 90),
+				tamanho = Vector3.new(0.9, 0.9, 0.9),
+				posicao = Vector3.new(0.8, 1.4, -0.2),
+			},
+			{
+				forma = "bola",
+				cor = c(80, 200, 90),
+				tamanho = Vector3.new(0.9, 0.9, 0.9),
+				posicao = Vector3.new(-0.8, 1.4, -0.2),
+			},
+		},
+	},
+	{
+		id = "foguetucano",
+		nome = "Foguetucano",
+		raridade = "epico",
+		renda = 130,
+		descricao = "Um tucano foguete que vai e volta da Lua no recreio.",
+		corpo = { forma = "cilindro", cor = c(240, 240, 250), tamanho = Vector3.new(3.2, 1.6, 1.6), material = "Metal" },
+		extras = {
+			{
+				forma = "cunha",
+				cor = c(255, 150, 30),
+				tamanho = Vector3.new(1, 1, 1.8),
+				posicao = Vector3.new(0, 0, -2),
+			},
+			{
+				forma = "bola",
+				cor = c(255, 90, 40),
+				tamanho = Vector3.new(0.8, 0.8, 0.8),
+				posicao = Vector3.new(0, 0, 2),
+				material = "Neon",
+			},
+			{
+				forma = "cunha",
+				cor = c(255, 60, 60),
+				tamanho = Vector3.new(0.2, 1.2, 1),
+				posicao = Vector3.new(0, 1.1, 1),
+			},
+		},
+	},
+	{
+		id = "pipocavalo",
+		nome = "Pipocavalo",
+		raridade = "epico",
+		renda = 150,
+		descricao = "Um cavalo de pipoca. Cada galope faz um poc!",
+		corpo = { forma = "bloco", cor = c(220, 60, 60), tamanho = Vector3.new(1.8, 2, 2.6) },
+		extras = {
+			{
+				forma = "bola",
+				cor = c(255, 250, 220),
+				tamanho = Vector3.new(2.2, 1.2, 2.8),
+				posicao = Vector3.new(0, 1.5, 0),
+			},
+			{
+				forma = "bola",
+				cor = c(255, 250, 220),
+				tamanho = Vector3.new(1.2, 1.4, 1.4),
+				posicao = Vector3.new(0, 2.2, -1.4),
+			},
+		},
+	},
+	{
+		id = "castelobo",
+		nome = "Castelobo",
+		raridade = "lendario",
+		renda = 650,
+		descricao = "Um lobo castelo que uiva para proteger a vila.",
+		corpo = { forma = "bloco", cor = c(180, 180, 190), tamanho = Vector3.new(3, 3, 3), material = "Slate" },
+		extras = {
+			{
+				forma = "bloco",
+				cor = c(180, 180, 190),
+				tamanho = Vector3.new(1, 1.6, 1),
+				posicao = Vector3.new(1, 2.2, 1),
+				material = "Slate",
+			},
+			{
+				forma = "bloco",
+				cor = c(180, 180, 190),
+				tamanho = Vector3.new(1, 1.6, 1),
+				posicao = Vector3.new(-1, 2.2, 1),
+				material = "Slate",
+			},
+			{
+				forma = "cunha",
+				cor = c(90, 90, 110),
+				tamanho = Vector3.new(0.8, 1.2, 0.6),
+				posicao = Vector3.new(0.8, 2, -1.2),
+			},
+			{
+				forma = "cunha",
+				cor = c(90, 90, 110),
+				tamanho = Vector3.new(0.8, 1.2, 0.6),
+				posicao = Vector3.new(-0.8, 2, -1.2),
+			},
+		},
+	},
+	{
+		id = "trovanguru",
+		nome = "Trovanguru",
+		raridade = "lendario",
+		renda = 750,
+		descricao = "Um canguru de trovão. Pula e faz o céu brilhar.",
+		corpo = { forma = "bola", cor = c(255, 220, 60), tamanho = Vector3.new(2.4, 3, 2.2) },
+		extras = {
+			{
+				forma = "cunha",
+				cor = c(255, 255, 120),
+				tamanho = Vector3.new(0.6, 2, 1),
+				posicao = Vector3.new(1.4, 1.4, 0),
+				material = "Neon",
+			},
+			{
+				forma = "cunha",
+				cor = c(255, 255, 120),
+				tamanho = Vector3.new(0.6, 2, 1),
+				posicao = Vector3.new(-1.4, 1.4, 0),
+				material = "Neon",
+			},
+			{
+				forma = "bola",
+				cor = c(255, 240, 180),
+				tamanho = Vector3.new(1.4, 1.2, 0.8),
+				posicao = Vector3.new(0, -0.2, -0.9),
+			},
+		},
+	},
+	{
+		id = "aquariorca",
+		nome = "Aquariorca",
+		raridade = "lendario",
+		renda = 900,
+		descricao = "Uma orca que mora dentro de um aquário... que é ela mesma.",
+		corpo = { forma = "bloco", cor = c(150, 220, 255), tamanho = Vector3.new(3.6, 2.4, 2), material = "Glass" },
+		extras = {
+			{ forma = "bola", cor = c(30, 30, 40), tamanho = Vector3.new(2.6, 1.6, 1.4) },
+			{
+				forma = "bola",
+				cor = c(255, 255, 255),
+				tamanho = Vector3.new(1, 0.6, 0.5),
+				posicao = Vector3.new(0.6, 0.2, -0.6),
+			},
+			{
+				forma = "cunha",
+				cor = c(30, 30, 40),
+				tamanho = Vector3.new(0.3, 1.4, 1),
+				posicao = Vector3.new(0, 1.6, 0),
+			},
+		},
+	},
+	{
+		id = "fenixicara",
+		nome = "Fenixícara",
+		raridade = "mitico",
+		renda = 3500,
+		descricao = "Uma fênix que nasceu de uma xícara de chocolate quente.",
+		corpo = { forma = "cilindro", cor = c(255, 255, 255), tamanho = Vector3.new(1.6, 2.4, 2.4) },
+		extras = {
+			{
+				forma = "bola",
+				cor = c(255, 120, 40),
+				tamanho = Vector3.new(2.2, 2, 2.2),
+				posicao = Vector3.new(0, 1.6, 0),
+				material = "Neon",
+			},
+			{
+				forma = "cunha",
+				cor = c(255, 200, 40),
+				tamanho = Vector3.new(0.3, 2, 1.6),
+				posicao = Vector3.new(1.6, 1.8, 0),
+				material = "Neon",
+			},
+			{
+				forma = "cunha",
+				cor = c(255, 200, 40),
+				tamanho = Vector3.new(0.3, 2, 1.6),
+				posicao = Vector3.new(-1.6, 1.8, 0),
+				material = "Neon",
+			},
+		},
+	},
+	{
+		id = "dragalaxia",
+		nome = "Dragaláxia",
+		raridade = "mitico",
+		renda = 4500,
+		descricao = "Um dragão feito de estrelas. Cada escama é um planetinha.",
+		corpo = { forma = "bola", cor = c(70, 40, 140), tamanho = Vector3.new(3, 2.6, 3.6), material = "Neon" },
+		extras = {
+			{
+				forma = "bola",
+				cor = c(255, 255, 255),
+				tamanho = Vector3.new(0.5, 0.5, 0.5),
+				posicao = Vector3.new(1, 1, 0),
+				material = "Neon",
+			},
+			{
+				forma = "bola",
+				cor = c(255, 220, 120),
+				tamanho = Vector3.new(0.6, 0.6, 0.6),
+				posicao = Vector3.new(-1, 0.6, 1),
+				material = "Neon",
+			},
+			{
+				forma = "cunha",
+				cor = c(140, 90, 255),
+				tamanho = Vector3.new(0.3, 2.2, 2),
+				posicao = Vector3.new(1.8, 1.4, 0),
+			},
+			{
+				forma = "cunha",
+				cor = c(140, 90, 255),
+				tamanho = Vector3.new(0.3, 2.2, 2),
+				posicao = Vector3.new(-1.8, 1.4, 0),
+			},
+		},
+	},
+	{
+		id = "misturebasuprema",
+		nome = "Mistureba Suprema",
+		raridade = "secreto",
+		renda = 25000,
+		descricao = "Só nasce da fusão de Fenixícara com Dragaláxia. Ninguém sabe do que ela é feita.",
+		corpo = { forma = "bola", cor = c(255, 255, 255), tamanho = Vector3.new(3.6, 3.6, 3.6), material = "Neon" },
+		extras = {
+			{
+				forma = "bola",
+				cor = c(255, 120, 230),
+				tamanho = Vector3.new(1.2, 1.2, 1.2),
+				posicao = Vector3.new(2.2, 1.6, 0),
+				material = "Neon",
+			},
+			{
+				forma = "bola",
+				cor = c(120, 230, 255),
+				tamanho = Vector3.new(1.2, 1.2, 1.2),
+				posicao = Vector3.new(-2.2, 1.6, 0),
+				material = "Neon",
+			},
+			{
+				forma = "bola",
+				cor = c(255, 230, 90),
+				tamanho = Vector3.new(1.2, 1.2, 1.2),
+				posicao = Vector3.new(0, 2.6, 0),
+				material = "Neon",
+			},
+		},
+	},
 } :: { Criatura }
 
 -- Atalho: Config.PorId["chaleiruga"]
@@ -590,9 +1133,9 @@ Config.PorId = setmetatable({}, {
 -- Chuva de ovos no centro do mapa
 ------------------------------------------------------------------------
 Config.Chuva = {
-	intervalo = 25, -- segundos entre uma onda e outra
-	ovosPorOnda = 6,
-	maxOvosNoChao = 14,
+	intervalo = 20, -- segundos entre uma onda e outra
+	ovosPorOnda = 8,
+	maxOvosNoChao = 20,
 	tempoNoChao = 60, -- segundos até o ovo sumir se ninguém pegar
 	pesos = { comum = 70, raro = 22, epico = 6.5, lendario = 1.3, mitico = 0.2 },
 	anunciarAPartirDe = "lendario", -- ovos desta raridade em diante viram ovo dourado com anúncio
@@ -610,8 +1153,10 @@ export type OvoLoja = {
 
 Config.OvosLoja = {
 	{ id = "basico", nome = "Ovo Básico", preco = 100, pesos = { comum = 75, raro = 22, epico = 3 } },
+	{ id = "doce", nome = "Ovo Doce", preco = 700, pesos = { comum = 45, raro = 45, epico = 10 } },
 	{ id = "brilhante", nome = "Ovo Brilhante", preco = 2500, pesos = { raro = 60, epico = 35, lendario = 5 } },
 	{ id = "estelar", nome = "Ovo Estelar", preco = 50000, pesos = { epico = 60, lendario = 35, mitico = 5 } },
+	{ id = "cosmico", nome = "Ovo Cósmico", preco = 750000, pesos = { lendario = 70, mitico = 30 } },
 } :: { OvoLoja }
 
 ------------------------------------------------------------------------
@@ -623,6 +1168,7 @@ Config.CustoFusao = { comum = 50, raro = 1000, epico = 15000, lendario = 120000,
 Config.Receitas = {
 	{ a = "pinguivulcao", b = "nuvemcornio", resultado = "reimistureba" },
 	{ a = "baleiastelo", b = "girafatrem", resultado = "bugigangacosmica" },
+	{ a = "fenixicara", b = "dragalaxia", resultado = "misturebasuprema" },
 }
 
 ------------------------------------------------------------------------
@@ -771,8 +1317,9 @@ Config.PremioDescobertaSegundos = 120
 Config.MarcosDex = {
 	{ achadas = 5, bonus = 0.1 },
 	{ achadas = 10, bonus = 0.25 },
-	{ achadas = 15, bonus = 0.5 },
-	{ achadas = 20, bonus = 1 },
+	{ achadas = 20, bonus = 0.5 },
+	{ achadas = 30, bonus = 0.75 },
+	{ achadas = 40, bonus = 1 },
 }
 
 -- Missões diárias: 3 por dia (iguais para todo o servidor), trocam à meia-noite UTC.
