@@ -496,6 +496,7 @@ function Criaturas.modelo(id: string): Model
 			tamanho = 22,
 		},
 		{ texto = "+" .. Util.numero(def.renda) .. "/s", cor = Color3.fromRGB(120, 255, 120), tamanho = 22 },
+		{ texto = Util.textoUmEm(id), cor = Util.corUmEm(id), tamanho = 20 },
 	}, alturaPlaca)
 
 	return modelo

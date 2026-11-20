@@ -155,4 +155,59 @@ function Util.numero(n: number): string
 	return tostring(math.floor(n))
 end
 
+-- Chance REAL de tirar essa Mistureba num ovo da chuva, no formato "1 em X".
+-- Usa as chances da chuva (raridade), quantas Misturebas tem na raridade e a
+-- chance da mutação. Secretas só saem por receita, então devolvem nil.
+local cacheUmEm: { [string]: number } = {}
+function Util.umEm(id: string): number?
+	if cacheUmEm[id] then
+		return cacheUmEm[id]
+	end
+	local def = Config.PorId[id]
+	if not def then
+		return nil
+	end
+	local pesos = Config.Chuva.pesos
+	local total = 0
+	for _, peso in pesos do
+		total += peso
+	end
+	local peso = pesos[def.raridade]
+	if not peso or peso <= 0 then
+		return nil
+	end
+	local p = peso / total / #Util.criaturasDaRaridade(def.raridade)
+	local mut = def.mutacao and Config.MutacaoPorId[def.mutacao]
+	if mut then
+		p *= mut.chance / 100
+	end
+	local x = math.max(1, math.floor(1 / p + 0.5))
+	cacheUmEm[id] = x
+	return x
+end
+
+-- "1 em 37", "1 em 2,4 mil", ou "Receita secreta"
+function Util.textoUmEm(id: string): string
+	local x = Util.umEm(id)
+	if not x then
+		return "Receita secreta"
+	end
+	return "1 em " .. Util.numero(x)
+end
+
+-- cor do "1 em X": quanto mais difícil, mais quente
+function Util.corUmEm(id: string): Color3
+	local x = Util.umEm(id) or 1e9
+	if x >= 100000 then
+		return Color3.fromRGB(255, 90, 200)
+	elseif x >= 10000 then
+		return Color3.fromRGB(255, 120, 80)
+	elseif x >= 1000 then
+		return Color3.fromRGB(255, 205, 60)
+	elseif x >= 100 then
+		return Color3.fromRGB(150, 220, 255)
+	end
+	return Color3.fromRGB(220, 220, 230)
+end
+
 return Util

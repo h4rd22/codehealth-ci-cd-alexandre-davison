@@ -847,7 +847,7 @@ end
 ------------------------------------------------------------------------
 local painelDex, rolagemDex = novoPainel("Misturedex", Color3.fromRGB(60, 200, 190))
 local layoutDex = Instance.new("UIGridLayout")
-layoutDex.CellSize = UDim2.fromOffset(136, 110)
+layoutDex.CellSize = UDim2.fromOffset(136, 132)
 layoutDex.CellPadding = UDim2.fromOffset(8, 8)
 layoutDex.SortOrder = Enum.SortOrder.LayoutOrder
 layoutDex.Parent = rolagemDex
@@ -887,6 +887,13 @@ local function desenharDex()
 			Position = UDim2.fromOffset(4, 80),
 			Text = if tem then "+" .. Util.numero(def.renda) .. "/s" else "",
 			TextColor3 = COR_VERDE,
+		})
+		-- chance real na chuva (aparece mesmo antes de achar, para dar vontade)
+		rotulo(c, {
+			Size = UDim2.new(1, -8, 0, 22),
+			Position = UDim2.fromOffset(4, 104),
+			Text = Util.textoUmEm(def.id),
+			TextColor3 = Util.corUmEm(def.id),
 		})
 	end
 	local titulo = painelDex:FindFirstChildOfClass("TextLabel")
@@ -1123,7 +1130,7 @@ end)
 local cartaoGanhou = Instance.new("Frame")
 cartaoGanhou.AnchorPoint = Vector2.new(0.5, 0.5)
 cartaoGanhou.Position = UDim2.fromScale(0.5, 0.45)
-cartaoGanhou.Size = UDim2.fromOffset(420, 230)
+cartaoGanhou.Size = UDim2.fromOffset(420, 268)
 cartaoGanhou.BackgroundColor3 = COR_FUNDO
 cartaoGanhou.Visible = false
 cantos(cartaoGanhou, 20)
@@ -1144,6 +1151,8 @@ local ganhouRenda = rotulo(
 	cartaoGanhou,
 	{ Size = UDim2.new(1, -20, 0, 28), Position = UDim2.fromOffset(10, 194), TextColor3 = COR_VERDE }
 )
+local ganhouChance =
+	rotulo(cartaoGanhou, { Size = UDim2.new(1, -20, 0, 34), Position = UDim2.fromOffset(10, 226), Text = "" })
 local idGanhou = 0
 
 -- Efeitos de chocar: som que sobe de tom, flash, raios girando e confete.
@@ -1260,6 +1269,27 @@ ev("Chocou").OnClientEvent:Connect(function(id: string)
 	ganhouRaridade.TextColor3 = if mut then mut.cor else info.cor
 	ganhouDescricao.Text = def.descricao
 	ganhouRenda.Text = "+" .. Util.numero(def.renda) .. " moedas por segundo"
+	ganhouChance.Text = Util.textoUmEm(id) .. "!"
+	ganhouChance.TextColor3 = Util.corUmEm(id)
+	-- a chance "conta" de 1 até o valor real, para dar aquele suspense
+	local alvoChance = Util.umEm(id)
+	if alvoChance and alvoChance >= 100 then
+		task.spawn(function()
+			local passos = 18
+			for k = 1, passos do
+				if meu ~= idGanhou then
+					return
+				end
+				local v = math.floor(alvoChance ^ (k / passos))
+				ganhouChance.Text = "1 em " .. Util.numero(v) .. (if k == passos then "!" else "")
+				task.wait(0.04)
+			end
+			local pulo = ganhouChance:FindFirstChildOfClass("UIScale") or Instance.new("UIScale")
+			pulo.Parent = ganhouChance
+			pulo.Scale = 1.5
+			TweenService:Create(pulo, TweenInfo.new(0.4, Enum.EasingStyle.Back), { Scale = 1 }):Play()
+		end)
+	end
 	bordaGanhou.Color = info.cor
 	cartaoGanhou.Visible = true
 	local escala = cartaoGanhou:FindFirstChildOfClass("UIScale") or Instance.new("UIScale")
@@ -1618,22 +1648,28 @@ local function cartaMistureba(pai: Instance, id: string, largura: number, altura
 	cantos(c, 10)
 	borda(c, if mut then mut.cor else info.cor, 3)
 	rotulo(c, {
-		Size = UDim2.new(1, -6, 0.42, 0),
+		Size = UDim2.new(1, -6, 0.34, 0),
 		Position = UDim2.fromOffset(3, 2),
 		Text = def.nome,
 		TextWrapped = true,
 	})
 	rotulo(c, {
-		Size = UDim2.new(1, -6, 0.26, 0),
-		Position = UDim2.fromScale(0, 0.44) + UDim2.fromOffset(3, 0),
+		Size = UDim2.new(1, -6, 0.2, 0),
+		Position = UDim2.fromScale(0, 0.36) + UDim2.fromOffset(3, 0),
 		Text = if mut then mut.nome else info.nome,
 		TextColor3 = if mut then mut.cor else info.cor,
 	})
 	rotulo(c, {
-		Size = UDim2.new(1, -6, 0.26, 0),
-		Position = UDim2.fromScale(0, 0.72) + UDim2.fromOffset(3, 0),
+		Size = UDim2.new(1, -6, 0.2, 0),
+		Position = UDim2.fromScale(0, 0.57) + UDim2.fromOffset(3, 0),
 		Text = "+" .. Util.numero(def.renda) .. "/s",
 		TextColor3 = COR_VERDE,
+	})
+	rotulo(c, {
+		Size = UDim2.new(1, -6, 0.2, 0),
+		Position = UDim2.fromScale(0, 0.78) + UDim2.fromOffset(3, 0),
+		Text = Util.textoUmEm(id),
+		TextColor3 = Util.corUmEm(id),
 	})
 	c.Parent = pai
 	return c
