@@ -147,7 +147,7 @@ local menu = Instance.new("Frame")
 menu.BackgroundTransparency = 1
 menu.AnchorPoint = Vector2.new(0, 0.5)
 menu.Position = UDim2.new(0, 10, 0.5, 0)
-menu.Size = UDim2.fromOffset(120, 370)
+menu.Size = UDim2.fromOffset(120, 440)
 menu.Parent = tela
 local listaMenu = Instance.new("UIListLayout")
 listaMenu.Padding = UDim.new(0, 10)
@@ -158,6 +158,19 @@ local botaoFusao = botao(menu, "FUSÃO", COR_ROXO, { Size = UDim2.fromOffset(120
 local botaoBase = botao(menu, "BASE", COR_AZUL, { Size = UDim2.fromOffset(120, 62), LayoutOrder = 3 })
 local botaoLoja = botao(menu, "LOJA", COR_VERDE, { Size = UDim2.fromOffset(120, 62), LayoutOrder = 4 })
 local botaoDex = botao(menu, "DEX", Color3.fromRGB(60, 200, 190), { Size = UDim2.fromOffset(120, 62), LayoutOrder = 5 })
+local botaoMissoes =
+	botao(menu, "MISSÕES", Color3.fromRGB(255, 150, 60), { Size = UDim2.fromOffset(120, 62), LayoutOrder = 6 })
+-- bolinha "!" quando tem prêmio de missão para pegar
+local alertaMissoes = rotulo(botaoMissoes, {
+	AnchorPoint = Vector2.new(0.5, 0.5),
+	Position = UDim2.new(1, -4, 0, 4),
+	Size = UDim2.fromOffset(26, 26),
+	BackgroundTransparency = 0,
+	BackgroundColor3 = COR_VERMELHO,
+	Text = "!",
+	Visible = false,
+})
+cantos(alertaMissoes, 13)
 
 -- Botões de ação (direita embaixo)
 local acoes = Instance.new("Frame")
@@ -201,6 +214,10 @@ type EstadoTela = {
 	protegidoAte: number,
 	presenteEm: number,
 	proximoPresenteEspecial: boolean,
+	missoes: { { texto: string, meta: number, progresso: number, pega: boolean } },
+	missoesFinal: boolean,
+	premioMissao: number,
+	bonusDex: number,
 	baseIndice: number,
 }
 
@@ -670,8 +687,81 @@ local function desenharDex()
 	end
 	local titulo = painelDex:FindFirstChildOfClass("TextLabel")
 	if titulo then
-		titulo.Text = string.format("Misturedex  %d/%d", achadas, #Config.Criaturas)
+		local bonus, proximo = Util.bonusDex(achadas)
+		local texto =
+			string.format("Misturedex  %d/%d  ·  +%d%% renda", achadas, #Config.Criaturas, math.floor(bonus * 100))
+		if proximo then
+			texto ..= string.format("  (%d: +%d%%)", proximo.achadas, math.floor(proximo.bonus * 100))
+		end
+		titulo.Text = texto
+		titulo.TextScaled = true
 	end
+end
+
+------------------------------------------------------------------------
+-- Painel: Missões do dia
+------------------------------------------------------------------------
+local painelMissoes, rolagemMissoes = novoPainel("Missões do dia", Color3.fromRGB(255, 150, 60))
+lista(rolagemMissoes)
+
+local function desenharMissoes()
+	limpar(rolagemMissoes)
+	if not estado or not estado.missoes then
+		return
+	end
+	for i, m in estado.missoes do
+		local c = cartao(rolagemMissoes, 92, i)
+		rotulo(c, {
+			Size = UDim2.new(1, -230, 0, 32),
+			Position = UDim2.fromOffset(14, 6),
+			Text = m.texto,
+			TextXAlignment = Enum.TextXAlignment.Left,
+		})
+		local barra = Instance.new("Frame")
+		barra.Size = UDim2.new(1, -230, 0, 20)
+		barra.Position = UDim2.fromOffset(14, 46)
+		barra.BackgroundColor3 = Color3.fromRGB(40, 38, 60)
+		cantos(barra, 10)
+		barra.Parent = c
+		local cheio = Instance.new("Frame")
+		cheio.Size = UDim2.fromScale(math.clamp(m.progresso / m.meta, 0, 1), 1)
+		cheio.BackgroundColor3 = if m.progresso >= m.meta then COR_VERDE else Color3.fromRGB(255, 150, 60)
+		cantos(cheio, 10)
+		cheio.Parent = barra
+		rotulo(barra, {
+			Size = UDim2.fromScale(1, 1),
+			Text = string.format("%d / %d", m.progresso, m.meta),
+			TextStrokeTransparency = 0.3,
+		})
+		local pronto = m.progresso >= m.meta
+		local b = botao(
+			c,
+			if m.pega then "Pego!" elseif pronto then "PEGAR" else "+" .. Util.numero(estado.premioMissao),
+			if m.pega then COR_AZUL elseif pronto then COR_VERDE else Color3.fromRGB(110, 110, 120),
+			{ Size = UDim2.fromOffset(190, 50), Position = UDim2.new(1, -200, 0, 20) }
+		)
+		if pronto and not m.pega then
+			b.MouseButton1Click:Connect(function()
+				ev("PegarMissao"):FireServer(i)
+			end)
+		end
+	end
+	local final = cartao(rolagemMissoes, 60, 10)
+	local ovoFinal = Config.Missoes.ovoFinal
+	for _, ovo in Config.OvosLoja do
+		if ovo.id == ovoFinal then
+			ovoFinal = ovo.nome
+		end
+	end
+	rotulo(final, {
+		Size = UDim2.new(1, -28, 1, -8),
+		Position = UDim2.fromOffset(14, 4),
+		Text = if estado.missoesFinal
+			then "Você completou tudo hoje! Novas missões amanhã."
+			else "Complete as 3 e ganhe um " .. ovoFinal .. " grátis!",
+		TextColor3 = COR_AMARELO,
+		TextWrapped = true,
+	})
 end
 
 ------------------------------------------------------------------------
@@ -746,12 +836,12 @@ local function itemLoja(
 end
 
 local ordemLoja = 1
-for _, chave in { "vip", "mochila", "cadeado", "basegrande" } do
+for _, chave in { "vip", "sortedupla", "mochila", "rapido", "cadeado", "basegrande" } do
 	local p = Config.Gamepasses[chave]
 	itemLoja(ordemLoja, p.nome, p.descricao, p.preco, p.id, true, chave, nil)
 	ordemLoja += 1
 end
-for _, chave in { "sorte", "ovoarcoiris", "moedas" } do
+for _, chave in { "sorte", "ovoarcoiris", "presente", "moedas" } do
 	local p = Config.Produtos[chave]
 	local extra = if chave == "ovoarcoiris"
 		then "Chances: " .. textoChances(Config.OvoArcoIrisPesos) .. "\nMutações: " .. textoMutacoes()
@@ -900,6 +990,10 @@ end)
 botaoLoja.MouseButton1Click:Connect(function()
 	abrir(painelLoja)
 end)
+botaoMissoes.MouseButton1Click:Connect(function()
+	desenharMissoes()
+	abrir(painelMissoes)
+end)
 
 local function tapa()
 	ev("Tapa"):FireServer()
@@ -990,6 +1084,7 @@ local function atualizarStatus()
 	botaoSoltar.Visible = estado.roubo ~= nil or #estado.ovos > 0
 end
 
+local assinaturaMissoes = ""
 ev("Estado").OnClientEvent:Connect(function(novo: EstadoTela)
 	local mudouCriaturas = true
 	if estado then
@@ -1016,6 +1111,23 @@ ev("Estado").OnClientEvent:Connect(function(novo: EstadoTela)
 		f()
 	end
 	atualizarStatus()
+	local temPremio = false
+	for _, m in novo.missoes or {} do
+		if m.progresso >= m.meta and not m.pega then
+			temPremio = true
+		end
+	end
+	alertaMissoes.Visible = temPremio
+	local assinatura = tostring(novo.missoesFinal) .. Util.numero(novo.premioMissao)
+	for _, m in novo.missoes or {} do
+		assinatura ..= "|" .. m.progresso .. tostring(m.pega)
+	end
+	if assinatura ~= assinaturaMissoes then
+		assinaturaMissoes = assinatura
+		if painelMissoes.Visible then
+			desenharMissoes()
+		end
+	end
 	if mudouCriaturas then
 		if painelFusao.Visible then
 			desenharFusao()

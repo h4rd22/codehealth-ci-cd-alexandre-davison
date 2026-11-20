@@ -677,11 +677,25 @@ Config.Gamepasses = {
 		preco = 149,
 		descricao = "+4 vagas na sua base.",
 	},
+	sortedupla = {
+		id = 2093243022,
+		nome = "Sorte Dupla",
+		preco = 249,
+		descricao = "Mutações saem 2x mais nos ovos que VOCÊ choca.",
+	},
+	rapido = {
+		id = 2092673039,
+		nome = "Super Velocidade",
+		preco = 99,
+		descricao = "Corre 40% mais rápido, até carregando ovos.",
+	},
 }
 
 Config.VipMultiplicador = 2
 Config.CadeadoReforcadoSegundos = 90
 Config.BaseGrandeVagas = 4
+Config.SorteDuplaMutacao = 2
+Config.RapidoMultiplicador = 1.4
 
 Config.Produtos = {
 	sorte = {
@@ -701,6 +715,12 @@ Config.Produtos = {
 		nome = "Saco de Moedas",
 		preco = 25,
 		descricao = "Ganha 10 minutos da sua renda atual (mínimo 500 moedas).",
+	},
+	presente = {
+		id = 3733965774,
+		nome = "Presente Agora",
+		preco = 19,
+		descricao = "Abre agora o seu próximo presente por tempo jogando.",
 	},
 }
 
@@ -745,5 +765,33 @@ Config.PremioDiario = {
 
 -- Misturedex: achar uma Mistureba nova pela primeira vez dá este tanto de segundos da renda dela
 Config.PremioDescobertaSegundos = 120
+
+-- Marcos da Misturedex: quanto mais Misturebas diferentes, mais renda para sempre.
+-- Vale o maior marco alcançado.
+Config.MarcosDex = {
+	{ achadas = 5, bonus = 0.1 },
+	{ achadas = 10, bonus = 0.25 },
+	{ achadas = 15, bonus = 0.5 },
+	{ achadas = 20, bonus = 1 },
+}
+
+-- Missões diárias: 3 por dia (iguais para todo o servidor), trocam à meia-noite UTC.
+export type Missao = { tipo: string, meta: number, texto: string }
+Config.Missoes = {
+	porDia = 3,
+	premioSegundos = 180, -- prêmio de cada missão = 3 minutos da sua renda
+	premioMinimo = 500,
+	ovoFinal = "brilhante", -- completar as 3 dá este ovo
+	lista = {
+		{ tipo = "ovos", meta = 10, texto = "Choque %d ovos" },
+		{ tipo = "ovos", meta = 30, texto = "Choque %d ovos" },
+		{ tipo = "chuva", meta = 15, texto = "Pegue %d ovos da chuva" },
+		{ tipo = "fusoes", meta = 3, texto = "Faça %d fusões" },
+		{ tipo = "roubos", meta = 2, texto = "Roube %d Misturebas" },
+		{ tipo = "bolhas", meta = 5, texto = "Prenda %d ladrões numa bolha" },
+		{ tipo = "minutos", meta = 15, texto = "Jogue %d minutos" },
+		{ tipo = "trancar", meta = 5, texto = "Tranque sua base %d vezes" },
+	} :: { Missao },
+}
 
 return Config

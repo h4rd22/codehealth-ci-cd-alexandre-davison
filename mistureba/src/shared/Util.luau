@@ -68,17 +68,31 @@ function Util.idBase(id: string): string
 	return (string.match(id, "^[^*]+") or id)
 end
 
--- Sorteia a mutação de um ovo chocado (ou nada).
-function Util.sortearMutacao(rng: Random): string?
+-- Sorteia a mutação de um ovo chocado (ou nada). mult aumenta as chances (Sorte Dupla).
+function Util.sortearMutacao(rng: Random, mult: number?): string?
 	local x = rng:NextNumber() * 100
 	local soma = 0
 	for _, m in Config.Mutacoes do
-		soma += m.chance
+		soma += m.chance * (mult or 1)
 		if x < soma then
 			return m.id
 		end
 	end
 	return nil
+end
+
+-- Bônus de renda da Misturedex (0.25 = +25%) e o próximo marco.
+function Util.bonusDex(achadas: number): (number, { achadas: number, bonus: number }?)
+	local bonus = 0
+	local proximo = nil
+	for _, marco in Config.MarcosDex do
+		if achadas >= marco.achadas then
+			bonus = marco.bonus
+		elseif not proximo then
+			proximo = marco
+		end
+	end
+	return bonus, proximo
 end
 
 function Util.receita(a: string, b: string): string?

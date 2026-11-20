@@ -28,8 +28,12 @@ export type Perfil = {
 	ultimaSaida: number, -- os.time() da última vez salvo (para ganhos offline)
 	diaPremio: number, -- último dia (os.time()//86400) em que pegou o prêmio diário
 	sequencia: number, -- dias seguidos pegando o prêmio
+	missoes: Missoes,
 	trava: { servidor: string, hora: number }?,
 }
+
+-- Missões do dia: índices em Config.Missoes.lista, progresso e se já pegou o prêmio.
+export type Missoes = { dia: number, ids: { number }, progresso: { number }, pegas: { boolean }, final: boolean }
 
 local Dados = {}
 
@@ -59,6 +63,7 @@ local function perfilNovo(): Perfil
 		ultimaSaida = 0,
 		diaPremio = 0,
 		sequencia = 0,
+		missoes = { dia = 0, ids = {}, progresso = {}, pegas = {}, final = false },
 		trava = nil,
 	}
 end
@@ -115,6 +120,31 @@ local function corrigir(dado: any): Perfil
 		local v = dado[campo]
 		if type(v) == "number" and v == v and v >= 0 then
 			(p :: any)[campo] = math.floor(v)
+		end
+	end
+	local m = dado.missoes
+	if type(m) == "table" and type(m.dia) == "number" and type(m.ids) == "table" then
+		local n = #Config.Missoes.lista
+		local valido = #m.ids == Config.Missoes.porDia
+		for i, idx in m.ids do
+			if type(idx) ~= "number" or idx < 1 or idx > n then
+				valido = false
+			end
+			if type(m.progresso) ~= "table" or type(m.progresso[i]) ~= "number" then
+				valido = false
+			end
+		end
+		if valido then
+			p.missoes = {
+				dia = m.dia,
+				ids = table.clone(m.ids),
+				progresso = table.clone(m.progresso),
+				pegas = {},
+				final = m.final == true,
+			}
+			for i = 1, #m.ids do
+				p.missoes.pegas[i] = type(m.pegas) == "table" and m.pegas[i] == true
+			end
 		end
 	end
 	p.trava = dado.trava
