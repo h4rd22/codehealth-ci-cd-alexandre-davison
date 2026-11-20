@@ -2195,10 +2195,10 @@ end)
 local COR_AJUSTES = Color3.fromRGB(150, 160, 190)
 local painelAjustes, rolagemAjustes = novoPainel("Configurações", COR_AJUSTES)
 lista(rolagemAjustes)
-local botaoAjustes = botao(tela, "⚙", Color3.fromRGB(90, 95, 130), {
+local botaoAjustes = botao(tela, "AJUSTES", Color3.fromRGB(90, 95, 130), {
 	AnchorPoint = Vector2.new(1, 0),
 	Position = UDim2.new(1, -12, 0, 12),
-	Size = UDim2.fromOffset(56, 56),
+	Size = UDim2.fromOffset(110, 46),
 })
 
 local function ajustesAtuais(): { ocultar: { [string]: boolean }, som: boolean, leve: boolean }
