@@ -46,7 +46,7 @@ end
 -- Nomes de golpe estilo anime (japonês sem acento + português). Os ids nunca mudam.
 -- tipo: "ativa", "passiva" ou "suprema" (suprema = ativa grande do fim do ramo)
 -- dano = % do Poder Mágico (o dano do herói com arma, treino e conjunto)
--- linha = posição na tela da árvore (1 em cima, 4 embaixo)
+-- linha = posição na tela da árvore (1 em cima, 5 embaixo)
 -- requer = pontos que precisam estar gastos neste ramo
 ------------------------------------------------------------------------
 local mago = {
@@ -59,9 +59,21 @@ local mago = {
 	lista = {
 		-------------------------------------------------------------- GELO
 		{
-			id = "lancaGelo",
+			id = "afinidadeGelo",
 			ramo = "gelo",
 			linha = 1,
+			tipo = "passiva",
+			nome = "Hyoketsu: Afinidade de Gelo",
+			icone = "🧊",
+			max = 10,
+			requer = 0,
+			bonusElem = { 0.05, 0.05 }, -- +% de dano do elemento por nível
+			texto = "+%bonusElem% de dano de gelo.",
+		},
+		{
+			id = "lancaGelo",
+			ramo = "gelo",
+			linha = 2,
 			tipo = "ativa",
 			nome = "Hyoso: Lança Glacial",
 			icone = "🧊",
@@ -77,7 +89,7 @@ local mago = {
 		{
 			id = "frioCortante",
 			ramo = "gelo",
-			linha = 2,
+			linha = 3,
 			tipo = "passiva",
 			nome = "Kori no Yaiba: Frio Cortante",
 			icone = "🌨️",
@@ -90,7 +102,7 @@ local mago = {
 		{
 			id = "novaGelo",
 			ramo = "gelo",
-			linha = 3,
+			linha = 4,
 			tipo = "ativa",
 			nome = "Toketsu: Nova Branca",
 			icone = "💠",
@@ -105,7 +117,7 @@ local mago = {
 		{
 			id = "nevasca",
 			ramo = "gelo",
-			linha = 4,
+			linha = 5,
 			tipo = "suprema",
 			nome = "Fubuki Eterno",
 			icone = "🌀",
@@ -120,9 +132,21 @@ local mago = {
 		},
 		-------------------------------------------------------------- RAIO
 		{
-			id = "correnteRaio",
+			id = "afinidadeRaio",
 			ramo = "raio",
 			linha = 1,
+			tipo = "passiva",
+			nome = "Raiden: Afinidade de Raio",
+			icone = "⚡",
+			max = 10,
+			requer = 0,
+			bonusElem = { 0.05, 0.05 }, -- +% de dano do elemento por nível
+			texto = "+%bonusElem% de dano de raio.",
+		},
+		{
+			id = "correnteRaio",
+			ramo = "raio",
+			linha = 2,
 			tipo = "ativa",
 			nome = "Raiko: Corrente Viva",
 			icone = "⚡",
@@ -139,7 +163,7 @@ local mago = {
 		{
 			id = "sobrecarga",
 			ramo = "raio",
-			linha = 2,
+			linha = 3,
 			tipo = "passiva",
 			nome = "Denki Kajo: Sobrecarga",
 			icone = "🔋",
@@ -152,7 +176,7 @@ local mago = {
 		{
 			id = "furiaTrovao",
 			ramo = "raio",
-			linha = 3,
+			linha = 4,
 			tipo = "ativa",
 			nome = "Raijin no Ikari",
 			icone = "🌩️",
@@ -168,7 +192,7 @@ local mago = {
 		{
 			id = "tempestade",
 			ramo = "raio",
-			linha = 4,
+			linha = 5,
 			tipo = "suprema",
 			nome = "Arashi Divina",
 			icone = "⛈️",
@@ -183,9 +207,21 @@ local mago = {
 		},
 		-------------------------------------------------------------- FOGO
 		{
-			id = "bolaFogo",
+			id = "afinidadeFogo",
 			ramo = "fogo",
 			linha = 1,
+			tipo = "passiva",
+			nome = "Kaen: Afinidade de Fogo",
+			icone = "🔥",
+			max = 10,
+			requer = 0,
+			bonusElem = { 0.05, 0.05 }, -- +% de dano do elemento por nível
+			texto = "+%bonusElem% de dano de fogo e de queimadura.",
+		},
+		{
+			id = "bolaFogo",
+			ramo = "fogo",
+			linha = 2,
 			tipo = "ativa",
 			nome = "Hinotama: Bola de Fogo",
 			icone = "🔥",
@@ -202,7 +238,7 @@ local mago = {
 		{
 			id = "combustao",
 			ramo = "fogo",
-			linha = 2,
+			linha = 3,
 			tipo = "passiva",
 			nome = "Nensho: Combustão",
 			icone = "💥",
@@ -215,7 +251,7 @@ local mago = {
 		{
 			id = "anelChamas",
 			ramo = "fogo",
-			linha = 3,
+			linha = 4,
 			tipo = "ativa",
 			nome = "Enrin: Anel Carmesim",
 			icone = "⭕",
@@ -231,7 +267,7 @@ local mago = {
 		{
 			id = "meteoro",
 			ramo = "fogo",
-			linha = 4,
+			linha = 5,
 			tipo = "suprema",
 			nome = "Ryusei Infernal",
 			icone = "☄️",
@@ -247,9 +283,21 @@ local mago = {
 		},
 		-------------------------------------------------------------- ARCANO
 		{
-			id = "poderArcano",
+			id = "harmonia",
 			ramo = "arcano",
 			linha = 1,
+			tipo = "passiva",
+			nome = "Genso: Harmonia Elemental",
+			icone = "🌈",
+			max = 10,
+			requer = 0,
+			bonusElem = { 0.03, 0.03 }, -- +% de dano do elemento por nível
+			texto = "+%bonusElem% de dano de fogo, gelo e raio.",
+		},
+		{
+			id = "poderArcano",
+			ramo = "arcano",
+			linha = 2,
 			tipo = "passiva",
 			nome = "Maryoku: Poder Arcano",
 			icone = "🔮",
@@ -261,7 +309,7 @@ local mago = {
 		{
 			id = "menteRapida",
 			ramo = "arcano",
-			linha = 2,
+			linha = 3,
 			tipo = "passiva",
 			nome = "Shinsoku: Mente Rápida",
 			icone = "⏳",
@@ -273,7 +321,7 @@ local mago = {
 		{
 			id = "ecoArcano",
 			ramo = "arcano",
-			linha = 3,
+			linha = 4,
 			tipo = "passiva",
 			nome = "Kodama Arcano",
 			icone = "✨",
@@ -286,7 +334,7 @@ local mago = {
 		{
 			id = "maestria",
 			ramo = "arcano",
-			linha = 4,
+			linha = 5,
 			tipo = "passiva",
 			nome = "Kyokui: Maestria",
 			icone = "🌈",
@@ -328,6 +376,25 @@ function Habilidades.gastos(niveis, ramo)
 		local h = Habilidades.PorId[id]
 		if h and (ramo == nil or h.ramo == ramo) then
 			total += n
+		end
+	end
+	return total
+end
+
+-- Bônus de dano de um elemento somando as passivas (afinidade + passiva do ramo + harmonia)
+local PASSIVAS_DO_ELEMENTO = {
+	gelo = { "afinidadeGelo", "frioCortante", "harmonia" },
+	raio = { "afinidadeRaio", "sobrecarga", "harmonia" },
+	fogo = { "afinidadeFogo", "combustao", "harmonia" },
+	queima = { "afinidadeFogo", "combustao", "harmonia" },
+}
+function Habilidades.bonusElemento(niveis, elemento)
+	local total = 0
+	for _, id in ipairs(PASSIVAS_DO_ELEMENTO[elemento] or {}) do
+		local n = (niveis or {})[id] or 0
+		local h = Habilidades.PorId[id]
+		if n > 0 and h then
+			total += Habilidades.valor(h, "bonusElem", n)
 		end
 	end
 	return total

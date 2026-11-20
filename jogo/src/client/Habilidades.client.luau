@@ -538,10 +538,10 @@ canto(painelDetalhe, 12)
 contorno(painelDetalhe, COR.dourado, 2)
 degrade(painelDetalhe, Color3.new(1, 1, 1), Color3.fromRGB(150, 135, 125))
 
-local CAB, LINHA, NO = 34, 70, 52
+local CAB, LINHA, NO = 34, 57, 46 -- 5 linhas de habilidades
 local colunas = novo("Frame", areaArvore, {
 	Position = UDim2.fromOffset(6, 4),
-	Size = UDim2.new(1, -12, 0, CAB + 4 * LINHA),
+	Size = UDim2.new(1, -12, 0, CAB + 5 * LINHA),
 	BackgroundTransparency = 1,
 })
 
@@ -775,7 +775,7 @@ local function construir(arvore)
 		})
 		cabecalhos[ramo.id] = cab
 		-- linha brilhante ligando os nós do ramo (acende quando o nó de baixo libera)
-		for linha = 1, 3 do
+		for linha = 1, 4 do
 			local y = CAB + (linha - 1) * LINHA + NO - 2
 			local alto = LINHA - NO + 4
 			local brilhoLig = novo("Frame", col, {
@@ -1104,7 +1104,7 @@ atualizarArvore = function()
 	end
 	-- traços: acendem quando o nó de baixo já está liberado
 	for _, ramo in ipairs(arvore.ramos) do
-		for linha = 1, 3 do
+		for linha = 1, 4 do
 			local lig = ligacoes[ramo.id .. linha]
 			local liberado = false
 			for _, h in ipairs(arvore.lista) do

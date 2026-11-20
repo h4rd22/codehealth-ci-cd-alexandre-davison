@@ -120,7 +120,6 @@ end
 ------------------------------------------------------------------------
 -- Dano das magias
 ------------------------------------------------------------------------
-local PASSIVA_DO_ELEMENTO = { gelo = "frioCortante", raio = "sobrecarga", fogo = "combustao", queima = "combustao" }
 
 local function vivo(m)
 	return m and m.Parent ~= nil and m.PrimaryPart ~= nil and (m:GetAttribute("Vida") or 0) > 0
@@ -165,8 +164,7 @@ local function danoMagia(ctx, alvo, pct, elemento, semCritico)
 	if not vivo(alvo) or not api.estado[ctx.player] then
 		return 0
 	end
-	local passiva = PASSIVA_DO_ELEMENTO[elemento]
-	local mult = 1 + ctx.poderArcano + (passiva and valorPassiva(ctx.st, passiva, "bonusElem") or 0)
+	local mult = 1 + ctx.poderArcano + Dados.bonusElemento(ctx.st.habilidades, elemento)
 	if ctx.estilhacar > 0 and (ativo(alvo, "LentoAte") or ativo(alvo, "CongeladoAte")) then
 		mult += ctx.estilhacar
 	end
