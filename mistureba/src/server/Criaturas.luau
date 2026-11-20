@@ -163,6 +163,15 @@ end
 -- Enfeites que mostram a raridade de longe:
 -- Épico ganha asinhas, Lendário coroa, Mítico auréola e asas que brilham, Secreto tudo isso.
 local function enfeites(modelo: Model, corpo: BasePart, e: number, nivel: number, cor: Color3)
+	-- ponto mais alto da Mistureba (a fantasia costuma ficar em cima da cabeça)
+	local topo = 1.3 * e
+	for _, p in modelo:GetDescendants() do
+		if p:IsA("BasePart") and p.Name ~= "Rabo" then
+			local y = corpo.CFrame:PointToObjectSpace(p.Position).Y + math.max(p.Size.X, p.Size.Y, p.Size.Z) / 2
+			topo = math.max(topo, y)
+		end
+	end
+	local temCoroa = nivel == 4 or nivel == 6
 	if nivel >= 3 then
 		local grande = nivel >= 5
 		for _, lado in { -1, 1 } do
@@ -179,8 +188,8 @@ local function enfeites(modelo: Model, corpo: BasePart, e: number, nivel: number
 			asa.Transparency = if grande then 0.3 else 0.05
 		end
 	end
-	if nivel == 4 or nivel == 6 then
-		-- coroa dourada torta, na frente da fantasia
+	if temCoroa then
+		-- coroa dourada torta, em cima de tudo
 		local ouro = Color3.fromRGB(255, 200, 40)
 		local base = Instance.new("Part")
 		base.Name = "Enfeite"
@@ -191,11 +200,9 @@ local function enfeites(modelo: Model, corpo: BasePart, e: number, nivel: number
 		base.CanCollide = false
 		base.CanTouch = false
 		base.Massless = true
-		local inclina = CFrame.Angles(math.rad(-12), 0, math.rad(14))
-		base.CFrame = corpo.CFrame
-			* CFrame.new(-0.45 * e, 1.42 * e, -0.55 * e)
-			* inclina
-			* CFrame.Angles(0, 0, math.pi / 2)
+		local inclina = CFrame.Angles(math.rad(-8), 0, math.rad(12))
+		local lugar = CFrame.new(0, topo + 0.05 * e, 0.1 * e)
+		base.CFrame = corpo.CFrame * lugar * inclina * CFrame.Angles(0, 0, math.pi / 2)
 		base.Parent = modelo
 		soldar(corpo, base)
 		for i = 0, 4 do
@@ -207,23 +214,14 @@ local function enfeites(modelo: Model, corpo: BasePart, e: number, nivel: number
 				Vector3.new(0.2, 0.32, 0.2) * e,
 				Vector3.zero,
 				Enum.Material.Neon,
-				CFrame.new(-0.45 * e, 1.42 * e, -0.55 * e)
-					* inclina
-					* CFrame.new(math.cos(a) * 0.5 * e, 0.3 * e, math.sin(a) * 0.5 * e)
+				lugar * inclina * CFrame.new(math.cos(a) * 0.5 * e, 0.3 * e, math.sin(a) * 0.5 * e)
 			)
 			ponta.Name = "Enfeite"
 		end
 	end
 	if nivel >= 5 then
-		-- auréola de bolinhas brilhando acima da peça mais alta da fantasia
-		local topo = 1.6 * e
-		for _, p in modelo:GetDescendants() do
-			if p:IsA("BasePart") and p.Name ~= "Enfeite" then
-				local y = corpo.CFrame:PointToObjectSpace(p.Position).Y + math.max(p.Size.X, p.Size.Y, p.Size.Z) / 2
-				topo = math.max(topo, y)
-			end
-		end
-		local alturaAureola = topo + 0.45 * e
+		-- auréola de bolinhas brilhando acima de tudo
+		local alturaAureola = topo + (if temCoroa then 1.1 else 0.45) * e
 		for i = 0, 11 do
 			local a = i / 12 * math.pi * 2
 			oval3(
