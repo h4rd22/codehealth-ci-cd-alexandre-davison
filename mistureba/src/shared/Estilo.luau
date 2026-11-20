@@ -345,12 +345,13 @@ end
 A.telinha = function(ctx, cor)
 	-- telinha pequena na barriga, abaixo do focinho
 	local s = ctx.corpo.Size / 2
-	local y = -1.05 * ctx.e
-	local z = -s.Z * 0.62
-	bola(ctx, ESCURO, Vector3.new(1.15, 0.8, 0.22), CFrame.new(0, y, z))
-	local tela = bola(ctx, cor, Vector3.new(0.92, 0.6, 0.2), CFrame.new(0, y, z - 0.05 * ctx.e), Enum.Material.Neon)
+	local y = -1.0 * ctx.e
+	-- encostada na frente da barriga, abaixo da boca
+	local z = -s.Z - 0.02 * ctx.e
+	bola(ctx, ESCURO, Vector3.new(0.95, 0.62, 0.22), CFrame.new(0, y, z))
+	local tela = bola(ctx, cor, Vector3.new(0.76, 0.46, 0.2), CFrame.new(0, y, z - 0.05 * ctx.e), Enum.Material.Neon)
 	tela.Transparency = 0.15
-	bola(ctx, BRANCO, Vector3.new(0.22, 0.12, 0.08), CFrame.new(-0.24 * ctx.e, y + 0.14 * ctx.e, z - 0.11 * ctx.e), Enum.Material.Neon)
+	bola(ctx, BRANCO, Vector3.new(0.18, 0.1, 0.08), CFrame.new(-0.2 * ctx.e, y + 0.11 * ctx.e, z - 0.11 * ctx.e), Enum.Material.Neon)
 end
 
 A.abajur = function(ctx, _cor)
