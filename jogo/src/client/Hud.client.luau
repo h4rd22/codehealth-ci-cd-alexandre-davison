@@ -552,8 +552,8 @@ local function preencherDrops(lista, faseIdx, tamanho)
 		chip(nome .. " " .. (esp.chance * 100) .. "%", r.corBorda or r.cor)
 	end
 end
-local autoFarm = true
-player:SetAttribute("AutoFarm", true)
+-- o servidor manda o AUTO salvo como atributo (enquanto não chega, fica ligado)
+local autoFarm = player:GetAttribute("AutoFarm") ~= false
 
 ------------------------------------------------------------------------
 -- Tela principal (estilo barra de tarefas): cartão do herói e ouro em cima à
@@ -926,6 +926,14 @@ do
 		end
 	end
 	pintarAuto()
+	-- quando o valor salvo chega do servidor, o botão acompanha
+	player:GetAttributeChangedSignal("AutoFarm"):Connect(function()
+		local v = player:GetAttribute("AutoFarm") ~= false
+		if v ~= autoFarm then
+			autoFarm = v
+			pintarAuto()
+		end
+	end)
 	btnAuto.Activated:Connect(function()
 		autoFarm = not autoFarm
 		player:SetAttribute("AutoFarm", autoFarm)
