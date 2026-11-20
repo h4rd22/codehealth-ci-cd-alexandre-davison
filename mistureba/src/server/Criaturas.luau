@@ -2,6 +2,7 @@
 -- Monta os modelos 3D das Misturebas e dos ovos com peças simples.
 -- Quando houver arte própria (modelos feitos no Studio), troque só este arquivo.
 
+local CollectionService = game:GetService("CollectionService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage.Shared.Config)
@@ -103,65 +104,113 @@ local function oval3(
 	return p
 end
 
--- Rosto fofo: olhões com brilho, bochechas e boquinha (fica de fora da cor da mutação)
-local function rosto(modelo: Model, corpo: BasePart, e: number, iris: Color3?)
+-- Rosto fofo estilo boneco de vinil: olhões escuros e brilhantes, íris colorida
+-- embaixo, dois pontos de brilho, bochechas e boquinha aberta.
+-- Os nomes Olho/Pupila/BrilhoOlho são usados pela piscadinha no cliente.
+local function rosto(modelo: Model, corpo: BasePart, e: number, iris: Color3)
 	local z = -corpo.Size.Z / 2
+	local escuro = iris:Lerp(Color3.fromRGB(20, 14, 40), 0.78)
 	for _, lado in { -1, 1 } do
-		local branco = oval3(
+		local x = 0.64 * lado
+		local olho = oval3(
 			modelo,
 			corpo,
-			Color3.new(1, 1, 1),
-			Vector3.new(0.85, 1.05, 0.45) * e,
-			Vector3.new(0.62 * lado * e, 0.42 * e, z + 0.22 * e)
+			escuro,
+			Vector3.new(0.92, 1.18, 0.45) * e,
+			Vector3.new(x * e, 0.36 * e, z + 0.2 * e)
 		)
-		branco.Name = "Olho"
+		olho.Name = "Olho"
+		olho.Reflectance = 0.15
+		-- íris colorida na metade de baixo do olho (dá profundidade)
 		local pupila = oval3(
 			modelo,
 			corpo,
-			if iris then iris:Lerp(Color3.new(0, 0, 0), 0.45) else Color3.fromRGB(30, 22, 50),
-			Vector3.new(0.52, 0.68, 0.3) * e,
-			Vector3.new(0.6 * lado * e, 0.36 * e, z + 0.02 * e)
+			iris:Lerp(Color3.new(1, 1, 1), 0.15),
+			Vector3.new(0.62, 0.62, 0.3) * e,
+			Vector3.new(x * e, 0.2 * e, z + 0.07 * e)
 		)
 		pupila.Name = "Pupila"
-		local brilho = oval3(
+		local brilhoGrande = oval3(
 			modelo,
 			corpo,
 			Color3.new(1, 1, 1),
-			Vector3.new(0.2, 0.22, 0.12) * e,
-			Vector3.new((0.52 * lado + 0.08) * e, 0.56 * e, z - 0.17 * e),
+			Vector3.new(0.34, 0.38, 0.12) * e,
+			Vector3.new((x - 0.16) * e, 0.58 * e, z - 0.13 * e),
 			Enum.Material.Neon
 		)
-		brilho.Name = "BrilhoOlho"
+		brilhoGrande.Name = "BrilhoOlho"
+		local brilhoPequeno = oval3(
+			modelo,
+			corpo,
+			Color3.new(1, 1, 1),
+			Vector3.new(0.15, 0.15, 0.08) * e,
+			Vector3.new((x + 0.2) * e, 0.08 * e, z - 0.1 * e),
+			Enum.Material.Neon
+		)
+		brilhoPequeno.Name = "BrilhoOlho"
 		local bochecha = oval3(
 			modelo,
 			corpo,
-			Color3.fromRGB(255, 130, 170),
-			Vector3.new(0.55, 0.3, 0.2) * e,
-			Vector3.new(1.08 * lado * e, -0.05 * e, z + 0.38 * e)
+			Color3.fromRGB(255, 125, 165),
+			Vector3.new(0.6, 0.32, 0.2) * e,
+			Vector3.new(1.1 * lado * e, -0.12 * e, z + 0.42 * e)
 		)
 		bochecha.Name = "Rosto"
-		bochecha.Transparency = 0.15
+		bochecha.Transparency = 0.2
 	end
 	local boca = oval3(
 		modelo,
 		corpo,
-		Color3.fromRGB(70, 20, 40),
-		Vector3.new(0.55, 0.32, 0.2) * e,
-		Vector3.new(0, -0.18 * e, z - 0.05 * e)
+		Color3.fromRGB(80, 22, 45),
+		Vector3.new(0.42, 0.34, 0.2) * e,
+		Vector3.new(0, -0.22 * e, z - 0.04 * e)
 	)
 	boca.Name = "Rosto"
 	local lingua = oval3(
 		modelo,
 		corpo,
-		Color3.fromRGB(255, 110, 130),
-		Vector3.new(0.32, 0.14, 0.12) * e,
-		Vector3.new(0, -0.26 * e, z - 0.11 * e)
+		Color3.fromRGB(255, 115, 140),
+		Vector3.new(0.26, 0.14, 0.12) * e,
+		Vector3.new(0, -0.31 * e, z - 0.1 * e)
 	)
 	lingua.Name = "Rosto"
 end
 
+-- Asa em leque: penas ovais saindo de um ponto nas costas.
+local function asa(
+	modelo: Model,
+	corpo: BasePart,
+	e: number,
+	lado: number,
+	penas: number,
+	comprimento: number,
+	cor: Color3,
+	material: Enum.Material,
+	transparencia: number
+)
+	local raiz = Vector3.new(0.85 * lado, 0.35, 1.05) * e
+	local virar = CFrame.Angles(0, math.rad(-28 * lado), 0)
+	for k = 1, penas do
+		local l = comprimento * (1 - 0.16 * (k - 1)) * e
+		local abre = CFrame.Angles(0, 0, math.rad(-lado * (28 + 24 * (k - 1))))
+		local pena = oval3(
+			modelo,
+			corpo,
+			cor:Lerp(Color3.new(1, 1, 1), 0.12 * (k - 1)),
+			Vector3.new(l * 0.5, l, 0.18 * e),
+			raiz,
+			material,
+			virar * abre * CFrame.new(0, l * 0.45, 0.02 * k * e)
+		)
+		pena.Name = "Enfeite"
+		pena.Transparency = transparencia
+		pena.CanQuery = false
+	end
+end
+
 -- Enfeites que mostram a raridade de longe:
--- Épico ganha asinhas, Lendário coroa, Mítico auréola e asas que brilham, Secreto tudo isso.
+-- Raro orelhas (no corpo), Épico asinhas brancas, Lendário coroa com joias,
+-- Mítico asas grandes brilhando + auréola, Secreto tudo isso e um cristal flutuando.
 local function enfeites(modelo: Model, corpo: BasePart, e: number, nivel: number, cor: Color3)
 	-- ponto mais alto da Mistureba (a fantasia costuma ficar em cima da cabeça)
 	local topo = 1.3 * e
@@ -172,68 +221,126 @@ local function enfeites(modelo: Model, corpo: BasePart, e: number, nivel: number
 		end
 	end
 	local temCoroa = nivel == 4 or nivel == 6
-	if nivel >= 3 then
-		local grande = nivel >= 5
+	if nivel >= 5 then
 		for _, lado in { -1, 1 } do
-			local asa = oval3(
-				modelo,
-				corpo,
-				if grande then cor:Lerp(Color3.new(1, 1, 1), 0.35) else Color3.fromRGB(250, 250, 255),
-				Vector3.new(0.25, if grande then 2 else 1.4, if grande then 1.5 else 1.05) * e,
-				Vector3.new(1.05 * lado, 0.45, 1.2) * e,
-				if grande then Enum.Material.Neon else Enum.Material.SmoothPlastic,
-				CFrame.Angles(math.rad(-20), math.rad(35 * lado), math.rad(-30 * lado))
-			)
-			asa.Name = "Enfeite"
-			asa.Transparency = if grande then 0.3 else 0.05
+			asa(modelo, corpo, e, lado, 4, 2.2, cor:Lerp(Color3.new(1, 1, 1), 0.45), Enum.Material.Neon, 0.25)
+		end
+	elseif nivel >= 3 then
+		for _, lado in { -1, 1 } do
+			asa(modelo, corpo, e, lado, 3, 1.4, Color3.fromRGB(252, 250, 255), Enum.Material.SmoothPlastic, 0)
 		end
 	end
 	if temCoroa then
-		-- coroa dourada torta, em cima de tudo
+		-- coroa dourada torta, com pontas e joias
 		local ouro = Color3.fromRGB(255, 200, 40)
+		local inclina = CFrame.Angles(math.rad(-8), 0, math.rad(12))
+		local lugar = CFrame.new(0, topo + 0.05 * e, 0.1 * e)
 		local base = Instance.new("Part")
 		base.Name = "Enfeite"
 		base.Shape = Enum.PartType.Cylinder
-		base.Size = Vector3.new(0.35, 1.2, 1.2) * e
+		base.Size = Vector3.new(0.4, 1.25, 1.25) * e
 		base.Color = ouro
 		base.Material = Enum.Material.Foil
+		base.Reflectance = 0.15
 		base.CanCollide = false
 		base.CanTouch = false
+		base.CanQuery = false
 		base.Massless = true
-		local inclina = CFrame.Angles(math.rad(-8), 0, math.rad(12))
-		local lugar = CFrame.new(0, topo + 0.05 * e, 0.1 * e)
+		base.CastShadow = false
 		base.CFrame = corpo.CFrame * lugar * inclina * CFrame.Angles(0, 0, math.pi / 2)
 		base.Parent = modelo
 		soldar(corpo, base)
 		for i = 0, 4 do
-			local a = i / 5 * math.pi * 2
-			local ponta = oval3(
+			local a = i / 5 * math.pi * 2 + math.pi / 2
+			oval3(
 				modelo,
 				corpo,
 				ouro,
-				Vector3.new(0.2, 0.32, 0.2) * e,
+				Vector3.new(0.26, 0.55, 0.26) * e,
+				Vector3.zero,
+				Enum.Material.Foil,
+				lugar * inclina * CFrame.new(math.cos(a) * 0.5 * e, 0.38 * e, math.sin(a) * 0.5 * e)
+			).Name =
+				"Enfeite"
+			-- bolinha brilhante na ponta
+			oval3(
+				modelo,
+				corpo,
+				Color3.fromRGB(255, 245, 190),
+				Vector3.new(0.16, 0.16, 0.16) * e,
 				Vector3.zero,
 				Enum.Material.Neon,
-				lugar * inclina * CFrame.new(math.cos(a) * 0.5 * e, 0.3 * e, math.sin(a) * 0.5 * e)
+				lugar * inclina * CFrame.new(math.cos(a) * 0.5 * e, 0.68 * e, math.sin(a) * 0.5 * e)
+			).Name =
+				"Enfeite"
+		end
+		-- joias na faixa da coroa: vermelha na frente, azuis dos lados
+		for _, j in
+			{
+				{ ang = -math.pi / 2, cor = Color3.fromRGB(255, 50, 90) },
+				{ ang = -math.pi / 2 + 1.1, cor = Color3.fromRGB(60, 160, 255) },
+				{ ang = -math.pi / 2 - 1.1, cor = Color3.fromRGB(60, 160, 255) },
+			}
+		do
+			local joia = oval3(
+				modelo,
+				corpo,
+				j.cor,
+				Vector3.new(0.22, 0.26, 0.12) * e,
+				Vector3.zero,
+				Enum.Material.Glass,
+				lugar
+					* inclina
+					* CFrame.new(math.cos(j.ang) * 0.63 * e, 0, math.sin(j.ang) * 0.63 * e)
+					* CFrame.Angles(0, -j.ang - math.pi / 2, 0)
 			)
-			ponta.Name = "Enfeite"
+			joia.Name = "Enfeite"
+			joia.Reflectance = 0.3
 		end
 	end
 	if nivel >= 5 then
-		-- auréola de bolinhas brilhando acima de tudo
-		local alturaAureola = topo + (if temCoroa then 1.1 else 0.45) * e
-		for i = 0, 11 do
-			local a = i / 12 * math.pi * 2
+		-- auréola: anel de bolinhas brilhando acima de tudo
+		local alturaAureola = topo + (if temCoroa then 1.2 else 0.5) * e
+		for i = 0, 13 do
+			local a = i / 14 * math.pi * 2
 			oval3(
 				modelo,
 				corpo,
 				Color3.fromRGB(255, 245, 170),
-				Vector3.new(0.3, 0.3, 0.3) * e,
-				Vector3.new(math.cos(a) * 0.95 * e, alturaAureola, (math.sin(a) * 0.95 + 0.2) * e),
+				Vector3.new(0.26, 0.2, 0.26) * e,
+				Vector3.new(math.cos(a) * 0.85 * e, alturaAureola, (math.sin(a) * 0.85 + 0.2) * e),
 				Enum.Material.Neon
 			).Name =
-				"Enfeite"
+				"Aureola"
 		end
+	end
+	if nivel >= 6 then
+		-- Secreta: cristal brilhando em cima de tudo
+		local cristal = Instance.new("Part")
+		cristal.Name = "Cristal"
+		cristal.Size = Vector3.new(0.55, 0.55, 0.55) * e
+		cristal.Color = cor
+		cristal.Material = Enum.Material.Neon
+		cristal.CanCollide = false
+		cristal.CanTouch = false
+		cristal.CanQuery = false
+		cristal.Massless = true
+		cristal.CastShadow = false
+		cristal.CFrame = corpo.CFrame
+			* CFrame.new(0, topo + 2.1 * e, 0.2 * e)
+			* CFrame.Angles(math.rad(45), 0, math.rad(45))
+		cristal.Parent = modelo
+		soldar(corpo, cristal)
+		local faisca = Instance.new("ParticleEmitter")
+		faisca.Texture = "rbxasset://textures/particles/sparkles_main.dds"
+		faisca.Color = ColorSequence.new(cor, Color3.new(1, 1, 1))
+		faisca.Rate = 4
+		faisca.Lifetime = NumberRange.new(0.6, 1)
+		faisca.Speed = NumberRange.new(0.5, 1)
+		faisca.SpreadAngle = Vector2.new(180, 180)
+		faisca.Size = NumberSequence.new(0.5 * e, 0)
+		faisca.LightEmission = 1
+		faisca.Parent = cristal
 	end
 end
 
@@ -347,22 +454,37 @@ function Criaturas.modelo(id: string): Model
 		soldar(corpo, p)
 	end
 
-	-- aro brilhante da cor da raridade embaixo dos pés
+	-- pezinho de enfeite embaixo dos pés: disco claro com borda brilhante da cor da raridade
+	-- (fica no nível dos pés para o modelo não flutuar)
 	local aro = Instance.new("Part")
 	aro.Name = "Aro"
 	aro.Shape = Enum.PartType.Cylinder
-	aro.Size = Vector3.new(0.12, 4.2 * e, 4.2 * e)
+	aro.Size = Vector3.new(0.1, 4.3 * e, 4.3 * e)
 	aro.Color = raridade.cor
 	aro.Material = Enum.Material.Neon
-	aro.Transparency = 0.35
+	aro.Transparency = 0.15
 	aro.CanCollide = false
 	aro.CanTouch = false
 	aro.CanQuery = false
 	aro.Massless = true
 	aro.CastShadow = false
-	aro.CFrame = corpo.CFrame * CFrame.new(0, -1.72 * e, 0) * CFrame.Angles(0, 0, math.rad(90))
+	aro.CFrame = corpo.CFrame * CFrame.new(0, -1.74 * e, 0) * CFrame.Angles(0, 0, math.rad(90))
 	aro.Parent = modelo
 	soldar(corpo, aro)
+	local disco = Instance.new("Part")
+	disco.Name = "Aro"
+	disco.Shape = Enum.PartType.Cylinder
+	disco.Size = Vector3.new(0.14, 3.75 * e, 3.75 * e)
+	disco.Color = raridade.cor:Lerp(Color3.new(1, 1, 1), 0.55)
+	disco.Material = Enum.Material.SmoothPlastic
+	disco.CanCollide = false
+	disco.CanTouch = false
+	disco.CanQuery = false
+	disco.Massless = true
+	disco.CastShadow = false
+	disco.CFrame = corpo.CFrame * CFrame.new(0, -1.73 * e, 0) * CFrame.Angles(0, 0, math.rad(90))
+	disco.Parent = modelo
+	soldar(corpo, disco)
 	-- Lendária para cima: coluna de brilho subindo do aro, para achar de longe
 	if (table.find(Config.OrdemRaridades, def.raridade) or 1) >= 4 then
 		local coluna = Instance.new("ParticleEmitter")
@@ -394,33 +516,43 @@ function Criaturas.modelo(id: string): Model
 		aura.LightEmission = 1
 		aura.Parent = corpo
 	elseif mut then
-		local arco = {
-			Color3.fromRGB(255, 70, 70),
-			Color3.fromRGB(255, 170, 50),
-			Color3.fromRGB(255, 240, 60),
-			Color3.fromRGB(80, 230, 90),
-			Color3.fromRGB(60, 170, 255),
-			Color3.fromRGB(170, 90, 255),
-		}
-		local i = 0
+		-- altura de cada peça (0 = pés, 1 = topo) para o degradê do arco-íris
+		local baixo, alto = -1.8 * e, 2.6 * e
 		for _, parte in modelo:GetDescendants() do
 			if parte:IsA("BasePart") and parte.Name ~= "Aro" then
-				i += 1
-				parte.Material = (Enum.Material :: any)[mut.material]
 				if mut.id == "arcoiris" then
-					parte.Color = arco[(i - 1) % #arco + 1]
+					-- degradê pastel de baixo para cima; o cliente faz as cores andarem
+					local y = corpo.CFrame:PointToObjectSpace(parte.Position).Y
+					local matiz = math.clamp((y - baixo) / (alto - baixo), 0, 1) * 0.85
+					parte:SetAttribute("Matiz", matiz)
+					parte.Color = Color3.fromHSV(matiz, 0.5, 1)
+					parte.Material = Enum.Material.SmoothPlastic
+					parte.Reflectance = 0.1
 				else
-					parte.Color = parte.Color:Lerp(mut.cor, 0.7)
+					parte.Material = (Enum.Material :: any)[mut.material]
+					parte.Color = parte.Color:Lerp(mut.cor, if mut.id == "dourada" then 0.8 else 0.7)
 				end
-				if mut.id == "diamante" then
+				if mut.id == "dourada" then
+					parte.Reflectance = 0.12
+				elseif mut.id == "diamante" then
 					parte.Reflectance = 0.35
 					parte.Transparency = 0.1
 				end
 			end
 		end
+		if mut.id == "arcoiris" then
+			CollectionService:AddTag(modelo, "Arcoiris")
+		end
 		local aura = Instance.new("ParticleEmitter")
 		aura.Texture = "rbxasset://textures/particles/sparkles_main.dds"
-		aura.Color = ColorSequence.new(mut.cor, Color3.new(1, 1, 1))
+		aura.Color = if mut.id == "arcoiris"
+			then ColorSequence.new({
+				ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 120, 120)),
+				ColorSequenceKeypoint.new(0.33, Color3.fromRGB(255, 240, 120)),
+				ColorSequenceKeypoint.new(0.66, Color3.fromRGB(120, 220, 255)),
+				ColorSequenceKeypoint.new(1, Color3.fromRGB(220, 140, 255)),
+			})
+			else ColorSequence.new(mut.cor, Color3.new(1, 1, 1))
 		aura.Rate = 10
 		aura.Lifetime = NumberRange.new(0.8, 1.4)
 		aura.Speed = NumberRange.new(1.5, 3)
@@ -438,7 +570,7 @@ function Criaturas.modelo(id: string): Model
 				Color3.fromRGB(140, 255, 120),
 				Color3.new(1, 1, 1),
 			}
-			for k = 1, 22 do
+			for k = 1, 14 do
 				local g = Instance.new("Part")
 				g.Name = "Granulado"
 				g.Shape = Enum.PartType.Cylinder
@@ -450,9 +582,9 @@ function Criaturas.modelo(id: string): Model
 				g.CastShadow = false
 				g.Massless = true
 				local dir = Vector3.new(
-					math.cos(k * 2.4) * math.sin(0.4 + k * 0.17),
-					math.cos(0.4 + k * 0.17),
-					math.sin(k * 2.4) * math.sin(0.4 + k * 0.17)
+					math.cos(k * 2.4) * math.sin(0.4 + k * 0.2),
+					math.cos(0.4 + k * 0.2),
+					math.sin(k * 2.4) * math.sin(0.4 + k * 0.2)
 				).Unit
 				local ponto = dir * Vector3.new(corpo.Size.X / 2, corpo.Size.Y / 2, corpo.Size.Z / 2) * 0.97
 				g.CFrame = corpo.CFrame * CFrame.lookAt(ponto, ponto * 2) * CFrame.Angles(0, 0, k)
@@ -503,7 +635,7 @@ function Criaturas.modelo(id: string): Model
 	reflexo.Name = "Reflexo"
 	reflexo.Transparency = 0.55
 	reflexo.CanQuery = false
-	rosto(modelo, corpo, e, if nivel >= 3 then raridade.cor else nil)
+	rosto(modelo, corpo, e, if nivel >= 2 then raridade.cor else Color3.fromRGB(150, 95, 60))
 	enfeites(modelo, corpo, e, nivel, raridade.cor)
 
 	if def.raridade ~= "comum" then
