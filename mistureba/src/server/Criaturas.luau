@@ -188,11 +188,11 @@ local function asa(
 	material: Enum.Material,
 	transparencia: number
 )
-	local raiz = Vector3.new(1.0 * lado, 0.4, 0.95) * e
-	local virar = CFrame.Angles(0, math.rad(-45 * lado), 0)
+	local raiz = Vector3.new(1.15 * lado, 0.55, 0.75) * e
+	local virar = CFrame.Angles(0, math.rad(-35 * lado), 0)
 	for k = 1, penas do
 		local l = comprimento * (1 - 0.16 * (k - 1)) * e
-		local abre = CFrame.Angles(0, 0, math.rad(-lado * (28 + 24 * (k - 1))))
+		local abre = CFrame.Angles(0, 0, math.rad(-lado * (45 + 22 * (k - 1))))
 		local pena = oval3(
 			modelo,
 			corpo,
@@ -534,10 +534,12 @@ function Criaturas.modelo(id: string): Model
 					parte.Material = if mut.id == "dourada"
 						then Enum.Material.SmoothPlastic
 						else (Enum.Material :: any)[mut.material]
-					parte.Color = parte.Color:Lerp(mut.cor, if mut.id == "dourada" then 0.9 else 0.7)
+					parte.Color = if mut.id == "dourada"
+						then parte.Color:Lerp(Color3.fromRGB(245, 180, 35), 0.88)
+						else parte.Color:Lerp(mut.cor, 0.7)
 				end
 				if mut.id == "dourada" then
-					parte.Reflectance = 0.3
+					parte.Reflectance = 0.08
 				elseif mut.id == "diamante" then
 					parte.Reflectance = 0.35
 					parte.Transparency = 0.1
@@ -546,6 +548,27 @@ function Criaturas.modelo(id: string): Model
 		end
 		if mut.id == "arcoiris" then
 			CollectionService:AddTag(modelo, "Arcoiris")
+			-- arco-íris de verdade atrás da cabeça: 3 faixas de bolinhas
+			local faixas = {
+				{ raio = 1.75, cor = Color3.fromRGB(255, 95, 110) },
+				{ raio = 1.5, cor = Color3.fromRGB(255, 225, 90) },
+				{ raio = 1.25, cor = Color3.fromRGB(95, 200, 255) },
+			}
+			for _, faixa in faixas do
+				for k = 0, 8 do
+					local a = k / 8 * math.pi
+					local bolinha = oval3(
+						modelo,
+						corpo,
+						faixa.cor,
+						Vector3.new(0.34, 0.34, 0.2) * e,
+						Vector3.new(math.cos(a) * faixa.raio, 0.55 + math.sin(a) * faixa.raio, 0.9) * e,
+						Enum.Material.Neon
+					)
+					bolinha.Name = "ArcoIris"
+					bolinha.CanQuery = false
+				end
+			end
 		end
 		local aura = Instance.new("ParticleEmitter")
 		aura.Texture = "rbxasset://textures/particles/sparkles_main.dds"
