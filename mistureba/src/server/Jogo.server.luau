@@ -438,7 +438,7 @@ local function atualizarCarga(jogador: Player)
 		if modelo then
 			modelo:PivotTo(alvo)
 		else
-			principal.CFrame = alvo
+			Criaturas.moverOvo(principal, alvo)
 		end
 		local solda = Instance.new("WeldConstraint")
 		solda.Part0 = cabeca
@@ -493,9 +493,8 @@ local function ovoNoChao(raridade: string, posicao: Vector3, caindo: boolean)
 	local ovo = Criaturas.ovo(raridade)
 	ovo.Anchored = true
 	ovo.CanCollide = false
-	ovo.CFrame = CFrame.new(posicao + Vector3.new(0, ovo.Size.Y / 2 + 0.3, 0))
+	Criaturas.moverOvo(ovo, CFrame.new(posicao + Vector3.new(0, ovo.Size.Y / 2 + 0.3 + (if caindo then 60 else 0), 0)))
 	if caindo then
-		ovo.CFrame += Vector3.new(0, 60, 0)
 		-- defer: a animação começa depois do ovo entrar no mapa (logo abaixo)
 		task.defer(function()
 			local inicio = os.clock()

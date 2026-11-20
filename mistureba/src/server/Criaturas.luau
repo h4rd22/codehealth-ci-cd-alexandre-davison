@@ -313,6 +313,18 @@ function Criaturas.modelo(id: string): Model
 	return modelo
 end
 
+-- Move o ovo junto com os enfeites. Fora do workspace a solda ainda não
+-- arrasta as peças, então movemos cada uma mantendo a posição relativa.
+function Criaturas.moverOvo(ovo: BasePart, cf: CFrame)
+	local delta = cf * ovo.CFrame:Inverse()
+	for _, p in ovo:GetDescendants() do
+		if p:IsA("BasePart") then
+			p.CFrame = delta * p.CFrame
+		end
+	end
+	ovo.CFrame = cf
+end
+
 -- Cria um ovo da raridade dada. Ovos lendários para cima são dourados.
 function Criaturas.ovo(raridade: string): BasePart
 	local info = Config.Raridades[raridade]
@@ -320,7 +332,16 @@ function Criaturas.ovo(raridade: string): BasePart
 	ovo.Name = "Ovo"
 	oval(ovo)
 	ovo.Size = Vector3.new(2.2, 2.8, 2.2) * (0.85 + info.tamanho * 0.25)
-	ovo.Color = info.cor:Lerp(Color3.new(1, 1, 1), 0.12)
+	-- o ovo comum é cinza; fica bem mais bonito como ovo de páscoa creme
+	local corFaixa = info.cor:Lerp(Color3.new(0, 0, 0), 0.3)
+	local corBolinha = info.cor:Lerp(Color3.new(1, 1, 1), 0.75)
+	if raridade == "comum" then
+		ovo.Color = Color3.fromRGB(255, 240, 215)
+		corFaixa = Color3.fromRGB(120, 205, 120)
+		corBolinha = Color3.fromRGB(255, 170, 90)
+	else
+		ovo.Color = info.cor:Lerp(Color3.new(1, 1, 1), 0.12)
+	end
 	ovo.Material = Enum.Material.SmoothPlastic
 	ovo.Reflectance = 0.08
 	ovo.CanCollide = true
@@ -332,7 +353,7 @@ function Criaturas.ovo(raridade: string): BasePart
 	local faixa = Instance.new("Part")
 	faixa.Shape = Enum.PartType.Cylinder
 	faixa.Size = Vector3.new(0.35 * s.Y / 2.8, s.X + 0.06, s.Z + 0.06)
-	faixa.Color = info.cor:Lerp(Color3.new(0, 0, 0), 0.3)
+	faixa.Color = corFaixa
 	faixa.Material = if nivelOvo >= 4 then Enum.Material.Neon else Enum.Material.SmoothPlastic
 	faixa.CanCollide = false
 	faixa.CanTouch = false
@@ -342,7 +363,6 @@ function Criaturas.ovo(raridade: string): BasePart
 	faixa.Parent = ovo
 	soldar(ovo, faixa)
 
-	local corBolinha = info.cor:Lerp(Color3.new(1, 1, 1), 0.75)
 	local a, b, c = s.X / 2, s.Y / 2, s.Z / 2
 	for i = 0, 5 do
 		local ang = i * math.pi / 3 + 0.4
