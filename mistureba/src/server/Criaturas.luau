@@ -215,7 +215,15 @@ local function enfeites(modelo: Model, corpo: BasePart, e: number, nivel: number
 		end
 	end
 	if nivel >= 5 then
-		-- auréola de bolinhas brilhando bem em cima
+		-- auréola de bolinhas brilhando acima da peça mais alta da fantasia
+		local topo = 1.6 * e
+		for _, p in modelo:GetDescendants() do
+			if p:IsA("BasePart") and p.Name ~= "Enfeite" then
+				local y = corpo.CFrame:PointToObjectSpace(p.Position).Y + math.max(p.Size.X, p.Size.Y, p.Size.Z) / 2
+				topo = math.max(topo, y)
+			end
+		end
+		local alturaAureola = topo + 0.45 * e
 		for i = 0, 11 do
 			local a = i / 12 * math.pi * 2
 			oval3(
@@ -223,7 +231,7 @@ local function enfeites(modelo: Model, corpo: BasePart, e: number, nivel: number
 				corpo,
 				Color3.fromRGB(255, 245, 170),
 				Vector3.new(0.3, 0.3, 0.3) * e,
-				Vector3.new(math.cos(a) * 0.95, 2.75, math.sin(a) * 0.95 + 0.2) * e,
+				Vector3.new(math.cos(a) * 0.95 * e, alturaAureola, (math.sin(a) * 0.95 + 0.2) * e),
 				Enum.Material.Neon
 			).Name =
 				"Enfeite"
@@ -404,7 +412,14 @@ function Criaturas.modelo(id: string): Model
 		brilhinhos.Parent = corpo
 	end
 
-	local alturaPlaca = corpo.Size.Y / 2 + 3.2 * escala
+	-- a placa fica acima da peça mais alta (fantasia, coroa ou auréola)
+	local topoModelo = 0
+	for _, p in modelo:GetDescendants() do
+		if p:IsA("BasePart") then
+			topoModelo = math.max(topoModelo, corpo.CFrame:PointToObjectSpace(p.Position).Y + p.Size.Y / 2)
+		end
+	end
+	local alturaPlaca = math.max(corpo.Size.Y / 2 + 3.2 * escala, topoModelo + 2)
 	placa(corpo, {
 		{ texto = def.nome, cor = Color3.new(1, 1, 1), tamanho = 26 },
 		{
