@@ -29,7 +29,7 @@ local FOGO = "rbxasset://textures/particles/fire_main.dds"
 local FAISCA = "rbxasset://textures/particles/sparkles_main.dds"
 local FUMACA = "rbxasset://textures/particles/smoke_main.dds"
 local ESTRELA = FAISCA
-local CRUZ = "rbxassetid://8733488500"
+local CRUZ = FAISCA -- a cruz da biblioteca é folha de quadros (virava grade de pontinhos)
 local FEIXE = "rbxassetid://74970414136395"
 
 local OURO = c(255, 195, 50)

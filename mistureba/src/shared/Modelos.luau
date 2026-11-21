@@ -185,7 +185,7 @@ local TEX_ANEL = "rbxassetid://18391380989"
 -- (a textura de estrela da biblioteca é uma folha de quadros e aparecia como grade de pontinhos)
 local TEX_ESTRELA = "rbxasset://textures/particles/sparkles_main.dds"
 local TEX_FEIXE = "rbxassetid://74970414136395"
-local TEX_CRUZ = "rbxassetid://8733488500"
+local TEX_CRUZ = "rbxasset://textures/particles/sparkles_main.dds" -- a cruz da biblioteca virava grade de pontinhos
 local function auraRara(corpo: BasePart, aro: BasePart, nivel: number, cor: Color3, e: number)
 	if nivel < 4 then
 		return
