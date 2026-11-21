@@ -6,6 +6,7 @@ local CollectionService = game:GetService("CollectionService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage.Shared.Config)
+local Especiais = require(ReplicatedStorage.Shared.Especiais)
 local Estilo = require(ReplicatedStorage.Shared.Estilo)
 local Tracos = require(ReplicatedStorage.Shared.Tracos)
 local Util = require(ReplicatedStorage.Shared.Util)
@@ -443,6 +444,11 @@ function Criaturas.modelo(id: string): Model
 	-- cor vem da família (paleta única para o jogo todo ficar com a mesma cara)
 	local visual, familia = Estilo.de(def.base or def.id)
 	local cor = familia.cores[visual.tom] or familia.cores[1]
+	-- as mais raras têm visual só delas (Especiais.luau)
+	local especial = Especiais.de(def.base or def.id)
+	if especial then
+		cor = especial.corpo
+	end
 	local ficha: Tracos.Ficha = Tracos.Fichas[def.base or def.id] or {}
 	-- formato do corpo de cada bicho (nunca menor que o padrão: pés e braços ficam no lugar)
 	local forma = ficha.forma or Vector3.one
@@ -453,7 +459,7 @@ function Criaturas.modelo(id: string): Model
 	corpo.Size = Vector3.new(3.2, 2.9, 3) * forma * e
 	corpo.Color = cor
 	corpo.Material = Enum.Material.SmoothPlastic
-	corpo.Reflectance = familia.brilho
+	corpo.Reflectance = if especial and especial.brilho then especial.brilho else familia.brilho
 	corpo.CanCollide = false
 	corpo.CanTouch = false
 	corpo.CanQuery = true
@@ -462,9 +468,11 @@ function Criaturas.modelo(id: string): Model
 	corpo.Parent = modelo
 	modelo.PrimaryPart = corpo
 
-	local clara = familia.barriga
+	local clara = if especial then especial.barriga else familia.barriga
 	-- segunda cor: o corpo puxado para o tom de destaque da família (pés, cauda, juba...)
-	local segunda = cor:Lerp(familia.acento, 0.35):Lerp(Color3.new(0, 0, 0), 0.08)
+	local segunda = if especial
+		then cor:Lerp(Color3.new(0, 0, 0), 0.22)
+		else cor:Lerp(familia.acento, 0.35):Lerp(Color3.new(0, 0, 0), 0.08)
 	oval3(modelo, corpo, clara, Vector3.new(2.1, 1.7, 0.7) * e, Vector3.new(0, -0.45 * e, -corpo.Size.Z / 2 + 0.3 * e)).Name =
 		"Barriga"
 	local nivel = table.find(Config.OrdemRaridades, def.raridade) or 1
@@ -504,14 +512,19 @@ function Criaturas.modelo(id: string): Model
 		clara = clara,
 	}, ficha)
 	-- o acessório que lembra o objeto da mistura (Estilo.luau)
-	Estilo.acessorio({
-		modelo = modelo,
-		corpo = corpo,
-		e = e,
-		cor = cor,
-		acento = familia.acento,
-		familia = familia,
-	}, visual.acessorio, visual.corAcessorio)
+	if not (especial and especial.semAcessorio) then
+		Estilo.acessorio({
+			modelo = modelo,
+			corpo = corpo,
+			e = e,
+			cor = cor,
+			acento = familia.acento,
+			familia = familia,
+		}, visual.acessorio, visual.corAcessorio)
+	end
+	if especial then
+		especial.montar({ modelo = modelo, corpo = corpo, e = e })
+	end
 
 	-- pezinho de enfeite embaixo dos pés: disco claro com borda brilhante da cor da raridade
 	-- (fica no nível dos pés para o modelo não flutuar)
@@ -722,12 +735,21 @@ function Criaturas.modelo(id: string): Model
 	reflexo.Name = "Reflexo"
 	reflexo.Transparency = 0.55
 	reflexo.CanQuery = false
-	rosto(modelo, corpo, e, if nivel >= 2 then raridade.cor else Color3.fromRGB(150, 95, 60))
-	enfeites(modelo, corpo, e, nivel, raridade.cor)
+	rosto(
+		modelo,
+		corpo,
+		e,
+		if especial then especial.iris elseif nivel >= 2 then raridade.cor else Color3.fromRGB(150, 95, 60)
+	)
+	-- as especiais já têm asas/coroa próprias; os enfeites de raridade são para as outras
+	if not especial then
+		enfeites(modelo, corpo, e, nivel, raridade.cor)
+	end
+	local corAura = if especial then especial.aura else raridade.cor
 
 	if def.raridade ~= "comum" then
 		local brilho = Instance.new("PointLight")
-		brilho.Color = raridade.cor
+		brilho.Color = corAura
 		brilho.Range = 6 + escala * 4
 		brilho.Brightness = 1.5
 		brilho.Parent = corpo
@@ -735,14 +757,14 @@ function Criaturas.modelo(id: string): Model
 	if def.raridade == "mitico" or def.raridade == "secreto" or def.raridade == "lendario" then
 		local brilhinhos = Instance.new("ParticleEmitter")
 		brilhinhos.Texture = TEX_ESTRELA
-		brilhinhos.Color = ColorSequence.new(raridade.cor)
+		brilhinhos.Color = ColorSequence.new(corAura)
 		brilhinhos.Rate = 6
 		brilhinhos.Lifetime = NumberRange.new(1, 1.6)
 		brilhinhos.Speed = NumberRange.new(1, 2)
 		brilhinhos.Size = NumberSequence.new(0.4)
 		brilhinhos.Parent = corpo
 	end
-	auraRara(corpo, aro, nivel, raridade.cor, e)
+	auraRara(corpo, aro, nivel, corAura, e)
 
 	-- a placa fica acima da peça mais alta (fantasia, coroa ou auréola)
 	local topoModelo = 0
