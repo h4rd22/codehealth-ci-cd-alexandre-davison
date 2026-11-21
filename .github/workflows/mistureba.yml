@@ -1,0 +1,51 @@
+name: Qualidade do código do Mistureba
+
+on:
+  push:
+    paths:
+      - "mistureba/**"
+      - ".github/workflows/mistureba.yml"
+  pull_request:
+    paths:
+      - "mistureba/**"
+      - ".github/workflows/mistureba.yml"
+
+jobs:
+  verificar:
+    name: Formatação, lint e build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mistureba
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Instalar ferramentas (Rojo, Selene, StyLua)
+        # baixa direto as versões fixas (mesmas do rokit.toml) sem passar pela API do
+        # GitHub, que às vezes recusa (403) por limite de uso
+        working-directory: ${{ runner.temp }}
+        run: |
+          set -e
+          mkdir -p ferramentas
+          baixar() {
+            curl -fsSL --retry 4 --retry-delay 10 -o ferramenta.zip "$1"
+            unzip -o -q ferramenta.zip -d ferramentas
+            rm ferramenta.zip
+          }
+          baixar https://github.com/rojo-rbx/rojo/releases/download/v7.7.1/rojo-7.7.1-linux-x86_64.zip
+          baixar https://github.com/Kampfkarren/selene/releases/download/0.32.0/selene-0.32.0-linux.zip
+          baixar https://github.com/JohnnyMorganz/StyLua/releases/download/v2.6.0/stylua-linux-x86_64.zip
+          chmod +x ferramentas/*
+          echo "$PWD/ferramentas" >> "$GITHUB_PATH"
+
+      - name: Formatação (StyLua)
+        run: stylua --check src
+
+      - name: Lint (Selene)
+        run: selene src
+
+      - name: Teste de balanceamento da economia
+        run: python3 tools/balanceamento.py
+
+      - name: Montar o jogo (Rojo)
+        run: rojo build -o mistureba.rbxl
