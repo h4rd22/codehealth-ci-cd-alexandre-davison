@@ -182,7 +182,8 @@ end
 -- Secreta: + segunda onda colorida e poeira de galáxia.
 -- texturas da biblioteca do VFX Studio (anel, estrela, feixe de luz e brilho em cruz)
 local TEX_ANEL = "rbxassetid://18391380989"
-local TEX_ESTRELA = "rbxassetid://12386386944"
+-- (a textura de estrela da biblioteca é uma folha de quadros e aparecia como grade de pontinhos)
+local TEX_ESTRELA = "rbxasset://textures/particles/sparkles_main.dds"
 local TEX_FEIXE = "rbxassetid://74970414136395"
 local TEX_CRUZ = "rbxassetid://8733488500"
 local function auraRara(corpo: BasePart, aro: BasePart, nivel: number, cor: Color3, e: number)

@@ -28,7 +28,7 @@ end
 local FOGO = "rbxasset://textures/particles/fire_main.dds"
 local FAISCA = "rbxasset://textures/particles/sparkles_main.dds"
 local FUMACA = "rbxasset://textures/particles/smoke_main.dds"
-local ESTRELA = "rbxassetid://12386386944"
+local ESTRELA = FAISCA
 local CRUZ = "rbxassetid://8733488500"
 local FEIXE = "rbxassetid://74970414136395"
 
@@ -134,19 +134,19 @@ end
 
 -- Asa de morcego: três "dedos" escuros abrindo em leque com membrana brilhante entre eles.
 local function asaMorcego(ctx: Ctx, lado: number, osso: Color3, membrana: Color3)
-	local raiz = CFrame.new(Vector3.new(0.95 * lado, 0.55, 0.95) * ctx.e)
-		* CFrame.Angles(0, math.rad(-28 * lado), 0)
+	local raiz = CFrame.new(Vector3.new(1.05 * lado, 0.75, 0.8) * ctx.e)
+		* CFrame.Angles(0, math.rad(-12 * lado), 0)
 	for k = 1, 3 do
-		local l = 2.5 - 0.35 * (k - 1)
-		local abre = CFrame.Angles(0, 0, math.rad(lado * (42 - 30 * (k - 1))))
+		local l = 3.1 - 0.45 * (k - 1)
+		local abre = CFrame.Angles(0, 0, math.rad(lado * (48 - 30 * (k - 1))))
 		local base = raiz * abre
 		local centro = base * CFrame.new(lado * l / 2 * ctx.e, 0, 0)
 		local m = pecaCF(
 			ctx,
 			"bola",
 			membrana,
-			Vector3.new(l, 1.05, 0.07),
-			centro * CFrame.new(0, -0.38 * ctx.e, 0),
+			Vector3.new(l, 1.35, 0.07),
+			centro * CFrame.new(0, -0.5 * ctx.e, 0),
 			Enum.Material.Neon
 		)
 		m.Transparency = 0.25
@@ -236,18 +236,18 @@ Lista.dragalaxia = {
 			luz = 0.5,
 		})
 		-- chamas roxas subindo do chão em volta
-		local pe = ponto(ctx, Vector3.new(0, -1.5, 0))
+		local pe = ponto(ctx, Vector3.new(0, -0.9, 0.3))
 		particulas(pe, ctx.e, {
 			textura = FOGO,
-			cor0 = c(150, 60, 255),
-			cor1 = c(255, 90, 230),
-			taxa = 16,
-			vida = { 0.5, 0.9 },
-			vel = { 2, 3.5 },
-			tam0 = 1.4,
-			tam1 = 0.2,
-			transp0 = 0.35,
-			espalha = 35,
+			cor0 = c(140, 50, 255),
+			cor1 = c(255, 80, 220),
+			taxa = 20,
+			vida = { 0.6, 1 },
+			vel = { 2.5, 4 },
+			tam0 = 2.2,
+			tam1 = 0.3,
+			transp0 = 0.15,
+			espalha = 45,
 			zoffset = -1,
 		})
 		particulas(ctx.corpo, ctx.e, {
@@ -321,9 +321,9 @@ Lista.nuvemcornio = {
 				ctx,
 				"bola",
 				cor,
-				Vector3.new(0.75, 0.6, 0.6),
-				Vector3.new(0, 1.45 - (k - 1) * 0.28, 0.15 + (k - 1) * 0.3),
-				CFrame.Angles(math.rad(25 + k * 8), 0, 0)
+				Vector3.new(0.6, 0.75, 0.6),
+				Vector3.new(0, 1.5 - math.abs(k - 2.5) * 0.12, -0.55 + (k - 1) * 0.38),
+				CFrame.Angles(math.rad(-10 + k * 12), 0, 0)
 			)
 		end
 		for k, p in circulo(7, 1.55, -1.55) do
@@ -356,7 +356,9 @@ Lista.pinguivulcao = {
 		for k = 1, 8 do
 			local a = k * 2.4
 			local alt = math.sin(k * 1.7) * 0.75
-			local dir = Vector3.new(math.cos(a), alt, math.abs(math.sin(a)) + 0.2).Unit
+			-- na frente e dos lados (a barriga clara fica no meio da frente)
+			local lado = if k % 2 == 0 then 1 else -1
+			local dir = Vector3.new(lado * (0.75 + 0.25 * math.abs(math.cos(a))), alt, -0.55 + 0.5 * math.sin(a)).Unit
 			local pos = dir * metade * 0.97
 			pecaCF(
 				ctx,
@@ -598,15 +600,12 @@ Lista.baleiastelo = {
 	iris = c(90, 200, 255),
 	aura = c(80, 200, 255),
 	montar = function(ctx)
-		for k, p in circulo(10, 2.0, -1.5) do
-			local b = peca(
-				ctx,
-				"bola",
-				if k % 2 == 0 then Color3.new(1, 1, 1) else c(170, 230, 255),
-				Vector3.new(0.75, 0.45, 0.75),
-				p
-			)
-			b.Transparency = 0.1
+		-- ondinha em volta: cristas azuis com espuma branca em cima
+		for k, p in circulo(12, 2.35, -1.25) do
+			peca(ctx, "bola", c(60, 170, 255), Vector3.new(0.85, 0.75, 0.85), p, nil, Enum.Material.Neon).Transparency = 0.35
+			if k % 2 == 0 then
+				peca(ctx, "bola", Color3.new(1, 1, 1), Vector3.new(0.5, 0.3, 0.5), p + Vector3.new(0, 0.38, 0))
+			end
 		end
 		particulas(ctx.corpo, ctx.e, {
 			textura = CRUZ,
@@ -687,8 +686,8 @@ Lista.trovanguru = {
 	iris = c(255, 230, 70),
 	aura = c(120, 200, 255),
 	montar = function(ctx)
-		for k, p in circulo(4, 2.3, 0.3) do
-			local giro = CFrame.Angles(0, -k * math.pi / 2, 0)
+		for k, p in { Vector3.new(2.2, 0.4, -0.6), Vector3.new(-2.2, 0.4, -0.6), Vector3.new(1.6, 0.9, 1.4), Vector3.new(-1.6, 0.9, 1.4) } do
+			local giro = CFrame.Angles(0, k * 0.7, 0)
 			for s = 0, 2 do
 				peca(
 					ctx,
@@ -722,16 +721,16 @@ Lista.aquariorca = {
 	aura = c(90, 210, 255),
 	montar = function(ctx)
 		local cores = { c(255, 150, 60), c(255, 230, 80), c(255, 120, 180), c(120, 240, 200) }
-		for k, p in circulo(4, 2.15, 0) do
+		for k, p in circulo(4, 2.75, 0) do
 			local pos = p + Vector3.new(0, (k % 2) * 0.7 - 0.2, 0)
 			local virar = CFrame.Angles(0, -k * math.pi / 2, 0)
-			peca(ctx, "bola", cores[k], Vector3.new(0.3, 0.32, 0.6), pos, virar)
+			peca(ctx, "bola", cores[k], Vector3.new(0.45, 0.5, 0.85), pos, virar)
 			pecaCF(
 				ctx,
 				"bola",
 				cores[k]:Lerp(Color3.new(1, 1, 1), 0.3),
-				Vector3.new(0.08, 0.3, 0.25),
-				CFrame.new(pos * ctx.e) * virar * CFrame.new(0, 0, 0.38 * ctx.e)
+				Vector3.new(0.1, 0.5, 0.35),
+				CFrame.new(pos * ctx.e) * virar * CFrame.new(0, 0, 0.55 * ctx.e)
 			)
 		end
 		particulas(ctx.corpo, ctx.e, {
