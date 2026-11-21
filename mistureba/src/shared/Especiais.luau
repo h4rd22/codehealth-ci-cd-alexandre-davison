@@ -149,15 +149,22 @@ local function asaMorcego(ctx: Ctx, lado: number, osso: Color3, membrana: Color3
 			centro * CFrame.new(0, -0.5 * ctx.e, 0),
 			Enum.Material.Neon
 		)
-		m.Transparency = 0.25
-		pecaCF(ctx, "cilindro", osso, Vector3.new(l, 0.16, 0.16), centro * CFrame.new(0, 0.12 * ctx.e, 0))
+		m.Transparency = 0.15
+		-- osso um pouco mais curto que a membrana (não fica parecendo vareta de guarda-chuva)
+		pecaCF(
+			ctx,
+			"cilindro",
+			osso,
+			Vector3.new(l * 0.85, 0.15, 0.15),
+			centro * CFrame.new(-lado * l * 0.07 * ctx.e, 0.1 * ctx.e, 0)
+		)
 		-- garrinha na ponta do dedo
 		pecaCF(
 			ctx,
 			"bola",
 			osso:Lerp(Color3.new(1, 1, 1), 0.5),
 			Vector3.new(0.28, 0.28, 0.28),
-			base * CFrame.new(lado * l * ctx.e, 0.12 * ctx.e, 0)
+			base * CFrame.new(lado * l * 0.92 * ctx.e, 0.1 * ctx.e, 0)
 		)
 	end
 end
@@ -209,7 +216,7 @@ Lista.dragalaxia = {
 	semAcessorio = true,
 	montar = function(ctx)
 		for _, lado in { -1, 1 } do
-			asaMorcego(ctx, lado, c(55, 30, 100), c(170, 90, 255))
+			asaMorcego(ctx, lado, c(55, 30, 100), c(125, 60, 235))
 		end
 		-- escamas claras na barriga
 		for k = 0, 2 do
@@ -236,20 +243,21 @@ Lista.dragalaxia = {
 			luz = 0.5,
 		})
 		-- chamas roxas subindo do chão em volta
-		local pe = ponto(ctx, Vector3.new(0, -0.9, 0.3))
-		particulas(pe, ctx.e, {
-			textura = FOGO,
-			cor0 = c(140, 50, 255),
-			cor1 = c(255, 80, 220),
-			taxa = 20,
-			vida = { 0.6, 1 },
-			vel = { 2.5, 4 },
-			tam0 = 2.2,
-			tam1 = 0.3,
-			transp0 = 0.15,
-			espalha = 45,
-			zoffset = -1,
-		})
+		-- três focos de chama em volta dos pés (um só ficava escondido atrás do corpo)
+		for _, p in circulo(3, 1.7, -1.3) do
+			particulas(ponto(ctx, p), ctx.e, {
+				textura = FOGO,
+				cor0 = c(140, 50, 255),
+				cor1 = c(255, 80, 220),
+				taxa = 7,
+				vida = { 0.5, 0.9 },
+				vel = { 2, 3.5 },
+				tam0 = 1.6,
+				tam1 = 0.2,
+				transp0 = 0.15,
+				espalha = 15,
+			})
+		end
 		particulas(ctx.corpo, ctx.e, {
 			textura = ESTRELA,
 			cor0 = c(220, 170, 255),
