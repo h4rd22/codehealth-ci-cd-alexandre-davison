@@ -1338,6 +1338,10 @@ Config.Gamepasses = {
 }
 
 Config.VipMultiplicador = 2
+
+-- Bônus de amigos: cada amigo no mesmo servidor dá +10% de moedas (até 5 amigos)
+Config.AmigoBonus = 0.1
+Config.AmigoMaximo = 5
 Config.CadeadoReforcadoSegundos = 90
 Config.BaseGrandeVagas = 4
 Config.SorteDuplaMutacao = 2

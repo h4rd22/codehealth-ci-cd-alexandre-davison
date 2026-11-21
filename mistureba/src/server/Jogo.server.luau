@@ -161,8 +161,21 @@ local function contarDescobertas(perfil: Dados.Perfil): number
 end
 
 -- Tudo que multiplica a renda: VIP, renascimentos, Misturedex e a melhoria Renda Turbo
+-- amizades entre jogadores do servidor (para o bônus de amigos)
+local amizades: { [Player]: { [Player]: boolean } } = {}
+local function amigosNoServidor(jogador: Player): number
+	local n = 0
+	for outro in amizades[jogador] or {} do
+		if outro.Parent == Players then
+			n += 1
+		end
+	end
+	return math.min(n, Config.AmigoMaximo)
+end
+
 local function multiplicadorRenda(jogador: Player, perfil: Dados.Perfil): number
 	local m = 1
+	m *= 1 + amigosNoServidor(jogador) * Config.AmigoBonus
 	if Loja.tem(jogador, "vip") then
 		m *= Config.VipMultiplicador
 	end
@@ -1101,8 +1114,49 @@ local function sair(jogador: Player)
 	Dados.sair(jogador)
 end
 
+-- Bônus de amigos: quem entra descobre quais amigos já estão aqui
+local function olharAmigos(novo: Player)
+	amizades[novo] = amizades[novo] or {}
+	for _, outro in Players:GetPlayers() do
+		if outro ~= novo then
+			local ok, amigo = pcall(novo.IsFriendsWith, novo, outro.UserId)
+			if ok and amigo and novo.Parent == Players and outro.Parent == Players then
+				amizades[novo][outro] = true
+				amizades[outro] = amizades[outro] or {}
+				amizades[outro][novo] = true
+				local cor = Color3.fromRGB(120, 220, 255)
+				local bonus = math.floor(Config.AmigoBonus * 100)
+				aviso(novo, outro.DisplayName .. " é seu amigo e está aqui: +" .. bonus .. "% de moedas!", cor)
+				aviso(outro, novo.DisplayName .. " (seu amigo) entrou: +" .. bonus .. "% de moedas!", cor)
+				for _, p in { novo, outro } do
+					local e = estados[p]
+					if e then
+						e.sujo = true
+					end
+				end
+			end
+		end
+	end
+end
+
 Players.PlayerAdded:Connect(entrar)
+Players.PlayerAdded:Connect(function(novo)
+	task.spawn(olharAmigos, novo)
+end)
 Players.PlayerRemoving:Connect(sair)
+Players.PlayerRemoving:Connect(function(saindo)
+	for outro in amizades[saindo] or {} do
+		local lista = amizades[outro]
+		if lista then
+			lista[saindo] = nil
+			local e = estados[outro]
+			if e then
+				e.sujo = true
+			end
+		end
+	end
+	amizades[saindo] = nil
+end)
 for _, jogador in Players:GetPlayers() do
 	task.spawn(entrar, jogador)
 end
@@ -1798,6 +1852,8 @@ local function montarEstado(jogador: Player, estado: Estado, perfil: Dados.Perfi
 		premioMissao = premioMissao(jogador, perfil),
 		bonusDex = Util.bonusDex(contarDescobertas(perfil)),
 		baseIndice = estado.base.indice,
+		fusoes = perfil.estatisticas.fusoes,
+		amigos = amigosNoServidor(jogador),
 	}
 end
 
