@@ -42,7 +42,14 @@ local function soldar(a: BasePart, b: BasePart)
 end
 
 -- Peça presa no corpo. cf é a posição em studs relativa ao corpo (já com escala).
-local function pecaCF(ctx: Ctx, forma: string, cor: Color3, tam: Vector3, cf: CFrame, material: Enum.Material?): BasePart
+local function pecaCF(
+	ctx: Ctx,
+	forma: string,
+	cor: Color3,
+	tam: Vector3,
+	cf: CFrame,
+	material: Enum.Material?
+): BasePart
 	local p = Instance.new("Part")
 	if forma == "cilindro" then
 		p.Shape = Enum.PartType.Cylinder
@@ -134,8 +141,7 @@ end
 
 -- Asa de morcego: três "dedos" escuros abrindo em leque com membrana brilhante entre eles.
 local function asaMorcego(ctx: Ctx, lado: number, osso: Color3, membrana: Color3)
-	local raiz = CFrame.new(Vector3.new(1.05 * lado, 0.75, 0.8) * ctx.e)
-		* CFrame.Angles(0, math.rad(-12 * lado), 0)
+	local raiz = CFrame.new(Vector3.new(1.05 * lado, 0.75, 0.8) * ctx.e) * CFrame.Angles(0, math.rad(-12 * lado), 0)
 	for k = 1, 3 do
 		local l = 3.1 - 0.45 * (k - 1)
 		local abre = CFrame.Angles(0, 0, math.rad(lado * (48 - 30 * (k - 1))))
@@ -198,7 +204,8 @@ local function circulo(n: number, raio: number, altura: number): { Vector3 }
 	return lista
 end
 
-local ARCOIRIS = { c(255, 110, 120), c(255, 175, 80), c(255, 235, 100), c(120, 230, 140), c(100, 190, 255), c(190, 130, 255) }
+local ARCOIRIS =
+	{ c(255, 110, 120), c(255, 175, 80), c(255, 235, 100), c(120, 230, 140), c(100, 190, 255), c(190, 130, 255) }
 
 local Lista: { [string]: Especial } = {}
 
@@ -433,7 +440,15 @@ Lista.reimistureba = {
 				Enum.Material.Neon
 			)
 		end
-		peca(ctx, "bola", c(255, 50, 80), Vector3.new(0.35, 0.35, 0.2), Vector3.new(0, y + 0.08, -0.78), nil, Enum.Material.Neon)
+		peca(
+			ctx,
+			"bola",
+			c(255, 50, 80),
+			Vector3.new(0.35, 0.35, 0.2),
+			Vector3.new(0, y + 0.08, -0.78),
+			nil,
+			Enum.Material.Neon
+		)
 		-- cetro na mão
 		peca(
 			ctx,
@@ -443,7 +458,15 @@ Lista.reimistureba = {
 			Vector3.new(1.85, 0.1, -0.6),
 			CFrame.Angles(0, 0, math.rad(80))
 		)
-		peca(ctx, "bola", c(255, 60, 90), Vector3.new(0.5, 0.5, 0.5), Vector3.new(2.05, 1.3, -0.6), nil, Enum.Material.Neon)
+		peca(
+			ctx,
+			"bola",
+			c(255, 60, 90),
+			Vector3.new(0.5, 0.5, 0.5),
+			Vector3.new(2.05, 1.3, -0.6),
+			nil,
+			Enum.Material.Neon
+		)
 		particulas(ctx.corpo, ctx.e, {
 			textura = FEIXE,
 			cor0 = c(255, 220, 120),
@@ -522,7 +545,8 @@ Lista.misturebasuprema = {
 		for anel = 0, 1 do
 			for _, p in circulo(12, 0.95 - anel * 0.25, y + 0.55 + anel * 0.35) do
 				n += 1
-				local b = peca(ctx, "bola", Color3.new(1, 1, 1), Vector3.new(0.26, 0.2, 0.26), p, nil, Enum.Material.Neon)
+				local b =
+					peca(ctx, "bola", Color3.new(1, 1, 1), Vector3.new(0.26, 0.2, 0.26), p, nil, Enum.Material.Neon)
 				b:SetAttribute("Matiz", (n / 12) % 1)
 			end
 		end
@@ -610,7 +634,8 @@ Lista.baleiastelo = {
 	montar = function(ctx)
 		-- ondinha em volta: cristas azuis com espuma branca em cima
 		for k, p in circulo(12, 2.35, -1.25) do
-			peca(ctx, "bola", c(60, 170, 255), Vector3.new(0.85, 0.75, 0.85), p, nil, Enum.Material.Neon).Transparency = 0.35
+			peca(ctx, "bola", c(60, 170, 255), Vector3.new(0.85, 0.75, 0.85), p, nil, Enum.Material.Neon).Transparency =
+				0.35
 			if k % 2 == 0 then
 				peca(ctx, "bola", Color3.new(1, 1, 1), Vector3.new(0.5, 0.3, 0.5), p + Vector3.new(0, 0.38, 0))
 			end
@@ -638,7 +663,13 @@ Lista.girafatrem = {
 		for _, lado in { -1, 1 } do
 			for _, z in { -0.55, 0.55 } do
 				peca(ctx, "cilindro", c(45, 45, 55), Vector3.new(0.25, 1, 1), Vector3.new((x - 0.05) * lado, -1.1, z))
-				peca(ctx, "cilindro", c(230, 60, 60), Vector3.new(0.3, 0.45, 0.45), Vector3.new((x + 0.0) * lado, -1.1, z))
+				peca(
+					ctx,
+					"cilindro",
+					c(230, 60, 60),
+					Vector3.new(0.3, 0.45, 0.45),
+					Vector3.new((x + 0.0) * lado, -1.1, z)
+				)
 			end
 			peca(
 				ctx,
@@ -672,7 +703,15 @@ Lista.castelobo = {
 		peca(ctx, "cilindro", c(60, 90, 200), Vector3.new(0.2, 1.1, 1.1), Vector3.new(-(x + 0.33), -0.3, -0.35))
 		peca(ctx, "bola", OURO, Vector3.new(0.25, 0.4, 0.4), Vector3.new(-(x + 0.42), -0.3, -0.35))
 		-- espada em pé na outra mão
-		peca(ctx, "bloco", c(230, 235, 245), Vector3.new(0.12, 1.9, 0.32), Vector3.new(x + 0.3, 0.55, -0.55), nil, Enum.Material.Metal)
+		peca(
+			ctx,
+			"bloco",
+			c(230, 235, 245),
+			Vector3.new(0.12, 1.9, 0.32),
+			Vector3.new(x + 0.3, 0.55, -0.55),
+			nil,
+			Enum.Material.Metal
+		)
 		peca(ctx, "bloco", OURO, Vector3.new(0.18, 0.16, 0.8), Vector3.new(x + 0.3, -0.42, -0.55))
 		peca(ctx, "bloco", c(110, 70, 50), Vector3.new(0.16, 0.45, 0.16), Vector3.new(x + 0.3, -0.72, -0.55))
 		particulas(ctx.corpo, ctx.e, {
@@ -694,7 +733,14 @@ Lista.trovanguru = {
 	iris = c(255, 230, 70),
 	aura = c(120, 200, 255),
 	montar = function(ctx)
-		for k, p in { Vector3.new(2.2, 0.4, -0.6), Vector3.new(-2.2, 0.4, -0.6), Vector3.new(1.6, 0.9, 1.4), Vector3.new(-1.6, 0.9, 1.4) } do
+		for k, p in
+			{
+				Vector3.new(2.2, 0.4, -0.6),
+				Vector3.new(-2.2, 0.4, -0.6),
+				Vector3.new(1.6, 0.9, 1.4),
+				Vector3.new(-1.6, 0.9, 1.4),
+			}
+		do
 			local giro = CFrame.Angles(0, k * 0.7, 0)
 			for s = 0, 2 do
 				peca(
